@@ -5,146 +5,145 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"log"
 	"math/big"
 	"os"
+	"path"
 
-	"golang_cli/crypto"
+	"golang_cli/crypto" // Import your crypto package
 )
 
 func main() {
-	// Define command-line flags
 	helpFlag := flag.Bool("help", false, "Show help message")
 	encryptFlag := flag.Bool("encrypt", false, "Encrypt data. Provide a filename as an additional argument.")
-	decryptFlag := flag.Bool("decrypt", false, "Decrypt data. Provide a filename as an additional argument.")
+	decryptFlag := flag.Bool("decrypt", false, "Decrypt data. Provide a filename and two encrypted hex strings as additional arguments.")
 	generateKeyFlag := flag.String("generate-key", "", "Generate key and save to specified file")
 
-	// Parse command-line flags
 	flag.Parse()
 
-	// Check if help flag is provided
 	if *helpFlag {
 		showHelp()
 		return
 	}
 
 	if *encryptFlag {
-		// Check if a filename is provided for encryption
-		if flag.NArg() < 1 {
-			fmt.Println("Error: Missing filename for encryption.")
-			showHelp()
-			return
-		}
-
-		fileName := flag.Arg(0)
-
-		key, err := crypto.LoadAESKey(fileName)
-		if err != nil {
-			fmt.Println("Error loading key:", err)
-			return
-		}
-
-		numberToEncrypt := flag.Arg(1)
-
-		// convert the data to bigInteger
-		data, err := stringToBlock(numberToEncrypt)
-		if err != nil {
-			fmt.Println("Error converting data to bigInteger:", err)
-			return
-		}
-
-		// Encrypt the data
-		encryptedData, r, err := crypto.Encrypt(key, data)
-		if err != nil {
-			fmt.Println("Error encrypting data:", err)
-			return
-		}
-
-		// Implement your encryption logic here using data
-
-		fmt.Println("Encrypting data for key file ", fileName)
-
-		hexEncryptedData := hex.EncodeToString(encryptedData)
-		hexR := hex.EncodeToString(r)
-		fmt.Println("Encryption: ", hexEncryptedData)
-		fmt.Println("Random: ", hexR)
-
+		handleEncryption()
 		return
 	}
 
 	if *decryptFlag {
-		// Check if a filename is provided for encryption
-		if flag.NArg() < 1 {
-			fmt.Println("Error: Missing filename for encryption.")
-			showHelp()
-			return
-		}
-
-		fileName := flag.Arg(0)
-
-		key, err := crypto.LoadAESKey(fileName)
-		if err != nil {
-			fmt.Println("Error loading key:", err)
-			return
-		}
-
-		hexEnc := flag.Arg(1)
-		hexR := flag.Arg(2)
-
-		// Decode the hex string to binary
-		// Ensure the key is the correct length (16 bytes for AES-128)
-		enc, err := hexToBlockSize(hexEnc)
-		if err != nil {
-			fmt.Println("Error decoding hex of enc:", err)
-			return
-		}
-		r, err := hexToBlockSize(hexR)
-		if err != nil {
-			fmt.Println("Error decoding hex of random:", err)
-			return
-		}
-
-		plaintext, err := crypto.Decrypt(key, r, enc)
-		if err != nil {
-			fmt.Println("Error decrypting data:", err)
-			return
-		}
-
-		// Implement your encryption logic here using data
-
-		fmt.Println("Decrypting data for key file ", fileName)
-
-		var result big.Int
-
-		fmt.Println("Decryption: ", result.SetBytes(plaintext))
-
+		handleDecryption()
 		return
 	}
 
-	// Check if generate-key flag is provided with a filename
 	if *generateKeyFlag != "" {
-		fileName := *generateKeyFlag
-
-		home, err := os.UserHomeDir()
-		if err != nil {
-			fmt.Println("no home directory", err)
-		}
-
-		filePath := home + "/Tools/golang_cli/"
-
-		// Call the generateAndWriteAESKey function from the crypto package
-		key, err := crypto.GenerateAndWriteAESKey(filePath + fileName)
-		if err != nil {
-			fmt.Println("Error generating key:", err)
-			return
-		}
-
-		fmt.Printf("Generated key and saved to file %s\n", *generateKeyFlag)
-		fmt.Printf("Key: %x\n", key)
+		handleGenerateKey(generateKeyFlag)
 		return
 	}
 
-	// If no valid flags are provided, show help
 	showHelp()
+}
+
+func handleEncryption() {
+	if flag.NArg() < 1 {
+		log.Println("Error: Missing filename for encryption.")
+		showHelp()
+		return
+	}
+
+	fileName := flag.Arg(0)
+	key, err := crypto.LoadAESKey(fileName)
+	if err != nil {
+		log.Printf("Error loading key: %v", err)
+		return
+	}
+
+	numberToEncrypt := flag.Arg(1)
+	data, err := stringToBlock(numberToEncrypt)
+	if err != nil {
+		log.Printf("Error converting data to bigInteger: %v", err)
+		return
+	}
+
+	encryptedData, r, err := crypto.Encrypt(key, data)
+	if err != nil {
+		log.Printf("Error encrypting data: %v", err)
+		return
+	}
+
+	log.Printf("Encrypting data for key file %s", fileName)
+
+	hexEncryptedData := hex.EncodeToString(encryptedData)
+	hexR := hex.EncodeToString(r)
+	log.Printf("Encryption: %s", hexEncryptedData)
+	log.Printf("Random: %s", hexR)
+}
+
+func handleDecryption() {
+	if flag.NArg() < 3 {
+		log.Println("Error: Missing filename or encrypted hex string.")
+		showHelp()
+		return
+	}
+
+	fileName := flag.Arg(0)
+	key, err := crypto.LoadAESKey(fileName)
+	if err != nil {
+		log.Printf("Error loading key: %v", err)
+		return
+	}
+
+	hexEnc := flag.Arg(1)
+	hexR := flag.Arg(2)
+
+	enc, err := hexToBlockSize(hexEnc)
+	if err != nil {
+		log.Printf("Error decoding hex of enc: %v", err)
+		return
+	}
+
+	r, err := hexToBlockSize(hexR)
+	if err != nil {
+		log.Printf("Error decoding hex of random: %v", err)
+		return
+	}
+
+	plaintext, err := crypto.Decrypt(key, r, enc)
+	if err != nil {
+		log.Printf("Error decrypting data: %v", err)
+		return
+	}
+
+	log.Printf("Decrypting data for key file %s", fileName)
+
+	var result big.Int
+	log.Printf("Decryption: %s", result.SetBytes(plaintext))
+}
+
+func handleGenerateKey(generateKeyFlag *string) {
+	fileName := *generateKeyFlag
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Printf("Error getting home directory: %v", err)
+		return
+	}
+
+	filePath := path.Join(home, "Tools", "golang_cli", fileName)
+
+	if _, err := os.Stat(filePath); !os.IsNotExist(err) {
+		log.Printf("Error: File %s already exists. Refusing to overwrite.", filePath)
+		return
+	}
+
+	key, err := crypto.GenerateAndWriteAESKey(filePath)
+	if err != nil {
+		log.Printf("Error generating key: %v", err)
+		return
+	}
+
+	log.Printf("Generated key and saved to file %s", *generateKeyFlag)
+	log.Printf("Key: %x", key)
 }
 
 func hexToBlockSize(hexStr string) ([]byte, error) {
