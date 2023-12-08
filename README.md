@@ -14,11 +14,11 @@ cli-tool [OPTIONS]
 
 - `--help`: Show help message
 
-- `--encrypt`: Encrypt data. Provide a filename as an additional argument.
+- `--encrypt`: Encrypt data.Provide a filename and plaintext as an additional argument.
 
 - `--decrypt`: Decrypt data. Provide a filename and two encrypted hex strings as additional arguments.
 
-- `--generate-key FILE`: Generate key and save to the specified file.
+- `--generate-key`: Generate key and save to specified file. Provide a filename.
 
 ## Examples:
 

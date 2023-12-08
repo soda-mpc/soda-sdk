@@ -23,7 +23,7 @@ func Encrypt(key, plaintext []byte) ([]byte, []byte, error) {
 	// Use crypto/rand for cryptographically secure random number generation
 	_, err = rand.Read(r)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate random value 'r': %v", err)
+		return nil, nil, fmt.Errorf("Failed to generate random value 'r': %v", err)
 	}
 
 	// Create a temporary buffer to hold the encrypted random value 'r'
@@ -47,17 +47,17 @@ func Decrypt(key, r, ct []byte) ([]byte, error) {
 	// Create a new AES cipher block using the provided key
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create AES cipher block: %v", err)
+		return nil, fmt.Errorf("Failed to create AES cipher block: %v", err)
 	}
 
 	// Check that the random value 'r' is exactly the block size
 	if len(r) != aes.BlockSize {
-		return nil, fmt.Errorf("random value 'r' must be exactly %d bytes", aes.BlockSize)
+		return nil, fmt.Errorf("Random value 'r' must be exactly %d bytes", aes.BlockSize)
 	}
 
 	// Check that the ciphertext 'ct' is a multiple of the block size
 	if len(ct)%aes.BlockSize != 0 {
-		return nil, fmt.Errorf("ciphertext 'ct' must be a multiple of the block size")
+		return nil, fmt.Errorf("Ciphertext 'ct' must be a multiple of the block size")
 	}
 
 	// Create a temporary buffer to hold the encrypted random value 'r'
@@ -80,18 +80,18 @@ func LoadAESKey(filePath string) ([]byte, error) {
 	// Read the hex-encoded contents of the file
 	hexKey, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read key file: %v", err)
+		return nil, fmt.Errorf("Failed to read key file: %v", err)
 	}
 
 	// Decode the hex string to binary
 	key, err := hex.DecodeString(string(hexKey))
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode hex key: %v", err)
+		return nil, fmt.Errorf("Failed to decode hex key: %v", err)
 	}
 
 	// Ensure the key is the correct length
 	if len(key) != aes.BlockSize {
-		return nil, fmt.Errorf("invalid key length: %d bytes, must be %d bytes", len(key), aes.BlockSize)
+		return nil, fmt.Errorf("Invalid key length: %d bytes, must be %d bytes", len(key), aes.BlockSize)
 	}
 
 	return key, nil
@@ -101,7 +101,7 @@ func LoadAESKey(filePath string) ([]byte, error) {
 func WriteAESKey(filePath string, key []byte) error {
 	// Ensure the key is the correct length
 	if len(key) != aes.BlockSize {
-		return fmt.Errorf("invalid key length: %d bytes, must be %d bytes", len(key), aes.BlockSize)
+		return fmt.Errorf("Invalid key length: %d bytes, must be %d bytes", len(key), aes.BlockSize)
 	}
 
 	// Encode the key to hex string
@@ -109,7 +109,7 @@ func WriteAESKey(filePath string, key []byte) error {
 
 	// Write the hex-encoded key to the file
 	if err := os.WriteFile(filePath, []byte(hexKey), 0644); err != nil {
-		return fmt.Errorf("failed to write key to file: %v", err)
+		return fmt.Errorf("Failed to write key to file: %v", err)
 	}
 
 	return nil
@@ -121,12 +121,12 @@ func GenerateAndWriteAESKey(fileName string) ([]byte, error) {
 	// Generate a random 128-bit AES key
 	key := make([]byte, aes.BlockSize)
 	if _, err := rand.Read(key); err != nil {
-		return nil, fmt.Errorf("failed to generate AES key: %v", err)
+		return nil, fmt.Errorf("Failed to generate AES key: %v", err)
 	}
 
 	// Write the key to the file
 	if err := WriteAESKey(fileName, key); err != nil {
-		return nil, fmt.Errorf("failed to write key to file: %v", err)
+		return nil, fmt.Errorf("Failed to write key to file: %v", err)
 	}
 
 	return key, nil

@@ -15,9 +15,9 @@ import (
 
 func main() {
 	helpFlag := flag.Bool("help", false, "Show help message")
-	encryptFlag := flag.Bool("encrypt", false, "Encrypt data. Provide a filename as an additional argument.")
+	encryptFlag := flag.Bool("encrypt", false, "Encrypt data. Provide a filename and plaintextas an additional argument.")
 	decryptFlag := flag.Bool("decrypt", false, "Decrypt data. Provide a filename and two encrypted hex strings as additional arguments.")
-	generateKeyFlag := flag.String("generate-key", "", "Generate key and save to specified file")
+	generateKeyFlag := flag.Bool("generate-key", false, "Generate key and save to specified file. Provide a filename.")
 
 	flag.Parse()
 
@@ -36,8 +36,8 @@ func main() {
 		return
 	}
 
-	if *generateKeyFlag != "" {
-		handleGenerateKey(generateKeyFlag)
+	if *generateKeyFlag {
+		handleGenerateKey()
 		return
 	}
 
@@ -46,7 +46,7 @@ func main() {
 
 func handleEncryption() {
 	if flag.NArg() < 1 {
-		log.Println("Error: Missing filename for encryption.")
+		log.Println("Error: Missing filename or plaintextfor encryption.")
 		showHelp()
 		return
 	}
@@ -120,8 +120,14 @@ func handleDecryption() {
 	log.Printf("Decryption: %s", result.SetBytes(plaintext))
 }
 
-func handleGenerateKey(generateKeyFlag *string) {
-	fileName := *generateKeyFlag
+func handleGenerateKey() {
+	if flag.NArg() < 1 {
+		log.Println("Error: Missing filename.")
+		showHelp()
+		return
+	}
+
+	fileName := flag.Arg(0)
 
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -142,18 +148,18 @@ func handleGenerateKey(generateKeyFlag *string) {
 		return
 	}
 
-	log.Printf("Generated key and saved to file %s", *generateKeyFlag)
+	log.Printf("Generated key and saved to file %s", fileName)
 	log.Printf("Key: %x", key)
 }
 
 func hexToBlockSize(hexStr string) ([]byte, error) {
 	bytes, err := hex.DecodeString(hexStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode hex: %v", err)
+		return nil, fmt.Errorf("Failed to decode hex: %v", err)
 	}
 
 	if len(bytes) != 16 {
-		return nil, fmt.Errorf("invalid key length: %d bytes, must be 16 bytes", len(bytes))
+		return nil, fmt.Errorf("Invalid key length: %d bytes, must be 16 bytes", len(bytes))
 	}
 	return bytes, nil
 }
@@ -161,8 +167,11 @@ func hexToBlockSize(hexStr string) ([]byte, error) {
 func showHelp() {
 	fmt.Println("Usage: cli-tool [OPTIONS]")
 	fmt.Println("Options:")
-	fmt.Println("  --help               Show help message")
-	fmt.Println("  --encrypt            Encrypt data")
+	fmt.Println("  --help               	        Show help message")
+	fmt.Println("  --encrypt FILE NUMBER            Encrypt data")
+	fmt.Println("    Provide a FILE and a NUMBER to encrypt as additional arguments.")
+	fmt.Println("  --decrypt FILE ENCRYPTED RANDOM  Decrypt data")
+	fmt.Println("    Provide a FILE, an ENCRYPTED hex string, and a hex string for the RANDOM value as additional arguments.")
 	fmt.Println("  --generate-key FILE  Generate key and save to specified file")
 	os.Exit(1)
 }

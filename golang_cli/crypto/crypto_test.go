@@ -40,9 +40,7 @@ func TestEncryptDecrypt(t *testing.T) {
 func TestLoadWriteAESKey(t *testing.T) {
 	// Create a temporary file for testing
 	tempFile := "temp_key_file.txt"
-	defer func() {
-		_ = os.Remove(tempFile)
-	}()
+	defer os.Remove(tempFile)
 
 	key := make([]byte, aes.BlockSize)
 	_, err := rand.Read(key)
@@ -63,10 +61,7 @@ func TestLoadWriteAESKey(t *testing.T) {
 func TestGenerateAndWriteAESKey(t *testing.T) {
 	// Create a temporary file for testing
 	tempFile := "temp_key_file.txt"
-	defer func() {
-		_ = os.Remove(tempFile)
-	}()
-
+	defer os.Remove(tempFile)
 	// Test GenerateAndWriteAESKey
 	key, err := GenerateAndWriteAESKey(tempFile)
 	require.NoError(t, err, "GenerateAndWriteAESKey should not return an error")
