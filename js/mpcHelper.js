@@ -3,7 +3,7 @@ const fs = require('fs');
 
 function encrypt(key, plaintext) {
     const block_size = 16; // AES block size in bytes
-    console.log("plaintext Size:", plaintext.length);
+    
     // Ensure plaintext is smaller than 128 bits (16 bytes)
     if (plaintext.length > block_size) {
         throw new Error("Plaintext size must be 128 bits or smaller.");
@@ -17,13 +17,13 @@ function encrypt(key, plaintext) {
 
     // Encrypt the random value 'r' using AES in ECB mode
     const encryptedR = cipher.update(r);
-
+    
     // Pad the plaintext with zeros if it's smaller than the block size
     const plaintext_padded = Buffer.concat([plaintext, Buffer.alloc(block_size - plaintext.length)]);
 
     // XOR the encrypted random value 'r' with the plaintext to obtain the ciphertext
     const ciphertext = Buffer.from(encryptedR.map((byte, index) => byte ^ plaintext_padded[index]));
-    console.log("Ciphertext Size:", ciphertext.length);
+    
     return { ciphertext, r };
 }
 
