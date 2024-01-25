@@ -8,7 +8,7 @@ from mpcHelper import load_aes_key
 
 
 def main():
-    # Load or generate a key (replace this with your actual key-loading logic)
+    # Generate a key 
     key = generate_and_write_aes_key("key.txt")
     print("key:", binascii.hexlify(key).decode())
 
