@@ -35,10 +35,10 @@ function decrypt(key, r, ciphertext) {
     }
 
     // Create a new AES decipher using the provided key
-    const decipher = crypto.createCipheriv('aes-128-ecb', key, null);
+    const cipher = crypto.createCipheriv('aes-128-ecb', key, null);
 
     // Encrypt the random value 'r' using AES in ECB mode
-    const encryptedR = decipher.update(r);
+    const encryptedR = cipher.update(r);
 
     // XOR the encrypted random value 'r' with the ciphertext to obtain the plaintext
     const plaintext = Buffer.from(encryptedR.map((byte, index) => byte ^ ciphertext[index]));
