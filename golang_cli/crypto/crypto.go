@@ -8,6 +8,17 @@ import (
 	"os"
 )
 
+// PadWithZeros pads the input with zeros to make its length a multiple of blockSize.
+func PadWithZeros(input []byte, blockSize int) []byte {
+	if len(input)%blockSize == 0 {
+		return input
+	}
+	padding := blockSize - (len(input) % blockSize)
+	fmt.Println(padding)
+	padText := make([]byte, padding)
+	return append(padText, input...)
+}
+
 // Encrypt generates a random value 'r' and computes AES(k, r) XOR plaintext.
 // The function returns the resulting ciphertext and the generated random value 'r'.
 func Encrypt(key, plaintext []byte) ([]byte, []byte, error) {
@@ -31,6 +42,9 @@ func Encrypt(key, plaintext []byte) ([]byte, []byte, error) {
 
 	// Encrypt the random value 'r' using AES in ECB mode
 	block.Encrypt(encryptedR, r)
+
+	// Pad plaintext with zeros if it's not a multiple of the block size
+	plaintext = PadWithZeros(plaintext, aes.BlockSize)
 
 	// XOR the encrypted random value 'r' with the plaintext to obtain the ciphertext
 	ciphertext := make([]byte, len(plaintext))

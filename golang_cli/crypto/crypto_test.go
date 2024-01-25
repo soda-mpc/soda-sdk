@@ -37,6 +37,32 @@ func TestEncryptDecrypt(t *testing.T) {
 	assert.Equal(t, plaintextBytes, decrypted, "Decrypted message should match the original plaintext")
 }
 
+func TestEncryptDecryptWithPadding(t *testing.T) {
+	key := make([]byte, aes.BlockSize)
+	_, err := rand.Read(key)
+	if err != nil {
+		t.Fatalf("Failed to generate random key: %v", err)
+	}
+
+	// Create plaintext with the value 100 as a big integer
+	plaintextValue := big.NewInt(100)
+	plaintextBytes := plaintextValue.Bytes()
+
+	ciphertext, r, err := Encrypt(key, plaintextBytes)
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+
+	decrypted, err := Decrypt(key, r, ciphertext)
+	if err != nil {
+		t.Fatalf("Decrypt failed: %v", err)
+	}
+
+	decryptedValue := new(big.Int).SetBytes(decrypted)
+
+	assert.Equal(t, plaintextValue, decryptedValue, "Decrypted message should match the original plaintext")
+}
+
 func TestLoadWriteAESKey(t *testing.T) {
 	// Create a temporary file for testing
 	tempFile := "temp_key_file.txt"
