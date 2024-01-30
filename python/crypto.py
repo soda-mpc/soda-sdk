@@ -10,6 +10,10 @@ def encrypt(key, plaintext):
     if len(plaintext) > block_size:
         raise ValueError("Plaintext size must be 128 bits or smaller.")
 
+    # Ensure key size is 128 bits (16 bytes)
+    if len(key) != block_size:
+        raise ValueError("Key size must be 128 bits.")
+
     # Create a new AES cipher block using the provided key
     cipher = AES.new(key, AES.MODE_ECB)
 
@@ -32,6 +36,14 @@ def decrypt(key, r, ciphertext):
 
     if len(ciphertext) != block_size:
         raise ValueError("Ciphertext size must be 128 bits.")
+    
+    # Ensure key size is 128 bits (16 bytes)
+    if len(key) != block_size:
+        raise ValueError("Key size must be 128 bits.")
+
+    # Ensure random size is 128 bits (16 bytes)
+    if len(r) != block_size:
+        raise ValueError("Random size must be 128 bits.")
 
     # Create a new AES cipher block using the provided key
     cipher = AES.new(key, AES.MODE_ECB)
