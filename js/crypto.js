@@ -10,6 +10,11 @@ function encrypt(key, plaintext) {
         throw new Error("Plaintext size must be 128 bits or smaller.");
     }
 
+    // Ensure key size is 128 bits (16 bytes)
+    if (key.length != block_size) {
+        throw new Error("Key size must be 128 bits.");
+    }
+
     // Create a new AES cipher using the provided key
     const cipher = crypto.createCipheriv('aes-128-ecb', key, null);
 
@@ -35,6 +40,16 @@ function decrypt(key, r, ciphertext) {
 
     if (ciphertext.length !== block_size) {
         throw new Error("Ciphertext size must be 128 bits.");
+    }
+
+    // Ensure key size is 128 bits (16 bytes)
+    if (key.length != block_size) {
+        throw new Error("Key size must be 128 bits.");
+    }
+
+    // Ensure random size is 128 bits (16 bytes)
+    if (r.length != block_size) {
+        throw new Error("Random size must be 128 bits.");
     }
 
     // Create a new AES decipher using the provided key
