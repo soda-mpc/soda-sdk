@@ -82,11 +82,8 @@ def write_aes_key(file_path, key):
     with open(file_path, 'w') as file:
         file.write(hex_key)
 
-def generate_and_write_aes_key(file_name):
+def generate_aes_key():
     # Generate a random 128-bit AES key
     key = get_random_bytes(AES.block_size)
-
-    # Write the key to the file
-    write_aes_key(file_name, key)
 
     return key

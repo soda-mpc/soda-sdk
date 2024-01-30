@@ -2,7 +2,7 @@ import unittest
 import tempfile
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
-from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_and_write_aes_key
+from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key
 
 class TestMpcHelper(unittest.TestCase):
     def setUp(self):
@@ -15,7 +15,7 @@ class TestMpcHelper(unittest.TestCase):
 
     def test_encrypt_decrypt(self):
         # Generate a key
-        key = generate_and_write_aes_key(self.temp_dir.name + "/key.txt")
+        key = generate_aes_key()
 
         # Provide plaintext integer
         plaintext_integer = 100
@@ -36,7 +36,8 @@ class TestMpcHelper(unittest.TestCase):
 
     def test_load_write_aes_key(self):
         # Generate a key
-        key = generate_and_write_aes_key(self.temp_dir.name + "/key.txt")
+        key = generate_aes_key()
+        write_aes_key(self.temp_dir.name + "/key.txt", key)
 
         # Load the key from the file
         loaded_key = load_aes_key(self.temp_dir.name + "/key.txt")
@@ -46,7 +47,7 @@ class TestMpcHelper(unittest.TestCase):
 
     def test_invalid_plaintext_size(self):
         # Generate a key
-        key = generate_and_write_aes_key(self.temp_dir.name + "/key.txt")
+        key = generate_aes_key()
 
         # Invalid ciphertext size (less than block_size)
         invalid_plaintext = bytes(AES.block_size + 1)
@@ -57,7 +58,7 @@ class TestMpcHelper(unittest.TestCase):
 
     def test_invalid_ciphertext_size(self):
         # Generate a key
-        key = generate_and_write_aes_key(self.temp_dir.name + "/key.txt")
+        key = generate_aes_key()
 
         # Invalid ciphertext size (less than block_size)
         invalid_ciphertext = b'\x01\x02\x03'
@@ -68,7 +69,7 @@ class TestMpcHelper(unittest.TestCase):
 
     def test_invalid_random_size(self):
         # Generate a key
-        key = generate_and_write_aes_key(self.temp_dir.name + "/key.txt")
+        key = generate_aes_key()
 
         # Invalid ciphertext size (less than block_size)
         invalid_random = b'\x01\x02\x03'

@@ -3,7 +3,7 @@ const cryptoOperations = require('./crypto');
 // Example usage:
 
 // Generate a key
-const key = cryptoOperations.generateAndWriteAesKey("key.txt");
+const key = cryptoOperations.generateAesKey();
 console.log("key:", key.toString('hex'));
 
 

@@ -95,12 +95,9 @@ function writeAesKey(filePath, key) {
     fs.writeFileSync(filePath, hexKey, 'utf8');
 }
 
-function generateAndWriteAesKey(fileName) {
+function generateAesKey() {
     // Generate a random 128-bit AES key
     const key = crypto.randomBytes(block_size);
-
-    // Write the key to the file
-    writeAesKey(fileName, key);
 
     return key;
 }
@@ -110,5 +107,5 @@ module.exports = {
     decrypt,
     loadAesKey,
     writeAesKey,
-    generateAndWriteAesKey,
+    generateAesKey,
 };
