@@ -39,5 +39,14 @@ jobs:
         working-directory: ./python
         run: |
           python3 -m unittest test.py
+
+
+      - name: Check Exit Codes
+        run: |
+          if [ ${{ job.status }} == "success" ]; then
+            echo "All processes exited with exit code 0."
+          else
+            echo "One or more processes did not exit with exit code 0."
+          fi
           
 
