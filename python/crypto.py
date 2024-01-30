@@ -2,7 +2,6 @@ from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 import os
 import binascii
-from Crypto.Util.Padding import pad
 
 def encrypt(key, plaintext):
     block_size = AES.block_size
@@ -21,7 +20,7 @@ def encrypt(key, plaintext):
     encrypted_r = cipher.encrypt(r)
     
     # Pad the plaintext with zeros if it's smaller than the block size
-    plaintext_padded = pad(plaintext, block_size)
+    plaintext_padded = plaintext + bytes(block_size - len(plaintext))
 
     # XOR the encrypted random value 'r' with the plaintext to obtain the ciphertext
     ciphertext = bytes(x ^ y for x, y in zip(encrypted_r, plaintext_padded))

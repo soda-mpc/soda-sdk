@@ -14,7 +14,7 @@ func PadWithZeros(input []byte, blockSize int) []byte {
 		return input
 	}
 	padding := blockSize - (len(input) % blockSize)
-	fmt.Println(padding)
+
 	padText := make([]byte, padding)
 	return append(padText, input...)
 }

@@ -1,8 +1,9 @@
 const crypto = require('crypto');
 const fs = require('fs');
 
+const block_size = 16; // AES block size in bytes
+
 function encrypt(key, plaintext) {
-    const block_size = 16; // AES block size in bytes
     
     // Ensure plaintext is smaller than 128 bits (16 bytes)
     if (plaintext.length > block_size) {
@@ -22,13 +23,15 @@ function encrypt(key, plaintext) {
     const plaintext_padded = Buffer.concat([plaintext, Buffer.alloc(block_size - plaintext.length)]);
 
     // XOR the encrypted random value 'r' with the plaintext to obtain the ciphertext
-    const ciphertext = Buffer.from(encryptedR.map((byte, index) => byte ^ plaintext_padded[index]));
+    const ciphertext = Buffer.alloc(encryptedR.length);
+    for (let i = 0; i < encryptedR.length; i++) {
+        ciphertext[i] = encryptedR[i] ^ plaintext_padded[i];
+    }
     
     return { ciphertext, r };
 }
 
 function decrypt(key, r, ciphertext) {
-    const block_size = 16; // AES block size in bytes
 
     if (ciphertext.length !== block_size) {
         throw new Error("Ciphertext size must be 128 bits.");
@@ -41,7 +44,10 @@ function decrypt(key, r, ciphertext) {
     const encryptedR = cipher.update(r);
 
     // XOR the encrypted random value 'r' with the ciphertext to obtain the plaintext
-    const plaintext = Buffer.from(encryptedR.map((byte, index) => byte ^ ciphertext[index]));
+    const plaintext = Buffer.alloc(encryptedR.length);
+    for (let i = 0; i < encryptedR.length; i++) {
+        plaintext[i] = encryptedR[i] ^ ciphertext[i];
+    }
 
     return plaintext;
 }
@@ -54,7 +60,7 @@ function loadAesKey(filePath) {
     const key = Buffer.from(hexKey, 'hex');
 
     // Ensure the key is the correct length
-    if (key.length !== 16) {
+    if (key.length !== block_size) {
         throw new Error(`Invalid key length: ${key.length} bytes, must be 16 bytes`);
     }
 
@@ -63,7 +69,7 @@ function loadAesKey(filePath) {
 
 function writeAesKey(filePath, key) {
     // Ensure the key is the correct length
-    if (key.length !== 16) {
+    if (key.length !== block_size) {
         throw new Error(`Invalid key length: ${key.length} bytes, must be 16 bytes`);
     }
 
@@ -76,7 +82,7 @@ function writeAesKey(filePath, key) {
 
 function generateAndWriteAesKey(fileName) {
     // Generate a random 128-bit AES key
-    const key = crypto.randomBytes(16);
+    const key = crypto.randomBytes(block_size);
 
     // Write the key to the file
     writeAesKey(fileName, key);
