@@ -12,17 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEncryptDecrypt(t *testing.T) {
+func encryptDecrypt(t *testing.T, plaintextBytes []byte) []byte {
 	key := make([]byte, aes.BlockSize)
 	_, err := rand.Read(key)
 	if err != nil {
 		t.Fatalf("Failed to generate random key: %v", err)
 	}
-
-	// Create plaintext with the value 100 as a big integer
-	plaintextValue := big.NewInt(100)
-	plaintextBytes := make([]byte, aes.BlockSize)
-	plaintextValue.FillBytes(plaintextBytes)
 
 	ciphertext, r, err := Encrypt(key, plaintextBytes)
 	if err != nil {
@@ -34,7 +29,30 @@ func TestEncryptDecrypt(t *testing.T) {
 		t.Fatalf("Decrypt failed: %v", err)
 	}
 
+	return decrypted
+}
+
+func TestEncryptDecrypt(t *testing.T) {
+
+	// Create plaintext with the value 100 as a big integer with 128 bits
+	plaintextValue := big.NewInt(100)
+	plaintextBytes := make([]byte, aes.BlockSize)
+	plaintextValue.FillBytes(plaintextBytes)
+
+	decrypted := encryptDecrypt(t, plaintextBytes)
+
 	assert.Equal(t, plaintextBytes, decrypted, "Decrypted message should match the original plaintext")
+}
+
+func TestEncryptDecryptWithPadding(t *testing.T) {
+	// Create plaintext with the value 100 as a big integer with less than 128 bits
+	plaintextValue := big.NewInt(100)
+	plaintextBytes := plaintextValue.Bytes()
+
+	decrypted := encryptDecrypt(t, plaintextBytes)
+	decryptedValue := new(big.Int).SetBytes(decrypted)
+
+	assert.Equal(t, plaintextValue, decryptedValue, "Decrypted message should match the original plaintext")
 }
 
 func TestLoadWriteAESKey(t *testing.T) {
