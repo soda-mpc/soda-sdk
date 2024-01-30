@@ -13,11 +13,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # - name: Set up Go
-      #   uses: actions/setup-go@v2
-      #   with:
-      #     go-version: 1.20.7 
-      #     environment: GOPROXY=proxy.golang.org,direct
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.20.7 
+          environment: GOPROXY=proxy.golang.org,direct
       
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -39,11 +39,11 @@ jobs:
         run: npm install  
   
 
-      # - name: Go test
-      #   working-directory: ./goland_cli
-      #   run: |
-      #     go mod download
-      #     go test -v ./...
+      - name: Go test
+        working-directory: ./goland_cli
+        run: |
+          go mod download
+          go test -v ./...
 
       - name: Python test
         working-directory: ./python
