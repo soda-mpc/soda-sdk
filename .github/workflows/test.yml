@@ -1,4 +1,4 @@
-name: Python
+name: Test
 
 on:
   push:
@@ -29,6 +29,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14'  
+          cache: 'npm'        
+
+      - name: Install dependencies
+        run: npm install  
+  
+
       # - name: Go test
       #   working-directory: ./goland_cli
       #   run: |
@@ -40,13 +50,18 @@ jobs:
         run: |
           python3 -m unittest test.py
 
+      - name: JavaScript test
+        working-directory: ./js
+        run: |
+          node test.js
 
-      # - name: Check Exit Codes
-      #   run: |
-      #     if [ ${{ job.status }} == "success" ]; then
-      #       echo "All processes exited with exit code 0."
-      #     else
-      #       echo "One or more processes did not exit with exit code 0."
-      #     fi
+
+      - name: Check Exit Codes
+        run: |
+          if [ ${{ job.status }} == "success" ]; then
+            echo "All processes exited with exit code 0."
+          else
+            echo "One or more processes did not exit with exit code 0."
+          fi
           
 
