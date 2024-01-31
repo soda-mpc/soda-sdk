@@ -2,4 +2,3 @@ key.txt
 
 python/__pycache__/*
 js/node_modules/*
-js/package-lock.json
