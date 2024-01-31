@@ -40,7 +40,7 @@ jobs:
         run: npm install  
 
       - name: Go test
-        working-directory: ./goland_cli
+        working-directory: ./golang_cli
         run: |
           go mod download
           go test -v ./...
