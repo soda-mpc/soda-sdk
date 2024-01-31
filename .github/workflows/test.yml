@@ -53,7 +53,7 @@ jobs:
       - name: JavaScript test
         working-directory: ./js
         run: |
-          node test.js
+          npx mocha --require esm test.mjs
 
 
       - name: Check Exit Codes
