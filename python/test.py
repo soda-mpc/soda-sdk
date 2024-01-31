@@ -1,9 +1,11 @@
 import unittest
 import tempfile
+import os
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key
 
+block_size = AES.block_size
 class TestMpcHelper(unittest.TestCase):
     def setUp(self):
         # Create a temporary directory for key files
@@ -20,7 +22,7 @@ class TestMpcHelper(unittest.TestCase):
         # Provide plaintext integer
         plaintext_integer = 100
         
-        # Convert the integer to a byte slice
+        # Convert the integer to a byte slice with size aligned to 8.
         plaintext_message = plaintext_integer.to_bytes((plaintext_integer.bit_length() + 7) // 8, 'little')
 
         # Call the encrypt function
@@ -37,20 +39,26 @@ class TestMpcHelper(unittest.TestCase):
     def test_load_write_aes_key(self):
         # Generate a key
         key = generate_aes_key()
-        write_aes_key(self.temp_dir.name + "/key.txt", key)
+        
+        # Create the file path for the key
+        key_file_path = os.path.join(self.temp_dir.name, "key.txt")
+        write_aes_key(key_file_path, key)
 
         # Load the key from the file
-        loaded_key = load_aes_key(self.temp_dir.name + "/key.txt")
+        loaded_key = load_aes_key(key_file_path)
 
         # Ensure the loaded key is equal to the original key
         self.assertEqual(loaded_key, key)
+
+        # Remove the key file
+        os.remove(key_file_path)
 
     def test_invalid_plaintext_size(self):
         # Generate a key
         key = generate_aes_key()
 
-        # Invalid ciphertext size (less than block_size)
-        invalid_plaintext = bytes(AES.block_size + 1)
+        # Invalid plaintext size (more than block_size)
+        invalid_plaintext = bytes(block_size + 1)
 
         # Expect an error to be thrown when decrypting
         with self.assertRaises(ValueError):
@@ -65,7 +73,7 @@ class TestMpcHelper(unittest.TestCase):
 
         # Expect an error to be thrown when decrypting
         with self.assertRaises(ValueError):
-            decrypt(key, get_random_bytes(AES.block_size), invalid_ciphertext)
+            decrypt(key, get_random_bytes(block_size), invalid_ciphertext)
 
     def test_invalid_random_size(self):
         # Generate a key
@@ -76,7 +84,7 @@ class TestMpcHelper(unittest.TestCase):
 
         # Expect an error to be thrown when decrypting
         with self.assertRaises(ValueError):
-            decrypt(key, invalid_random, get_random_bytes(AES.block_size))
+            decrypt(key, invalid_random, get_random_bytes(block_size))
 
     def test_invalid_key_length(self):
         # Invalid key length (less than block_size)
@@ -84,7 +92,7 @@ class TestMpcHelper(unittest.TestCase):
 
         # Expect an error to be thrown when writing the key
         with self.assertRaises(ValueError):
-            write_aes_key(self.temp_dir.name + "/invalid_key.txt", invalid_key)
+            write_aes_key(os.path.join(self.temp_dir.name, "/invalid_key.txt"), invalid_key)
 
         # Expect an error to be thrown when writing the key
         with self.assertRaises(ValueError):

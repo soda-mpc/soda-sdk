@@ -3,9 +3,10 @@ from Crypto.Random import get_random_bytes
 import os
 import binascii
 
-def encrypt(key, plaintext):
-    block_size = AES.block_size
+block_size = AES.block_size
 
+def encrypt(key, plaintext):
+    
     # Ensure plaintext is smaller than 128 bits (16 bytes)
     if len(plaintext) > block_size:
         raise ValueError("Plaintext size must be 128 bits or smaller.")
@@ -32,8 +33,7 @@ def encrypt(key, plaintext):
     return ciphertext, r
 
 def decrypt(key, r, ciphertext):
-    block_size = AES.block_size
-
+    
     if len(ciphertext) != block_size:
         raise ValueError("Ciphertext size must be 128 bits.")
     
@@ -65,15 +65,15 @@ def load_aes_key(file_path):
     key = binascii.unhexlify(hex_key)
 
     # Ensure the key is the correct length
-    if len(key) != AES.block_size:
-        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {AES.block_size} bytes")
+    if len(key) != block_size:
+        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {block_size} bytes")
 
     return key
 
 def write_aes_key(file_path, key):
     # Ensure the key is the correct length
-    if len(key) != AES.block_size:
-        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {AES.block_size} bytes")
+    if len(key) != block_size:
+        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {block_size} bytes")
 
     # Encode the key to hex string
     hex_key = binascii.hexlify(key).decode()
@@ -84,6 +84,6 @@ def write_aes_key(file_path, key):
 
 def generate_aes_key():
     # Generate a random 128-bit AES key
-    key = get_random_bytes(AES.block_size)
+    key = get_random_bytes(block_size)
 
     return key

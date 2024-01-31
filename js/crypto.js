@@ -7,12 +7,12 @@ function encrypt(key, plaintext) {
     
     // Ensure plaintext is smaller than 128 bits (16 bytes)
     if (plaintext.length > block_size) {
-        throw new Error("Plaintext size must be 128 bits or smaller.");
+        throw new RangeError("Plaintext size must be 128 bits or smaller.");
     }
 
     // Ensure key size is 128 bits (16 bytes)
     if (key.length != block_size) {
-        throw new Error("Key size must be 128 bits.");
+        throw new RangeError("Key size must be 128 bits.");
     }
 
     // Create a new AES cipher using the provided key
@@ -39,17 +39,17 @@ function encrypt(key, plaintext) {
 function decrypt(key, r, ciphertext) {
 
     if (ciphertext.length !== block_size) {
-        throw new Error("Ciphertext size must be 128 bits.");
+        throw new RangeError("Ciphertext size must be 128 bits.");
     }
 
     // Ensure key size is 128 bits (16 bytes)
     if (key.length != block_size) {
-        throw new Error("Key size must be 128 bits.");
+        throw new RangeError("Key size must be 128 bits.");
     }
 
     // Ensure random size is 128 bits (16 bytes)
     if (r.length != block_size) {
-        throw new Error("Random size must be 128 bits.");
+        throw new RangeError("Random size must be 128 bits.");
     }
 
     // Create a new AES decipher using the provided key
@@ -76,7 +76,7 @@ function loadAesKey(filePath) {
 
     // Ensure the key is the correct length
     if (key.length !== block_size) {
-        throw new Error(`Invalid key length: ${key.length} bytes, must be 16 bytes`);
+        throw new RangeError(`Invalid key length: ${key.length} bytes, must be 16 bytes`);
     }
 
     return key;
@@ -85,7 +85,7 @@ function loadAesKey(filePath) {
 function writeAesKey(filePath, key) {
     // Ensure the key is the correct length
     if (key.length !== block_size) {
-        throw new Error(`Invalid key length: ${key.length} bytes, must be 16 bytes`);
+        throw new RangeError(`Invalid key length: ${key.length} bytes, must be 16 bytes`);
     }
 
     // Encode the key to hex string

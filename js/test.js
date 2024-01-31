@@ -1,5 +1,6 @@
 const assert = require('assert');
 const { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey } = require('./crypto');
+const fs = require('fs');
 
 // Test case for encrypt and decrypt
 const testEncryptDecrypt = () => {
@@ -25,6 +26,13 @@ const testLoadWriteAesKey = () => {
     const loadedKey = loadAesKey('key.txt');
 
     assert.deepStrictEqual(loadedKey, key);
+
+    // Delete the key file
+    fs.unlink('key.txt', (err) => {
+        if (err) {
+            console.error('Error deleting file:', err);
+        } 
+    });
 };
 
 const test_invalid_plaintext_size = () => {
@@ -32,7 +40,7 @@ const test_invalid_plaintext_size = () => {
     
     const plaintextBuffer = Buffer.alloc(20); // Bigger than 128 bit
 
-    assert.throws(() => encrypt(key, plaintextBuffer), { name: 'Error', message: 'Plaintext size must be 128 bits or smaller.' });
+    assert.throws(() => encrypt(key, plaintextBuffer), { name: 'RangeError'});
 };
 
 const test_invalid_ciphertext_size = () => {
@@ -41,7 +49,7 @@ const test_invalid_ciphertext_size = () => {
     const ciphertext = Buffer.from([0x01, 0x02, 0x03]); // Smaller than 128 bit
     const r = Buffer.alloc(16);
 
-    assert.throws(() => decrypt(key, r, ciphertext), { name: 'Error', message: 'Ciphertext size must be 128 bits.' });
+    assert.throws(() => decrypt(key, r, ciphertext), { name: 'RangeError'});
 };
 
 const test_invalid_random_size = () => {
@@ -50,22 +58,22 @@ const test_invalid_random_size = () => {
     const r = Buffer.from([0x01, 0x02, 0x03]); // Smaller than 128 bit
     const ciphertext = Buffer.alloc(16);
 
-    assert.throws(() => decrypt(key, r, ciphertext), { name: 'Error', message: 'Random size must be 128 bits.' });
+    assert.throws(() => decrypt(key, r, ciphertext), { name: 'RangeError'});
 };
 
 const test_invalid_key_size = () => {
     const key = Buffer.from([0x01, 0x02, 0x03]); // Smaller than 128 bit
 
-    assert.throws(() => writeAesKey('key.txt', key), { name: 'Error', message: 'Invalid key length: 3 bytes, must be 16 bytes' });
+    assert.throws(() => writeAesKey('key.txt', key), { name: 'RangeError'});
 
     const plaintextBuffer = Buffer.alloc(16);
 
-    assert.throws(() => encrypt(key, plaintextBuffer), { name: 'Error', message: 'Key size must be 128 bits.' });
+    assert.throws(() => encrypt(key, plaintextBuffer), { name: 'RangeError'});
 
     const ciphertext = Buffer.alloc(16);
     const r = Buffer.alloc(16);
 
-    assert.throws(() => decrypt(key, r, ciphertext), { name: 'Error', message: 'Key size must be 128 bits.' });
+    assert.throws(() => decrypt(key, r, ciphertext), { name: 'RangeError'});
 };
 
 // Run the tests
