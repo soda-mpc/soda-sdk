@@ -55,7 +55,6 @@ jobs:
         run: |
           npx mocha --require esm test.mjs
 
-
       - name: Check Exit Codes
         run: |
           if [ ${{ job.status }} == "success" ]; then
