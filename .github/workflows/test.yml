@@ -29,12 +29,11 @@ jobs:
       #     python -m pip install --upgrade pip
       #     pip install -r requirements.txt
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '14'  
-          cache: 'npm' 
-          path: './js'
+      # - name: Set up Node.js
+      #   uses: actions/setup-node@v3
+      #   with:
+      #     node-version: '14'  
+      #     cache: 'npm' 
 
       - name: Install dependencies
         working-directory: ./js
