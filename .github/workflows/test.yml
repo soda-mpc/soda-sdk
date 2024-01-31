@@ -33,9 +33,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '14'  
-          cache: 'npm'        
+          cache: 'npm'  
 
       - name: Install dependencies
+        working-directory: ./js
         run: npm install  
 
       - name: Go test
