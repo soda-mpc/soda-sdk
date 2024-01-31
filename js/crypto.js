@@ -1,9 +1,9 @@
-const crypto = require('crypto');
-const fs = require('fs');
+import crypto from 'crypto';
+import fs from 'fs';
 
 const block_size = 16; // AES block size in bytes
 
-function encrypt(key, plaintext) {
+export function encrypt(key, plaintext) {
     
     // Ensure plaintext is smaller than 128 bits (16 bytes)
     if (plaintext.length > block_size) {
@@ -36,7 +36,7 @@ function encrypt(key, plaintext) {
     return { ciphertext, r };
 }
 
-function decrypt(key, r, ciphertext) {
+export function decrypt(key, r, ciphertext) {
 
     if (ciphertext.length !== block_size) {
         throw new RangeError("Ciphertext size must be 128 bits.");
@@ -67,7 +67,7 @@ function decrypt(key, r, ciphertext) {
     return plaintext;
 }
 
-function loadAesKey(filePath) {
+export function loadAesKey(filePath) {
     // Read the hex-encoded contents of the file
     const hexKey = fs.readFileSync(filePath, 'utf8').trim();
 
@@ -82,7 +82,7 @@ function loadAesKey(filePath) {
     return key;
 }
 
-function writeAesKey(filePath, key) {
+export function writeAesKey(filePath, key) {
     // Ensure the key is the correct length
     if (key.length !== block_size) {
         throw new RangeError(`Invalid key length: ${key.length} bytes, must be 16 bytes`);
@@ -95,17 +95,9 @@ function writeAesKey(filePath, key) {
     fs.writeFileSync(filePath, hexKey, 'utf8');
 }
 
-function generateAesKey() {
+export function generateAesKey() {
     // Generate a random 128-bit AES key
     const key = crypto.randomBytes(block_size);
 
     return key;
 }
-
-module.exports = {
-    encrypt,
-    decrypt,
-    loadAesKey,
-    writeAesKey,
-    generateAesKey,
-};
