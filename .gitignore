@@ -1,0 +1,4 @@
+key.txt
+
+python/__pycache__/*
+js/node_modules/*

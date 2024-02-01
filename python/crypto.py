@@ -3,12 +3,17 @@ from Crypto.Random import get_random_bytes
 import os
 import binascii
 
-def encrypt(key, plaintext):
-    block_size = AES.block_size
+block_size = AES.block_size
 
+def encrypt(key, plaintext):
+    
     # Ensure plaintext is smaller than 128 bits (16 bytes)
     if len(plaintext) > block_size:
         raise ValueError("Plaintext size must be 128 bits or smaller.")
+
+    # Ensure key size is 128 bits (16 bytes)
+    if len(key) != block_size:
+        raise ValueError("Key size must be 128 bits.")
 
     # Create a new AES cipher block using the provided key
     cipher = AES.new(key, AES.MODE_ECB)
@@ -28,10 +33,17 @@ def encrypt(key, plaintext):
     return ciphertext, r
 
 def decrypt(key, r, ciphertext):
-    block_size = AES.block_size
-
+    
     if len(ciphertext) != block_size:
         raise ValueError("Ciphertext size must be 128 bits.")
+    
+    # Ensure key size is 128 bits (16 bytes)
+    if len(key) != block_size:
+        raise ValueError("Key size must be 128 bits.")
+
+    # Ensure random size is 128 bits (16 bytes)
+    if len(r) != block_size:
+        raise ValueError("Random size must be 128 bits.")
 
     # Create a new AES cipher block using the provided key
     cipher = AES.new(key, AES.MODE_ECB)
@@ -53,15 +65,15 @@ def load_aes_key(file_path):
     key = binascii.unhexlify(hex_key)
 
     # Ensure the key is the correct length
-    if len(key) != AES.block_size:
-        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {AES.block_size} bytes")
+    if len(key) != block_size:
+        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {block_size} bytes")
 
     return key
 
 def write_aes_key(file_path, key):
     # Ensure the key is the correct length
-    if len(key) != AES.block_size:
-        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {AES.block_size} bytes")
+    if len(key) != block_size:
+        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {block_size} bytes")
 
     # Encode the key to hex string
     hex_key = binascii.hexlify(key).decode()
@@ -70,11 +82,8 @@ def write_aes_key(file_path, key):
     with open(file_path, 'w') as file:
         file.write(hex_key)
 
-def generate_and_write_aes_key(file_name):
+def generate_aes_key():
     # Generate a random 128-bit AES key
-    key = get_random_bytes(AES.block_size)
-
-    # Write the key to the file
-    write_aes_key(file_name, key)
+    key = get_random_bytes(block_size)
 
     return key

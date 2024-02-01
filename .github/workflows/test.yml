@@ -1,0 +1,65 @@
+name: Test
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.20.7 
+      
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+    
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pycryptodome
+
+      # - name: Set up Node.js
+      #   uses: actions/setup-node@v3
+      #   with:
+      #     node-version: '14'  
+      #     cache: 'npm' 
+
+      - name: Set up Node.js
+        working-directory: ./js
+        run: npm install  
+
+      - name: Go test
+        working-directory: ./golang_cli
+        run: |
+          go mod download
+          go test -v ./...
+
+      - name: Python test
+        working-directory: ./python
+        run: |
+          python3 -m unittest test.py
+
+      - name: JavaScript test
+        working-directory: ./js
+        run: |
+          npx mocha --require esm test.mjs
+
+      - name: Check Exit Codes
+        run: |
+          if [ ${{ job.status }} == "success" ]; then
+            echo "All processes exited with exit code 0."
+          else
+            echo "One or more processes did not exit with exit code 0."
+          fi
+          
+

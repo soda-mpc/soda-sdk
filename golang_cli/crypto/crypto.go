@@ -129,18 +129,12 @@ func WriteAESKey(filePath string, key []byte) error {
 	return nil
 }
 
-// GenerateAndWriteAESKey generates a random 128-bit AES key, writes it to a file,
-// and returns the key.
-func GenerateAndWriteAESKey(fileName string) ([]byte, error) {
+// GenerateAESKey generates a random 128-bit AES key and returns the key.
+func GenerateAESKey() ([]byte, error) {
 	// Generate a random 128-bit AES key
 	key := make([]byte, aes.BlockSize)
 	if _, err := rand.Read(key); err != nil {
 		return nil, fmt.Errorf("Failed to generate AES key: %v", err)
-	}
-
-	// Write the key to the file
-	if err := WriteAESKey(fileName, key); err != nil {
-		return nil, fmt.Errorf("Failed to write key to file: %v", err)
 	}
 
 	return key, nil

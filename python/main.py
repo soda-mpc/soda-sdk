@@ -3,13 +3,13 @@
 import binascii
 from crypto import encrypt
 from crypto import decrypt
-from crypto import generate_and_write_aes_key
+from crypto import generate_aes_key
 from crypto import load_aes_key
 
 
 def main():
     # Generate a key 
-    key = generate_and_write_aes_key("key.txt")
+    key = generate_aes_key()
     print("key:", binascii.hexlify(key).decode())
 
     # Provide the plaintext integer

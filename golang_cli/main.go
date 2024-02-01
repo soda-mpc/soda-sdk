@@ -142,7 +142,12 @@ func handleGenerateKey() {
 		return
 	}
 
-	key, err := crypto.GenerateAndWriteAESKey(filePath)
+	key, err := crypto.GenerateAESKey()
+	if err != nil {
+		log.Printf("Error generating key: %v", err)
+		return
+	}
+	err = crypto.WriteAESKey(filePath, key)
 	if err != nil {
 		log.Printf("Error generating key: %v", err)
 		return

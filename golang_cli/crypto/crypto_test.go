@@ -80,9 +80,12 @@ func TestGenerateAndWriteAESKey(t *testing.T) {
 	// Create a temporary file for testing
 	tempFile := "temp_key_file.txt"
 	defer os.Remove(tempFile)
-	// Test GenerateAndWriteAESKey
-	key, err := GenerateAndWriteAESKey(tempFile)
-	require.NoError(t, err, "GenerateAndWriteAESKey should not return an error")
+	// Test GenerateAESKey and WriteAESKey
+	key, err := GenerateAESKey()
+	require.NoError(t, err, "GenerateAESKey should not return an error")
+
+	err = WriteAESKey(tempFile, key)
+	require.NoError(t, err, "WriteAESKey should not return an error")
 
 	// Verify that the key was written to the file
 	loadedKey, err := LoadAESKey(tempFile)

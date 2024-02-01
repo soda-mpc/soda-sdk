@@ -1,9 +1,9 @@
-const cryptoOperations = require('./crypto');
+import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey } from './crypto.js';
 
 // Example usage:
 
 // Generate a key
-const key = cryptoOperations.generateAndWriteAesKey("key.txt");
+const key = generateAesKey();
 console.log("key:", key.toString('hex'));
 
 
@@ -12,14 +12,14 @@ const plaintextBuffer = Buffer.alloc(1); // Assuming a 8-bit integer
 plaintextBuffer.writeUInt8(plaintextInteger);
 
 // Encrypt the plaintext
-const { ciphertext, r } = cryptoOperations.encrypt(key, plaintextBuffer);
+const { ciphertext, r } = encrypt(key, plaintextBuffer);
 
 console.log("Plaintext (integer):", plaintextInteger);
 console.log("Ciphertext:", ciphertext.toString('hex'));
 console.log("Random value 'r':", r.toString('hex'));
 
 // Decrypt the ciphertext
-const decryptedBuffer = cryptoOperations.decrypt(key, r, ciphertext);
+const decryptedBuffer = decrypt(key, r, ciphertext);
 
 // Convert the decrypted buffer to an integer
 const decryptedInteger = decryptedBuffer.readUInt8();
