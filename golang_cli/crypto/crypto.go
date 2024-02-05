@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // PadWithZeros pads the input with zeros to make its length a multiple of blockSize.
@@ -138,4 +140,58 @@ func GenerateAESKey() ([]byte, error) {
 	}
 
 	return key, nil
+}
+
+const (
+	AddressSize   = 160
+	SignatureSize = 4
+	NonceSize     = 8
+	CtSize        = 32
+	KeySize       = 32 // Assuming a 32-byte key size, adjust as needed
+)
+
+func Sign(sender, addr, funcSig, nonce, ct, key []byte) ([]byte, error) {
+	// Ensure all input sizes are the correct length
+	if len(sender) != AddressSize {
+		return nil, fmt.Errorf("Invalid sender address length: %d bytes, must be %d bytes", len(sender), AddressSize)
+	}
+	if len(addr) != AddressSize {
+		return nil, fmt.Errorf("Invalid contract address length: %d bytes, must be %d bytes", len(addr), AddressSize)
+	}
+	if len(funcSig) != SignatureSize {
+		return nil, fmt.Errorf("Invalid signature size: %d bytes, must be %d bytes", len(funcSig), SignatureSize)
+	}
+	if len(nonce) != NonceSize {
+		return nil, fmt.Errorf("Invalid nonce length: %d bytes, must be %d bytes", len(nonce), NonceSize)
+	}
+	if len(ct) != CtSize {
+		return nil, fmt.Errorf("Invalid ct length: %d bytes, must be %d bytes", len(ct), CtSize)
+	}
+	// Ensure the key is the correct length
+	if len(key) != KeySize {
+		return nil, fmt.Errorf("Invalid key length: %d bytes, must be %d bytes", len(key), KeySize)
+	}
+
+	// Create the message to be signed by appending all inputs
+	message := append(sender, addr...)
+	message = append(message, funcSig...)
+	message = append(message, nonce...)
+	message = append(message, ct...)
+
+	// Create an ECDSA private key from raw bytes
+	privateKey, err := crypto.ToECDSA(key)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create ECDSA private key: %v", err)
+	}
+
+	// Hash the concatenated message using Keccak-256
+	hash := crypto.Keccak256(message)
+
+	// Sign the message
+	signature, err := crypto.Sign(hash, privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to sign message: %v", err)
+	}
+
+	return signature, nil
 }
