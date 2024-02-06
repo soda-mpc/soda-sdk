@@ -1,7 +1,13 @@
 import crypto from 'crypto';
 import fs from 'fs';
+import ethereumjsUtil  from 'ethereumjs-util';
 
-const block_size = 16; // AES block size in bytes
+export const block_size = 16; // AES block size in bytes
+export const addressSize = 160;
+export const signatureSize = 4;
+export const nonceSize = 8;
+export const ctSize = 32;
+export const keySize = 32;
 
 export function encrypt(key, plaintext) {
     
@@ -100,4 +106,39 @@ export function generateAesKey() {
     const key = crypto.randomBytes(block_size);
 
     return key;
+}
+
+export function sign(sender, addr, funcSig, nonce, ct, key) {
+    // Ensure all input sizes are the correct length
+    if (sender.length !== addressSize) {
+        throw new RangeError(`Invalid sender address length: ${sender.length} bytes, must be ${addressSize} bytes`);
+    }
+    if (addr.length !== addressSize) {
+        throw new RangeError(`Invalid contract address length: ${addr.length} bytes, must be ${addressSize} bytes`);
+    }
+    if (funcSig.length !== signatureSize) {
+        throw new RangeError(`Invalid signature size: ${funcSig.length} bytes, must be ${signatureSize} bytes`);
+    }
+    if (nonce.length !== nonceSize) {
+        throw new RangeError(`Invalid nonce length: ${nonce.length} bytes, must be ${nonceSize} bytes`);
+    }
+    if (ct.length !== ctSize) {
+        throw new RangeError(`Invalid ct length: ${ct.length} bytes, must be ${ctSize} bytes`);
+    }
+    // Ensure the key is the correct length
+    if (key.length !== keySize) {
+        throw new RangeError(`Invalid key length: ${key.length} bytes, must be ${keySize} bytes`);
+    }
+
+    // Create the message to be signed by concatenating all inputs
+    let message = Buffer.concat([sender, addr, funcSig, nonce, ct]);
+
+    // Hash the concatenated message using Keccak-256
+    const hash = ethereumjsUtil.keccak256(message);
+    console.log('hashed message = ' + hash.toString('hex'));
+
+    // Sign the message
+    let signature = ethereumjsUtil.ecsign(hash, key);
+    console.log('signature = ' + signature.r.toString('hex') + signature.s.toString('hex') + signature.v.toString(16));
+    return signature;
 }

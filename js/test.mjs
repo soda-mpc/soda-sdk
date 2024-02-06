@@ -1,6 +1,9 @@
 import { assert } from 'chai';
-import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey } from './crypto.js';
+import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, sign } from './crypto.js';
+import { block_size, addressSize, signatureSize, nonceSize, ctSize, keySize } from './crypto.js';
 import fs from 'fs';
+import crypto from 'crypto';
+import ethereumjsUtil  from 'ethereumjs-util';
 
 describe('Crypto Tests', () => {
 
@@ -80,4 +83,48 @@ describe('Crypto Tests', () => {
         assert.throws(() => decrypt(key, r, ciphertext), RangeError);
     });
 
+    // Test case for invalid key size
+    it('should sign and verify the signature', () => {
+        // Simulate the generation of random bytes
+        const sender = crypto.randomBytes(addressSize);
+        const addr = crypto.randomBytes(addressSize);
+        const funcSig = crypto.randomBytes(signatureSize);
+        const nonce = crypto.randomBytes(nonceSize);
+        let key = crypto.randomBytes(keySize);
+        // const sender = Buffer.alloc(addressSize); // All zeros with length AddressSize
+        // const addr = Buffer.alloc(addressSize); // All zeros with length AddressSize
+        // const funcSig = Buffer.alloc(signatureSize); // All zeros with length SignatureSize
+        // const nonce = Buffer.alloc(nonceSize); // All zeros with length NonceSize
+
+        // Create a ciphertext
+        const plaintextBuffer = Buffer.alloc(1);
+        plaintextBuffer.writeUInt8(100);
+        const aeskey = generateAesKey();
+        const { ciphertext, r } = encrypt(aeskey, plaintextBuffer);
+        let ct = Buffer.concat([ciphertext, r]);
+
+        // Decode hex strings
+        // ct = Buffer.from('1d87ced4fd3f916ea7474dfe320a5de096a89dcf3d8a6d9dd318e38ea9f23189', 'hex');
+        // key = Buffer.from('f14edf53952e2886057b3afdd23a24b63a577ebe474880f76d86aa7ca11da370', 'hex');
+
+        // Generate the signature
+        const signature = sign(sender, addr, funcSig, nonce, ct, key);
+
+        // Verify the signature
+        const expectedPublicKey = ethereumjsUtil.privateToPublic(key);
+        const expectedAddress = ethereumjsUtil.toChecksumAddress('0x' + expectedPublicKey.toString('hex'));
+        
+        const message = Buffer.concat([sender, addr, funcSig, nonce, ct]);
+        const hash = ethereumjsUtil.keccak256(message);
+        
+        // Recover the public key from the signature
+        const publicKey = ethereumjsUtil.ecrecover(hash, signature.v, signature.r, signature.s);
+        // Derive the Ethereum address from the recovered public key
+        const address = ethereumjsUtil.toChecksumAddress('0x' + publicKey.toString('hex'));
+
+        // Compare the derived address with the expected signer's address
+        const isVerified = address === expectedAddress;
+
+        assert.strictEqual(isVerified, true);
+    });
 });
