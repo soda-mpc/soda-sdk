@@ -2,8 +2,19 @@ from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 import os
 import binascii
+from eth_account import Account
+from eth_account.messages import encode_defunct
+from eth_keys import keys
+from eth_utils.crypto import keccak
+from web3 import Web3
+
 
 block_size = AES.block_size
+address_size = 160
+signature_size = 4
+nonce_size = 8
+ct_size = 32
+key_size = 32
 
 def encrypt(key, plaintext):
     
@@ -87,3 +98,33 @@ def generate_aes_key():
     key = get_random_bytes(block_size)
 
     return key
+
+def sign(sender, addr, func_sig, nonce, ct, key):
+    # Ensure all input sizes are the correct length
+    if len(sender) != address_size:
+        raise ValueError(f"Invalid sender address length: {len(sender)} bytes, must be {address_size} bytes")
+    if len(addr) != address_size:
+        raise ValueError(f"Invalid contract address length: {len(addr)} bytes, must be {address_size} bytes")
+    if len(func_sig) != signature_size:
+        raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {signature_size} bytes")
+    if len(nonce) != nonce_size:
+        raise ValueError(f"Invalid nonce length: {len(nonce)} bytes, must be {nonce_size} bytes")
+    if len(ct) != ct_size:
+        raise ValueError(f"Invalid ct length: {len(ct)} bytes, must be {ct_size} bytes")
+    # Ensure the key is the correct length
+    if len(key) != key_size:
+        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {key_size} bytes")
+
+    # Create the message to be signed by appending all inputs
+    message = sender + addr + func_sig + nonce + ct
+
+    # Hash the message using Keccak-256
+    message_hash = keccak(message)
+    print("Message hash:", message_hash.hex())
+    # Convert the message to a signable message object
+    signable_message = encode_defunct(message_hash)
+    
+    # Sign the message
+    signature = Account.sign_message(signable_message, private_key=key)
+
+    return signature
