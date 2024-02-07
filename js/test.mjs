@@ -1,5 +1,5 @@
 import { assert } from 'chai';
-import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, sign } from './crypto.js';
+import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, sign, generateRSAKeyPair, encryptRSA, decryptRSA } from './crypto.js';
 import { block_size, addressSize, signatureSize, nonceSize, ctSize, keySize } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -83,7 +83,7 @@ describe('Crypto Tests', () => {
         assert.throws(() => decrypt(key, r, ciphertext), RangeError);
     });
 
-    // Test case for invalid key size
+    // Test case for verify signature
     it('should sign and verify the signature', () => {
         // Simulate the generation of random bytes
         const sender = crypto.randomBytes(addressSize);
@@ -121,10 +121,25 @@ describe('Crypto Tests', () => {
         const publicKey = ethereumjsUtil.ecrecover(hash, signature.v, signature.r, signature.s);
         // Derive the Ethereum address from the recovered public key
         const address = ethereumjsUtil.toChecksumAddress('0x' + publicKey.toString('hex'));
-
+        
         // Compare the derived address with the expected signer's address
         const isVerified = address === expectedAddress;
 
         assert.strictEqual(isVerified, true);
     });
+
+    // Test case for test rsa encryption scheme
+    it('should encrypt and decrypt a message using RSA scheme', () => {
+        const plaintext = Buffer.from('Hello, World!');
+
+        const { publicKey, privateKey } = generateRSAKeyPair();
+        
+        const ciphertext = encryptRSA(publicKey, plaintext);
+
+        const decrypted = decryptRSA(privateKey, ciphertext);
+
+        assert.deepStrictEqual(plaintext, decrypted);
+    });
 });
+
+

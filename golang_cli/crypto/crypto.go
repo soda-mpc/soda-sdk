@@ -3,6 +3,8 @@ package crypto
 import (
 	"crypto/aes"
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -148,6 +150,7 @@ const (
 	NonceSize     = 8
 	CtSize        = 32
 	KeySize       = 32 // Assuming a 32-byte key size, adjust as needed
+	modBits       = 256
 )
 
 func Sign(sender, addr, funcSig, nonce, ct, key []byte) ([]byte, error) {
@@ -195,3 +198,154 @@ func Sign(sender, addr, funcSig, nonce, ct, key []byte) ([]byte, error) {
 
 	return signature, nil
 }
+
+func GenerateRSAKeyPair() ([]byte, []byte, error) {
+	// Generate RSA key pair
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		fmt.Println("Error generating RSA key pair:", err)
+		return nil, nil, err
+	}
+
+	// Marshal private key to DER format
+	privateKeyBytes := x509.MarshalPKCS1PrivateKey(privateKey)
+
+	// Marshal public key to DER format
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		fmt.Println("Error marshaling public key:", err)
+		return nil, nil, err
+	}
+
+	return privateKeyBytes, publicKeyBytes, nil
+}
+
+func EncryptRSA(publicKeyBytes []byte, message []byte) ([]byte, error) {
+
+	// Parse public key from DER format
+	publicKey, err := x509.ParsePKIXPublicKey(publicKeyBytes)
+	if err != nil {
+		fmt.Println("Error parsing public key:", err)
+		return nil, err
+	}
+
+	// Type assert parsed key to *rsa.PublicKey
+	rsaPublicKey, ok := publicKey.(*rsa.PublicKey)
+	if !ok {
+		fmt.Println("Error type asserting public key:", err)
+		return nil, err
+	}
+	// Encrypt message using RSA public key
+	ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, rsaPublicKey, message)
+	if err != nil {
+		fmt.Println("Error encrypting message:", err)
+		return nil, err
+	}
+
+	return ciphertext, nil
+
+}
+
+func DecryptRSA(privateKeyBytes []byte, ciphertext []byte) ([]byte, error) {
+
+	// Parse private key from DER format
+	privateKey, err := x509.ParsePKCS1PrivateKey(privateKeyBytes)
+	if err != nil {
+		fmt.Println("Error parsing private key:", err)
+		return nil, err
+	}
+
+	// Decrypt message using RSA private key
+	decryptedMessage, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, ciphertext)
+	if err != nil {
+		fmt.Println("Error decrypting message:", err)
+		return nil, err
+	}
+
+	return decryptedMessage, nil
+
+}
+
+// KeyPair represents an ElGamal key pair
+// type KeyPair struct {
+// 	PrivateKey []byte
+// 	PublicKey  []byte
+// }
+
+// // generateKeyPair generates a key pair for ElGamal encryption over elliptic curves
+// func GenerateElGamalKeyPair() (*KeyPair, error) {
+// 	// Generate a private key
+// 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	// Serialize the private key to bytes
+// 	privateKeyBytes := privateKey.D.Bytes()
+
+// 	// Serialize the public key to bytes
+// 	publicKeyBytes := elliptic.MarshalCompressed(privateKey.Curve, privateKey.PublicKey.X, privateKey.PublicKey.Y)
+
+// 	keyPair := &KeyPair{
+// 		PrivateKey: privateKeyBytes,
+// 		PublicKey:  publicKeyBytes,
+// 	}
+
+// 	return keyPair, nil
+// }
+
+// // ElGamalEncrypt encrypts a plaintext message using ElGamal encryption
+// func ElGamalEncrypt(publicKey []byte, plaintext []byte) ([]byte, []byte, error) {
+// 	// Deserialize the public key from bytes
+// 	curve := elliptic.P256()
+// 	x, y := elliptic.UnmarshalCompressed(curve, publicKey)
+// 	if x == nil {
+// 		return nil, nil, fmt.Errorf("invalid public key")
+// 	}
+// 	publicKeyEC := ecdsa.PublicKey{Curve: curve, X: x, Y: y}
+
+// 	// Generate a random k
+// 	k, err := rand.Int(rand.Reader, curve.Params().N)
+// 	if err != nil {
+// 		return nil, nil, err
+// 	}
+
+// 	// Compute the ephemeral public key
+// 	c1x, c1y := curve.ScalarBaseMult(k.Bytes())
+// 	c1 := elliptic.MarshalCompressed(curve, c1x, c1y)
+
+// 	// Compute the shared secret
+// 	sharedX, _ := curve.ScalarMult(publicKeyEC.X, publicKeyEC.Y, k.Bytes())
+
+// 	// Encrypt the plaintext
+// 	c2 := make([]byte, len(plaintext))
+// 	for i, b := range plaintext {
+// 		c2[i] = b ^ sharedX.Bytes()[i%len(sharedX.Bytes())]
+// 	}
+
+// 	return c1, c2, nil
+// }
+
+// // ElGamalDecrypt decrypts a ciphertext using ElGamal decryption
+// func ElGamalDecrypt(privateKey []byte, c1 []byte, c2 []byte) ([]byte, error) {
+// 	// Deserialize the private key from bytes
+// 	curve := elliptic.P256()
+// 	d := new(big.Int).SetBytes(privateKey)
+
+// 	// Deserialize c1 to get the ephemeral public key
+// 	c1x, c1y := elliptic.UnmarshalCompressed(curve, c1)
+// 	if c1x == nil {
+// 		return nil, fmt.Errorf("invalid c1")
+// 	}
+
+// 	// Compute the shared secret
+// 	sharedX, _ := curve.ScalarMult(c1x, c1y, d.Bytes())
+
+// 	// Decrypt the ciphertext
+// 	plaintext := make([]byte, len(c2))
+// 	for i, b := range c2 {
+// 		plaintext[i] = b ^ sharedX.Bytes()[i%len(sharedX.Bytes())]
+// 	}
+
+// 	return plaintext, nil
+// }

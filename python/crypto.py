@@ -2,11 +2,11 @@ from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 import os
 import binascii
-from eth_account import Account
-from eth_account.messages import encode_defunct
 from eth_keys import keys
-from eth_utils.crypto import keccak
-from web3 import Web3
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 
 
 block_size = AES.block_size
@@ -105,8 +105,8 @@ def sign(sender, addr, func_sig, nonce, ct, key):
         raise ValueError(f"Invalid sender address length: {len(sender)} bytes, must be {address_size} bytes")
     if len(addr) != address_size:
         raise ValueError(f"Invalid contract address length: {len(addr)} bytes, must be {address_size} bytes")
-    if len(func_sig) != signature_size:
-        raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {signature_size} bytes")
+    # if len(func_sig) != signature_size:
+    #     raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {signature_size} bytes")
     if len(nonce) != nonce_size:
         raise ValueError(f"Invalid nonce length: {len(nonce)} bytes, must be {nonce_size} bytes")
     if len(ct) != ct_size:
@@ -117,14 +117,60 @@ def sign(sender, addr, func_sig, nonce, ct, key):
 
     # Create the message to be signed by appending all inputs
     message = sender + addr + func_sig + nonce + ct
-
-    # Hash the message using Keccak-256
-    message_hash = keccak(message)
-    print("Message hash:", message_hash.hex())
-    # Convert the message to a signable message object
-    signable_message = encode_defunct(message_hash)
-    
+ 
     # Sign the message
-    signature = Account.sign_message(signable_message, private_key=key)
+    pk = keys.PrivateKey(key)
+    signature = pk.sign_msg(message)
 
     return signature
+
+def generate_rsa_keypair():
+    # Generate RSA key pair
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048
+    )
+    # Serialize private key
+    private_key_bytes = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    )
+    # Get public key
+    public_key = private_key.public_key()
+    # Serialize public key
+    public_key_bytes = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
+    return private_key_bytes, public_key_bytes
+
+def encrypt_rsa(public_key_bytes, plaintext):
+    # Load public key
+    public_key = serialization.load_pem_public_key(public_key_bytes)
+    # Encrypt plaintext
+    ciphertext = public_key.encrypt(
+        plaintext,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    return ciphertext
+
+def decrypt_rsa(private_key_bytes, ciphertext):
+    # Load private key
+    private_key = serialization.load_pem_private_key(private_key_bytes, password=None)
+    # Decrypt ciphertext
+    plaintext = private_key.decrypt(
+        ciphertext,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    return plaintext
+

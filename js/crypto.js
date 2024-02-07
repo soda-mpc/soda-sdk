@@ -142,3 +142,42 @@ export function sign(sender, addr, funcSig, nonce, ct, key) {
     console.log('signature = ' + signature.r.toString('hex') + signature.s.toString('hex') + signature.v.toString(16));
     return signature;
 }
+
+export function generateRSAKeyPair() {
+    // Generate a new RSA key pair
+    return crypto.generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: {
+            type: 'spki',
+            format: 'der' // Specify 'der' format for binary data
+        },
+        privateKeyEncoding: {
+            type: 'pkcs8',
+            format: 'der' // Specify 'der' format for binary data
+        }
+    });
+}
+
+export function encryptRSA(publicKey, plaintext) {
+    // Load the public key in PEM format
+    let publicKeyPEM = publicKey.toString('base64');
+    publicKeyPEM = `-----BEGIN PUBLIC KEY-----\n${publicKeyPEM}\n-----END PUBLIC KEY-----`;
+    
+    // Encrypt the plaintext using RSA-OAEP
+    return crypto.publicEncrypt({
+        key: publicKeyPEM,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
+    }, plaintext);
+}
+
+export function decryptRSA(privateKey, ciphertext) {
+    // Load the private key in PEM format
+    let privateKeyPEM = privateKey.toString('base64');
+    privateKeyPEM = `-----BEGIN PRIVATE KEY-----\n${privateKeyPEM}\n-----END PRIVATE KEY-----`;
+
+    // Decrypt the ciphertext using RSA-OAEP
+    return crypto.privateDecrypt({
+        key: privateKeyPEM,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
+    }, ciphertext);
+}

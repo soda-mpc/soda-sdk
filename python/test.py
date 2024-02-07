@@ -3,7 +3,7 @@ import tempfile
 import os
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
-from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, sign
+from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, sign, generate_rsa_keypair, encrypt_rsa, decrypt_rsa
 from crypto import block_size, address_size, signature_size, nonce_size, key_size
 from eth_account import Account
 from eth_account.messages import encode_defunct
@@ -130,31 +130,25 @@ class TestMpcHelper(unittest.TestCase):
         ct = bytes.fromhex("1d87ced4fd3f916ea7474dfe320a5de096a89dcf3d8a6d9dd318e38ea9f23189")
         key = bytes.fromhex("f14edf53952e2886057b3afdd23a24b63a577ebe474880f76d86aa7ca11da370")
 
+        # Call the sign function
         signature = sign(sender, addr, func_sig, nonce, ct, key)
-        print("Signature:", signature.signature.hex())
-
-        # Convert the private key bytes to an Ethereum account object
-        account = Account.from_key(key)
-        # Get the Ethereum address from the account object
-        expected_address = account.address
-        # print (signature.hex())
-
-        # Create the message to be signed by appending all inputs
+        print("Signature:", signature)
+        
+        # Create the message to be 
         message = sender + addr + func_sig + nonce + ct
 
+        pk = keys.PrivateKey(key)
         # Verify the signature against the message hash and the public key
-        message_hash = keccak(message)
-        signable_message = encode_defunct(message_hash)
-
-        # Hash the encoded message using the same method used for transaction hashing
-        # Recover the public key from the signature components
-        recovered_address = Account.recover_message(signable_message, signature=signature.signature)
-
-        # # Compare the recovered address with the expected signer's address
-        verified = recovered_address == expected_address
-
+        verified = signature.verify_msg(message, pk.public_key)
+       
         self.assertEqual(verified, True)
-     
+    
+    def test_rsa_encryption(self):
+        plaintext = b"hello world"
+        private_key, public_key = generate_rsa_keypair()
+        ciphertext = encrypt_rsa(public_key, plaintext)
+        decrypted = decrypt_rsa(private_key, ciphertext)
+        self.assertEqual(plaintext, decrypted)
 
 if __name__ == '__main__':
     unittest.main()

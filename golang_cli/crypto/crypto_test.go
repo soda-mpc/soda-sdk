@@ -5,6 +5,8 @@ import (
 	"crypto/aes"
 	"crypto/ecdsa"
 	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"math/big"
 	"os"
 	"testing"
@@ -98,13 +100,17 @@ func TestGenerateAndWriteAESKey(t *testing.T) {
 func TestSignature(t *testing.T) {
 	// Create plaintext with the value 100 as a big integer with less than 128 bits
 	sender := make([]byte, AddressSize)
+	// _, err := rand.Read(sender)
 	addr := make([]byte, AddressSize)
+	// _, err = rand.Read(addr)
 	funcSig := make([]byte, SignatureSize)
+	// _, err = rand.Read(funcSig)
 	nonce := make([]byte, NonceSize)
+	// _, err = rand.Read(nonce)
 
 	key := make([]byte, KeySize)
-	_, err := rand.Read(key)
-	require.NoError(t, err, "Failed to generate random key")
+	// _, err = rand.Read(key)
+	// require.NoError(t, err, "Failed to generate random key")
 
 	// Create plaintext with the value 100 as a big integer with less than 128 bits
 	plaintextValue := big.NewInt(100)
@@ -114,8 +120,24 @@ func TestSignature(t *testing.T) {
 
 	ct := append(ciphertext, r...)
 
+	ct, _ = hex.DecodeString("1d87ced4fd3f916ea7474dfe320a5de096a89dcf3d8a6d9dd318e38ea9f23189")
+	key, _ = hex.DecodeString("f14edf53952e2886057b3afdd23a24b63a577ebe474880f76d86aa7ca11da370")
+
+	// Print hexadecimal string
+	fmt.Println("sender = " + hex.EncodeToString(sender))
+	fmt.Println("addr = " + hex.EncodeToString(addr))
+	fmt.Println("funcSig = " + hex.EncodeToString(funcSig))
+	fmt.Println("nonce = " + hex.EncodeToString(nonce))
+	fmt.Println("ct = " + hex.EncodeToString(ct))
+	fmt.Println("key = " + hex.EncodeToString(key))
+
 	signature, err := Sign(sender, addr, funcSig, nonce, ct, key)
 	require.NoError(t, err, "Sign should not return an error")
+
+	// fmt.Println("signature size = ", len(signature))
+
+	// Print hexadecimal string
+	fmt.Println(hex.EncodeToString(signature))
 
 	// Create an ECDSA private key from raw bytes
 	privateKey, err := crypto.ToECDSA(key)
@@ -141,4 +163,34 @@ func TestSignature(t *testing.T) {
 	verified := crypto.VerifySignature(pubKeyBytes, hash, signature[:64])
 
 	assert.Equal(t, verified, true, "Verify signature should return true")
+}
+
+func TestRSAEncryption(t *testing.T) {
+	// Generate key pair
+	privateKey, publicKey, err := GenerateRSAKeyPair()
+	if err != nil {
+		t.Fatalf("Error generating ElGamal key pair: %v", err)
+	}
+
+	// Message to encrypt
+	plaintext := []byte("hello rsa")
+
+	// Encrypt the plaintext
+	cipher, err := EncryptRSA(publicKey, plaintext)
+	if err != nil {
+		fmt.Println("Error encrypting plaintext:", err)
+		return
+	}
+
+	// Decrypt the ciphertext
+	decryptedText, err := DecryptRSA(privateKey, cipher)
+	if err != nil {
+		fmt.Println("Error decrypting ciphertext:", err)
+		return
+	}
+
+	// Verify decrypted plaintext matches original message
+	if string(plaintext) != string(decryptedText) {
+		t.Errorf("Decrypted plaintext does not match original message. Got: %s, Want: %s", string(plaintext), string(decryptedText))
+	}
 }
