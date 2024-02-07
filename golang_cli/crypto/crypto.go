@@ -199,6 +199,20 @@ func Sign(sender, addr, funcSig, nonce, ct, key []byte) ([]byte, error) {
 	return signature, nil
 }
 
+func VerifySignature(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature []byte) bool {
+
+	// Create the message to be signed by appending all inputs
+	message := append(sender, addr...)
+	message = append(message, funcSig...)
+	message = append(message, nonce...)
+	message = append(message, ct...)
+
+	// Hash the concatenated message using Keccak-256
+	hash := crypto.Keccak256(message)
+
+	return crypto.VerifySignature(pubKeyBytes, hash, signature[:64])
+}
+
 func GenerateRSAKeyPair() ([]byte, []byte, error) {
 	// Generate RSA key pair
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)

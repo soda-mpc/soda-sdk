@@ -5,11 +5,7 @@ from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, sign, generate_rsa_keypair, encrypt_rsa, decrypt_rsa
 from crypto import block_size, address_size, signature_size, nonce_size, key_size
-from eth_account import Account
-from eth_account.messages import encode_defunct
 from eth_keys import keys
-from eth_utils.crypto import keccak
-from eth_keys.backends import NativeECCBackend
 
 class TestMpcHelper(unittest.TestCase):
     def setUp(self):

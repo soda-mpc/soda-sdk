@@ -151,16 +151,8 @@ func TestSignature(t *testing.T) {
 	// Get the bytes from the public key
 	pubKeyBytes := crypto.FromECDSAPub(pubKeyECDSA)
 
-	// Create the message to be signed by appending all inputs
-	message := append(sender, addr...)
-	message = append(message, funcSig...)
-	message = append(message, nonce...)
-	message = append(message, ct...)
-
-	// Hash the concatenated message using Keccak-256
-	hash := crypto.Keccak256(message)
-
-	verified := crypto.VerifySignature(pubKeyBytes, hash, signature[:64])
+	// Verify the signature
+	verified := VerifySignature(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature)
 
 	assert.Equal(t, verified, true, "Verify signature should return true")
 }
