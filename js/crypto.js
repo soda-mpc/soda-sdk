@@ -135,12 +135,18 @@ export function sign(sender, addr, funcSig, nonce, ct, key) {
 
     // Hash the concatenated message using Keccak-256
     const hash = ethereumjsUtil.keccak256(message);
-    console.log('hashed message = ' + hash.toString('hex'));
-
+    
     // Sign the message
     let signature = ethereumjsUtil.ecsign(hash, key);
-    console.log('signature = ' + signature.r.toString('hex') + signature.s.toString('hex') + signature.v.toString(16));
-    return signature;
+    signature.v = (signature.v - 27) // Convert v from 27-28 to 0-1 in order to be compatible with secp256k1
+    
+    // Convert r, s, and v components to bytes
+    let rBytes = Buffer.from(signature.r);
+    let sBytes = Buffer.from(signature.s);
+    let vByte = Buffer.from([signature.v]);
+
+    // Concatenate r, s, and v bytes
+    return Buffer.concat([rBytes, sBytes, vByte]);
 }
 
 export function generateRSAKeyPair() {
@@ -166,7 +172,8 @@ export function encryptRSA(publicKey, plaintext) {
     // Encrypt the plaintext using RSA-OAEP
     return crypto.publicEncrypt({
         key: publicKeyPEM,
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256'
     }, plaintext);
 }
 
@@ -178,6 +185,7 @@ export function decryptRSA(privateKey, ciphertext) {
     // Decrypt the ciphertext using RSA-OAEP
     return crypto.privateDecrypt({
         key: privateKeyPEM,
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256'
     }, ciphertext);
 }

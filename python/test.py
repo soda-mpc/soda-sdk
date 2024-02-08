@@ -108,7 +108,6 @@ class TestMpcHelper(unittest.TestCase):
         addr = os.urandom(address_size)
         func_sig = os.urandom(signature_size)
         nonce = os.urandom(nonce_size)
-
         key = os.urandom(key_size)
 
         # Create plaintext with the value 100 as a big integer with less than 128 bits
@@ -119,21 +118,38 @@ class TestMpcHelper(unittest.TestCase):
         ciphertext, r = encrypt(generate_aes_key(), plaintext_message)
         ct = ciphertext + r
 
-        sender = bytes.fromhex("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
-        addr = bytes.fromhex("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
-        func_sig = bytes.fromhex("00000000")
-        nonce = bytes.fromhex("0000000000000000")
-        ct = bytes.fromhex("1d87ced4fd3f916ea7474dfe320a5de096a89dcf3d8a6d9dd318e38ea9f23189")
-        key = bytes.fromhex("f14edf53952e2886057b3afdd23a24b63a577ebe474880f76d86aa7ca11da370")
-
         # Call the sign function
-        signature = sign(sender, addr, func_sig, nonce, ct, key)
-        print("Signature:", signature)
+        signature_bytes = sign(sender, addr, func_sig, nonce, ct, key)
         
         # Create the message to be 
         message = sender + addr + func_sig + nonce + ct
 
         pk = keys.PrivateKey(key)
+        signature = keys.Signature(signature_bytes)
+        # Verify the signature against the message hash and the public key
+        verified = signature.verify_msg(message, pk.public_key)
+       
+        self.assertEqual(verified, True)
+
+    def test_fixedMSG_Signature(self):
+        sender = bytes.fromhex("ee706584bf9a9414997840785b14d157bf315abab2745f60ebe2ba4d9971718181dcdf99154cdfed368256fe1f0fb4bd952296377b70f19817a0511d5a45a28e69a2c0f6cf28e4e7d52f6d966081579d115a22173b91efe5411622df117324d0b23bb13f5dd5f95d72a32aeb559f859179ffa2c84db6a4315af1aab83b03a2b02e7dd9501dd68e7529c9cc8a7140d011b2bf9845a5325a8e2703cae75713a871")
+        addr = bytes.fromhex("f2c401492410f9f8842a1b028a88c057f92539c14ca814dc67baad26884b65b3d8491accac662aee08353aed84e00bb856d12e6d816072be64cb87379347ab921e9772b31d47ee70c0bac432366bd669f58a8791a945ddee9a8f2b5d8b8c2a3b891b81d294ddf91bd9176875ce83887dedd6a62e70500bd9017d74dca4f2e284c69cd46ec889ffb9196dbd250e7e0183a2a1502d086baa8e4de2f6c8715cdf3c")
+        func_sig = bytes.fromhex("eb7dcb05")
+        nonce = bytes.fromhex("0cdab3e6457ec793")
+        ct = bytes.fromhex("195c6bbabb9483f5f6d0b95fa5486ebe1ad365fa21bf55f7158b87d560212207")
+        key = bytes.fromhex("e96d2e93781c3ee08d98d650c4a9888cc272675dddde76fdedc699871765d7a1")
+
+        # Call the sign function
+        signature_bytes = sign(sender, addr, func_sig, nonce, ct, key)
+        # Write hexadecimal string to a file
+        with open("pythonSignature.txt", "w") as f:
+            f.write(signature_bytes.hex())
+        
+        # Create the message to be 
+        message = sender + addr + func_sig + nonce + ct
+
+        pk = keys.PrivateKey(key)
+        signature = keys.Signature(signature_bytes)
         # Verify the signature against the message hash and the public key
         verified = signature.verify_msg(message, pk.public_key)
        
@@ -143,6 +159,12 @@ class TestMpcHelper(unittest.TestCase):
         plaintext = b"hello world"
         private_key, public_key = generate_rsa_keypair()
         ciphertext = encrypt_rsa(public_key, plaintext)
+
+        with open("pythonRSAEncryption.txt", "w") as f:
+            f.write(ciphertext.hex())
+            f.write("\n")
+            f.write(private_key.hex())
+
         decrypted = decrypt_rsa(private_key, ciphertext)
         self.assertEqual(plaintext, decrypted)
 

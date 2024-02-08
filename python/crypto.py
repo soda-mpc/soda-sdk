@@ -120,7 +120,7 @@ def sign(sender, addr, func_sig, nonce, ct, key):
  
     # Sign the message
     pk = keys.PrivateKey(key)
-    signature = pk.sign_msg(message)
+    signature = pk.sign_msg(message).to_bytes()
 
     return signature
 
@@ -130,9 +130,10 @@ def generate_rsa_keypair():
         public_exponent=65537,
         key_size=2048
     )
+    
     # Serialize private key
     private_key_bytes = private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
+        encoding=serialization.Encoding.DER,
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.NoEncryption()
     )
@@ -140,7 +141,7 @@ def generate_rsa_keypair():
     public_key = private_key.public_key()
     # Serialize public key
     public_key_bytes = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
+        encoding=serialization.Encoding.DER,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
 
@@ -148,7 +149,7 @@ def generate_rsa_keypair():
 
 def encrypt_rsa(public_key_bytes, plaintext):
     # Load public key
-    public_key = serialization.load_pem_public_key(public_key_bytes)
+    public_key = serialization.load_der_public_key(public_key_bytes)
     # Encrypt plaintext
     ciphertext = public_key.encrypt(
         plaintext,
@@ -162,7 +163,7 @@ def encrypt_rsa(public_key_bytes, plaintext):
 
 def decrypt_rsa(private_key_bytes, ciphertext):
     # Load private key
-    private_key = serialization.load_pem_private_key(private_key_bytes, password=None)
+    private_key = serialization.load_der_private_key(private_key_bytes, password=None)
     # Decrypt ciphertext
     plaintext = private_key.decrypt(
         ciphertext,

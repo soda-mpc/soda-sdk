@@ -2,11 +2,13 @@
 package crypto
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"math/big"
 	"os"
 	"testing"
@@ -100,17 +102,17 @@ func TestGenerateAndWriteAESKey(t *testing.T) {
 func TestSignature(t *testing.T) {
 	// Create plaintext with the value 100 as a big integer with less than 128 bits
 	sender := make([]byte, AddressSize)
-	// _, err := rand.Read(sender)
+	_, err := rand.Read(sender)
 	addr := make([]byte, AddressSize)
-	// _, err = rand.Read(addr)
+	_, err = rand.Read(addr)
 	funcSig := make([]byte, SignatureSize)
-	// _, err = rand.Read(funcSig)
+	_, err = rand.Read(funcSig)
 	nonce := make([]byte, NonceSize)
-	// _, err = rand.Read(nonce)
+	_, err = rand.Read(nonce)
 
 	key := make([]byte, KeySize)
-	// _, err = rand.Read(key)
-	// require.NoError(t, err, "Failed to generate random key")
+	_, err = rand.Read(key)
+	require.NoError(t, err, "Failed to generate random key")
 
 	// Create plaintext with the value 100 as a big integer with less than 128 bits
 	plaintextValue := big.NewInt(100)
@@ -120,24 +122,75 @@ func TestSignature(t *testing.T) {
 
 	ct := append(ciphertext, r...)
 
-	ct, _ = hex.DecodeString("1d87ced4fd3f916ea7474dfe320a5de096a89dcf3d8a6d9dd318e38ea9f23189")
-	key, _ = hex.DecodeString("f14edf53952e2886057b3afdd23a24b63a577ebe474880f76d86aa7ca11da370")
-
-	// Print hexadecimal string
-	fmt.Println("sender = " + hex.EncodeToString(sender))
-	fmt.Println("addr = " + hex.EncodeToString(addr))
-	fmt.Println("funcSig = " + hex.EncodeToString(funcSig))
-	fmt.Println("nonce = " + hex.EncodeToString(nonce))
-	fmt.Println("ct = " + hex.EncodeToString(ct))
-	fmt.Println("key = " + hex.EncodeToString(key))
-
 	signature, err := Sign(sender, addr, funcSig, nonce, ct, key)
 	require.NoError(t, err, "Sign should not return an error")
 
-	// fmt.Println("signature size = ", len(signature))
+	// Create an ECDSA private key from raw bytes
+	privateKey, err := crypto.ToECDSA(key)
+	require.NoError(t, err, "ToECDSA should not return an error")
 
-	// Print hexadecimal string
-	fmt.Println(hex.EncodeToString(signature))
+	// Verify the signature
+	pubKey := privateKey.Public()
+	pubKeyECDSA, ok := pubKey.(*ecdsa.PublicKey)
+	assert.Equal(t, ok, true, "Error casting public key to ECDSA")
+
+	// Get the bytes from the public key
+	pubKeyBytes := crypto.FromECDSAPub(pubKeyECDSA)
+
+	// Verify the signature
+	verified := VerifySignature(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature)
+
+	assert.Equal(t, verified, true, "Verify signature should return true")
+}
+
+func readSignatureFromFile(path string) ([]byte, error) {
+	// Open the file for reading
+	file, err := os.Open(path)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return nil, err
+	}
+	defer file.Close() // Make sure to close the file when done
+
+	// Read the contents of the file as a string
+	data, err := io.ReadAll(file)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return nil, err
+	}
+
+	// Convert the hex string to bytes
+	hexBytes, err := hex.DecodeString(string(data))
+	if err != nil {
+		fmt.Println("Error decoding hex:", err)
+		return nil, err
+	}
+
+	return hexBytes, nil
+}
+
+func TestFixedMsgSignature(t *testing.T) {
+	// Create plaintext with the value 100 as a big integer with less than 128 bits
+	sender, _ := hex.DecodeString("ee706584bf9a9414997840785b14d157bf315abab2745f60ebe2ba4d9971718181dcdf99154cdfed368256fe1f0fb4bd952296377b70f19817a0511d5a45a28e69a2c0f6cf28e4e7d52f6d966081579d115a22173b91efe5411622df117324d0b23bb13f5dd5f95d72a32aeb559f859179ffa2c84db6a4315af1aab83b03a2b02e7dd9501dd68e7529c9cc8a7140d011b2bf9845a5325a8e2703cae75713a871")
+	addr, _ := hex.DecodeString("f2c401492410f9f8842a1b028a88c057f92539c14ca814dc67baad26884b65b3d8491accac662aee08353aed84e00bb856d12e6d816072be64cb87379347ab921e9772b31d47ee70c0bac432366bd669f58a8791a945ddee9a8f2b5d8b8c2a3b891b81d294ddf91bd9176875ce83887dedd6a62e70500bd9017d74dca4f2e284c69cd46ec889ffb9196dbd250e7e0183a2a1502d086baa8e4de2f6c8715cdf3c")
+	funcSig, _ := hex.DecodeString("eb7dcb05")
+	nonce, _ := hex.DecodeString("0cdab3e6457ec793")
+	ct, _ := hex.DecodeString("195c6bbabb9483f5f6d0b95fa5486ebe1ad365fa21bf55f7158b87d560212207")
+	key, _ := hex.DecodeString("e96d2e93781c3ee08d98d650c4a9888cc272675dddde76fdedc699871765d7a1")
+
+	// Sign the message
+	signature, err := Sign(sender, addr, funcSig, nonce, ct, key)
+	require.NoError(t, err, "Sign should not return an error")
+
+	pythonSignature, err := readSignatureFromFile("../../python/pythonSignature.txt")
+	require.NoError(t, err, "Read Signature should not return an error")
+
+	assert.Equal(t, pythonSignature, signature, "signature should match the python signature")
+
+	jsSignature, err := readSignatureFromFile("../../js/jsSignature.txt")
+	require.NoError(t, err, "Read Signature should not return an error")
+
+	assert.Equal(t, jsSignature, signature, "signature should match the js signature")
 
 	// Create an ECDSA private key from raw bytes
 	privateKey, err := crypto.ToECDSA(key)
@@ -160,29 +213,83 @@ func TestSignature(t *testing.T) {
 func TestRSAEncryption(t *testing.T) {
 	// Generate key pair
 	privateKey, publicKey, err := GenerateRSAKeyPair()
-	if err != nil {
-		t.Fatalf("Error generating ElGamal key pair: %v", err)
-	}
+	require.NoError(t, err, "Generate RSA key pair should not return an error")
 
 	// Message to encrypt
 	plaintext := []byte("hello rsa")
 
 	// Encrypt the plaintext
 	cipher, err := EncryptRSA(publicKey, plaintext)
-	if err != nil {
-		fmt.Println("Error encrypting plaintext:", err)
-		return
-	}
+	require.NoError(t, err, "Encrypt should not return an error")
 
 	// Decrypt the ciphertext
 	decryptedText, err := DecryptRSA(privateKey, cipher)
-	if err != nil {
-		fmt.Println("Error decrypting ciphertext:", err)
-		return
-	}
+	require.NoError(t, err, "Decrypt should not return an error")
 
 	// Verify decrypted plaintext matches original message
-	if string(plaintext) != string(decryptedText) {
-		t.Errorf("Decrypted plaintext does not match original message. Got: %s, Want: %s", string(plaintext), string(decryptedText))
+	assert.Equal(t, plaintext, decryptedText, "Decrypted plaintext should match original message")
+}
+
+func readRSAEncryptionFromFile(path string) ([]byte, []byte, error) {
+	// Open the file for reading
+	file, err := os.Open(path)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return nil, nil, err
 	}
+	defer file.Close() // Make sure to close the file when done
+
+	// Read the contents of the file as a string
+	data, err := io.ReadAll(file)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return nil, nil, err
+	}
+
+	// Split the data into two hex strings
+	hexStrings := bytes.Split(data, []byte("\n"))
+
+	// Convert the hex strings to bytes
+	if len(hexStrings) != 2 {
+		return nil, nil, fmt.Errorf("Expected two hex strings in the file")
+	}
+
+	cipherBytes, err := hex.DecodeString(string(hexStrings[0]))
+	if err != nil {
+		fmt.Println("Error decoding hex:", err)
+		return nil, nil, err
+	}
+
+	keyBytes, err := hex.DecodeString(string(hexStrings[1]))
+	if err != nil {
+		fmt.Println("Error decoding hex:", err)
+		return nil, nil, err
+	}
+
+	return cipherBytes, keyBytes, nil
+}
+
+func TestRSAEncryptionFixed(t *testing.T) {
+	pythonCipher, pythonKey, err := readRSAEncryptionFromFile("../../python/pythonRSAEncryption.txt")
+	require.NoError(t, err, "Read Signature should not return an error")
+
+	// Message to encrypt
+	plaintext := []byte("hello world")
+
+	// Decrypt the ciphertext
+	decryptedText, err := DecryptRSA(pythonKey, pythonCipher)
+	require.NoError(t, err, "Decrypt should not return an error")
+
+	// Verify decrypted plaintext matches original message
+	assert.Equal(t, plaintext, decryptedText, "Decrypted plaintext should match original message")
+
+	jsCipher, jsKey, err := readRSAEncryptionFromFile("../../js/jsRSAEncryption.txt")
+	require.NoError(t, err, "Read Signature should not return an error")
+
+	// Decrypt the ciphertext
+	decryptedText, err = DecryptRSA(jsKey, jsCipher)
+	require.NoError(t, err, "Decrypt should not return an error")
+
+	// Verify decrypted plaintext matches original message
+	assert.Equal(t, plaintext, decryptedText, "Decrypted plaintext should match original message")
 }
