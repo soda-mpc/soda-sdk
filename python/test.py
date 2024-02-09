@@ -170,14 +170,6 @@ class TestMpcHelper(unittest.TestCase):
         self.assertEqual(plaintext, decrypted)
 
 class TestDecrypt(unittest.TestCase):
-    def setUp(self):
-        # Create a temporary directory for key files
-        self.temp_dir = tempfile.TemporaryDirectory()
-
-    def tearDown(self):
-        # Clean up the temporary directory
-        self.temp_dir.cleanup()
-        
 
     def readEncFromFileAndCheck(self, file_path):
         plaintext = b"hello world"
