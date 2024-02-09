@@ -178,13 +178,14 @@ class TestDecrypt(unittest.TestCase):
         # Clean up the temporary directory
         self.temp_dir.cleanup()
         
-    def test_rsa_decryption(self):
+
+    def readEncFromFileAndCheck(self, file_path):
         plaintext = b"hello world"
         private_key_hex = ""
         public_key_hex = ""
         cipher_hex = ""
 
-        with open("pythonRSAEncryption.txt", "r") as file:
+        with open(file_path, "r") as file:
             private_key_hex = file.readline().strip()  # Read the first line containing hexadecimal data
             public_key_hex = file.readline().strip()  # Read the first line containing hexadecimal data
             cipher_hex = file.readline().strip()  # Read the second line containing hexadecimal data
@@ -196,7 +197,12 @@ class TestDecrypt(unittest.TestCase):
         decrypted = decrypt_rsa(private_key, ciphertext)
         self.assertEqual(plaintext, decrypted)
 
-        os.remove("pythonRSAEncryption.txt")
+        os.remove(file_path)
+
+    def test_rsa_decryption(self):
+        self.readEncFromFileAndCheck("pythonRSAEncryption.txt")
+        self.readEncFromFileAndCheck("../golang_cli/crypto/goRSAEncryption.txt")
+
 
 if __name__ == '__main__':
     unittest.main()

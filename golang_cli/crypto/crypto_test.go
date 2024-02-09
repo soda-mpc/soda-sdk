@@ -169,6 +169,16 @@ func readSignatureFromFile(path string) ([]byte, error) {
 	return hexBytes, nil
 }
 
+func readSigFromFileAndCompare(t *testing.T, filePath string, signature []byte) {
+	pythonSignature, err := readSignatureFromFile(filePath)
+	require.NoError(t, err, "Read Signature should not return an error")
+
+	err = os.Remove(filePath)
+	require.NoError(t, err, "Delete file should not return an error")
+
+	assert.Equal(t, pythonSignature, signature, "signature should match the python signature")
+}
+
 func TestFixedMsgSignature(t *testing.T) {
 	// Create plaintext with the value 100 as a big integer with less than 128 bits
 	sender, _ := hex.DecodeString("ee706584bf9a9414997840785b14d157bf315abab2745f60ebe2ba4d9971718181dcdf99154cdfed368256fe1f0fb4bd952296377b70f19817a0511d5a45a28e69a2c0f6cf28e4e7d52f6d966081579d115a22173b91efe5411622df117324d0b23bb13f5dd5f95d72a32aeb559f859179ffa2c84db6a4315af1aab83b03a2b02e7dd9501dd68e7529c9cc8a7140d011b2bf9845a5325a8e2703cae75713a871")
@@ -182,21 +192,8 @@ func TestFixedMsgSignature(t *testing.T) {
 	signature, err := Sign(sender, addr, funcSig, nonce, ct, key)
 	require.NoError(t, err, "Sign should not return an error")
 
-	pythonSignature, err := readSignatureFromFile("../../python/pythonSignature.txt")
-	require.NoError(t, err, "Read Signature should not return an error")
-
-	err = os.Remove("../../python/pythonSignature.txt")
-	require.NoError(t, err, "Delete file should not return an error")
-
-	assert.Equal(t, pythonSignature, signature, "signature should match the python signature")
-
-	jsSignature, err := readSignatureFromFile("../../js/jsSignature.txt")
-	require.NoError(t, err, "Read Signature should not return an error")
-
-	err = os.Remove("../../js/jsSignature.txt")
-	require.NoError(t, err, "Delete file should not return an error")
-
-	assert.Equal(t, jsSignature, signature, "signature should match the js signature")
+	readSigFromFileAndCompare(t, "../../python/pythonSignature.txt", signature)
+	readSigFromFileAndCompare(t, "../../js/jsSignature.txt", signature)
 
 	// Create an ECDSA private key from raw bytes
 	privateKey, err := crypto.ToECDSA(key)
@@ -222,11 +219,15 @@ func TestRSAEncryption(t *testing.T) {
 	require.NoError(t, err, "Generate RSA key pair should not return an error")
 
 	// Message to encrypt
-	plaintext := []byte("hello rsa")
+	plaintext := []byte("hello world")
 
 	// Encrypt the plaintext
 	cipher, err := EncryptRSA(publicKey, plaintext)
 	require.NoError(t, err, "Encrypt should not return an error")
+
+	hexString := hex.EncodeToString(privateKey) + "\n" + hex.EncodeToString(publicKey) + "\n" + hex.EncodeToString(cipher)
+	err = appendHexToFile("goRSAEncryption.txt", hexString)
+	require.NoError(t, err, "Write to file should not return an error")
 
 	// Decrypt the ciphertext
 	decryptedText, err := DecryptRSA(privateKey, cipher)
@@ -276,6 +277,15 @@ func readRSAKeysFromFile(path string) ([]byte, []byte, error) {
 }
 
 func appendHexToFile(filename string, hexString string) error {
+	// Check if the file exists
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		// Create the file if it doesn't exist
+		_, err := os.Create(filename)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Open the file for appending with write permissions
 	file, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
@@ -285,7 +295,7 @@ func appendHexToFile(filename string, hexString string) error {
 
 	// Write the hexadecimal string to the file
 	// _, err = fmt.Fprintf(file, "%s\n", "")
-	_, err = fmt.Fprintf(file, "%s\n", "\n"+hexString)
+	_, err = fmt.Fprintf(file, "%s\n", hexString)
 	if err != nil {
 		return err
 	}
@@ -304,7 +314,7 @@ func TestRSAEncryptionFixed(t *testing.T) {
 	ciphertext, err := EncryptRSA(pythonKey, plaintext)
 	require.NoError(t, err, "Encrypt should not return an error")
 
-	appendHexToFile("../../python/pythonRSAEncryption.txt", hex.EncodeToString(ciphertext))
+	appendHexToFile("../../python/pythonRSAEncryption.txt", "\n"+hex.EncodeToString(ciphertext))
 
 	_, jsKey, err := readRSAKeysFromFile("../../js/jsRSAEncryption.txt")
 	require.NoError(t, err, "Read Signature should not return an error")
@@ -313,6 +323,6 @@ func TestRSAEncryptionFixed(t *testing.T) {
 	ciphertext, err = EncryptRSA(jsKey, plaintext)
 	require.NoError(t, err, "Encrypt should not return an error")
 
-	appendHexToFile("../../js/jsRSAEncryption.txt", hex.EncodeToString(ciphertext))
+	appendHexToFile("../../js/jsRSAEncryption.txt", "\n"+hex.EncodeToString(ciphertext))
 
 }
