@@ -6,6 +6,7 @@ from Crypto.Random import get_random_bytes
 from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, sign, generate_rsa_keypair, encrypt_rsa, decrypt_rsa
 from crypto import block_size, address_size, signature_size, nonce_size, key_size
 from eth_keys import keys
+import sys
 
 class TestMpcHelper(unittest.TestCase):
     def setUp(self):
@@ -161,12 +162,41 @@ class TestMpcHelper(unittest.TestCase):
         ciphertext = encrypt_rsa(public_key, plaintext)
 
         with open("pythonRSAEncryption.txt", "w") as f:
-            f.write(ciphertext.hex())
-            f.write("\n")
             f.write(private_key.hex())
+            f.write("\n")
+            f.write(public_key.hex())
 
         decrypted = decrypt_rsa(private_key, ciphertext)
         self.assertEqual(plaintext, decrypted)
+
+class TestDecrypt(unittest.TestCase):
+    def setUp(self):
+        # Create a temporary directory for key files
+        self.temp_dir = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        # Clean up the temporary directory
+        self.temp_dir.cleanup()
+        
+    def test_rsa_decryption(self):
+        plaintext = b"hello world"
+        private_key_hex = ""
+        public_key_hex = ""
+        cipher_hex = ""
+
+        with open("pythonRSAEncryption.txt", "r") as file:
+            private_key_hex = file.readline().strip()  # Read the first line containing hexadecimal data
+            public_key_hex = file.readline().strip()  # Read the first line containing hexadecimal data
+            cipher_hex = file.readline().strip()  # Read the second line containing hexadecimal data
+
+        private_key = bytes.fromhex(private_key_hex)  # Convert the first hexadecimal string to bytes
+        public_key = bytes.fromhex(public_key_hex)  # Convert the first hexadecimal string to bytes
+        ciphertext = bytes.fromhex(cipher_hex)  # Convert the second hexadecimal string to bytes
+        
+        decrypted = decrypt_rsa(private_key, ciphertext)
+        self.assertEqual(plaintext, decrypted)
+
+        os.remove("pythonRSAEncryption.txt")
 
 if __name__ == '__main__':
     unittest.main()

@@ -171,8 +171,8 @@ describe('Crypto Tests', () => {
         const { publicKey, privateKey } = generateRSAKeyPair();
 
         const ciphertext = encryptRSA(publicKey, plaintext);
-
-        const hexString = ciphertext.toString('hex') + '\n' + privateKey.toString('hex');
+        
+        const hexString = privateKey.toString('hex') + "\n" + publicKey.toString('hex');
 
         // Write buffer to the file
         const filename = 'jsRSAEncryption.txt'; // Name of the file to write to
@@ -186,6 +186,48 @@ describe('Crypto Tests', () => {
         const decrypted = decryptRSA(privateKey, ciphertext);
 
         assert.deepStrictEqual(plaintext, decrypted);
+    });
+
+    function readHexFromFile(filename) {
+        return new Promise((resolve, reject) => {
+            fs.readFile(filename, 'utf8', (err, data) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+    
+                const lines = data.trim().split('\n');
+                if (lines.length >= 3) {
+                    const hexData1 = lines[0].trim();
+                    const hexData2 = lines[1].trim();
+                    const hexData3 = lines[2].trim();
+                    resolve([hexData1, hexData2, hexData3]);
+                } else {
+                    reject(new Error('Not enough lines in the file.'));
+                }
+            });
+        });
+    }
+
+    // Test case for test rsa decryption scheme
+    it('should decrypt a message using RSA scheme', () => {
+        const plaintext = Buffer.from('hello world');
+
+        // Define private key and ciphertext
+        
+        readHexFromFile('jsRSAEncryption.txt')
+            .then(([hexData1, hexData2, hexData3]) => {
+                const privateKey = Buffer.from(hexData1, 'hex');
+                const ciphertext = Buffer.from(hexData3, 'hex');
+
+                const decrypted = decryptRSA(privateKey, ciphertext);
+                assert.deepStrictEqual(plaintext, decrypted);
+            })
+            .catch(error => {
+                console.error("Error reading file:", error);
+        });
+        
+        fs.unlinkSync('jsRSAEncryption.txt');
     });
 
 });

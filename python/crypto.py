@@ -105,8 +105,8 @@ def sign(sender, addr, func_sig, nonce, ct, key):
         raise ValueError(f"Invalid sender address length: {len(sender)} bytes, must be {address_size} bytes")
     if len(addr) != address_size:
         raise ValueError(f"Invalid contract address length: {len(addr)} bytes, must be {address_size} bytes")
-    # if len(func_sig) != signature_size:
-    #     raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {signature_size} bytes")
+    if len(func_sig) != signature_size:
+        raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {signature_size} bytes")
     if len(nonce) != nonce_size:
         raise ValueError(f"Invalid nonce length: {len(nonce)} bytes, must be {nonce_size} bytes")
     if len(ct) != ct_size:

@@ -185,10 +185,16 @@ func TestFixedMsgSignature(t *testing.T) {
 	pythonSignature, err := readSignatureFromFile("../../python/pythonSignature.txt")
 	require.NoError(t, err, "Read Signature should not return an error")
 
+	err = os.Remove("../../python/pythonSignature.txt")
+	require.NoError(t, err, "Delete file should not return an error")
+
 	assert.Equal(t, pythonSignature, signature, "signature should match the python signature")
 
 	jsSignature, err := readSignatureFromFile("../../js/jsSignature.txt")
 	require.NoError(t, err, "Read Signature should not return an error")
+
+	err = os.Remove("../../js/jsSignature.txt")
+	require.NoError(t, err, "Delete file should not return an error")
 
 	assert.Equal(t, jsSignature, signature, "signature should match the js signature")
 
@@ -230,7 +236,7 @@ func TestRSAEncryption(t *testing.T) {
 	assert.Equal(t, plaintext, decryptedText, "Decrypted plaintext should match original message")
 }
 
-func readRSAEncryptionFromFile(path string) ([]byte, []byte, error) {
+func readRSAKeysFromFile(path string) ([]byte, []byte, error) {
 	// Open the file for reading
 	file, err := os.Open(path)
 	if err != nil {
@@ -269,27 +275,44 @@ func readRSAEncryptionFromFile(path string) ([]byte, []byte, error) {
 	return cipherBytes, keyBytes, nil
 }
 
+func appendHexToFile(filename string, hexString string) error {
+	// Open the file for appending with write permissions
+	file, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Write the hexadecimal string to the file
+	// _, err = fmt.Fprintf(file, "%s\n", "")
+	_, err = fmt.Fprintf(file, "%s\n", "\n"+hexString)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func TestRSAEncryptionFixed(t *testing.T) {
-	pythonCipher, pythonKey, err := readRSAEncryptionFromFile("../../python/pythonRSAEncryption.txt")
+	_, pythonKey, err := readRSAKeysFromFile("../../python/pythonRSAEncryption.txt")
 	require.NoError(t, err, "Read Signature should not return an error")
 
 	// Message to encrypt
 	plaintext := []byte("hello world")
 
 	// Decrypt the ciphertext
-	decryptedText, err := DecryptRSA(pythonKey, pythonCipher)
-	require.NoError(t, err, "Decrypt should not return an error")
+	ciphertext, err := EncryptRSA(pythonKey, plaintext)
+	require.NoError(t, err, "Encrypt should not return an error")
 
-	// Verify decrypted plaintext matches original message
-	assert.Equal(t, plaintext, decryptedText, "Decrypted plaintext should match original message")
+	appendHexToFile("../../python/pythonRSAEncryption.txt", hex.EncodeToString(ciphertext))
 
-	jsCipher, jsKey, err := readRSAEncryptionFromFile("../../js/jsRSAEncryption.txt")
+	_, jsKey, err := readRSAKeysFromFile("../../js/jsRSAEncryption.txt")
 	require.NoError(t, err, "Read Signature should not return an error")
 
 	// Decrypt the ciphertext
-	decryptedText, err = DecryptRSA(jsKey, jsCipher)
-	require.NoError(t, err, "Decrypt should not return an error")
+	ciphertext, err = EncryptRSA(jsKey, plaintext)
+	require.NoError(t, err, "Encrypt should not return an error")
 
-	// Verify decrypted plaintext matches original message
-	assert.Equal(t, plaintext, decryptedText, "Decrypted plaintext should match original message")
+	appendHexToFile("../../js/jsRSAEncryption.txt", hex.EncodeToString(ciphertext))
+
 }
