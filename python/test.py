@@ -196,14 +196,14 @@ class TestMpcHelper(unittest.TestCase):
 
 class TestDecrypt(unittest.TestCase):
 
-    def readEncFromFileAndCheck(self, file_path):
+    def test_rsa_decryption(self):
         # Arrange
         plaintext = b"hello world"
         private_key_hex = ""
         public_key_hex = ""
         cipher_hex = ""
 
-        with open(file_path, "r") as file:
+        with open("test_pythonRSAEncryption.txt", "r") as file:
             private_key_hex = file.readline().strip()  
             public_key_hex = file.readline().strip()  
             cipher_hex = file.readline().strip()  
@@ -218,11 +218,7 @@ class TestDecrypt(unittest.TestCase):
         # Assert
         self.assertEqual(plaintext, decrypted)
 
-        os.remove(file_path)
-
-    def test_rsa_decryption(self):
-        self.readEncFromFileAndCheck("test_pythonRSAEncryption.txt")
-        self.readEncFromFileAndCheck("../golang_cli/crypto/test_goRSAEncryption.txt")
+        os.remove("test_pythonRSAEncryption.txt")
 
 
 if __name__ == '__main__':

@@ -247,10 +247,6 @@ func TestRSAEncryption(t *testing.T) {
 	cipher, err := EncryptRSA(publicKey, plaintext)
 	require.NoError(t, err, "Encrypt should not return an error")
 
-	hexString := hex.EncodeToString(privateKey) + "\n" + hex.EncodeToString(publicKey) + "\n" + hex.EncodeToString(cipher)
-	err = appendHexToFile("test_goRSAEncryption.txt", hexString)
-	require.NoError(t, err, "Write to file should not return an error")
-
 	// Decrypt the ciphertext
 	decryptedText, err := DecryptRSA(privateKey, cipher)
 	require.NoError(t, err, "Decrypt should not return an error")

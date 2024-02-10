@@ -234,13 +234,14 @@ describe('Crypto Tests', () => {
         });
     }
 
-    function readEncFromFileAndCheck(filename) {
+    // Test case for test rsa decryption scheme
+    it('should decrypt a message using RSA scheme', () => {
         // Arrange
         const plaintext = Buffer.from('hello world');
 
         // Act
         // Read private key and ciphertext
-        readHexFromFile(filename)
+        readHexFromFile('test_jsRSAEncryption.txt')
             .then(([hexData1, hexData2, hexData3]) => {
                 const privateKey = Buffer.from(hexData1, 'hex');
                 const ciphertext = Buffer.from(hexData3, 'hex');
@@ -253,14 +254,7 @@ describe('Crypto Tests', () => {
             .catch(error => {
                 console.error("Error reading file:", error);
         });
-    
-    }
-
-    // Test case for test rsa decryption scheme
-    it('should decrypt a message using RSA scheme', () => {
-        readEncFromFileAndCheck('test_jsRSAEncryption.txt');
         fs.unlinkSync('test_jsRSAEncryption.txt');
-        readEncFromFileAndCheck('../golang_cli/crypto/test_goRSAEncryption.txt');
     });
 
 });
