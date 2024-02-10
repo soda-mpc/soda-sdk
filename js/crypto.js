@@ -3,8 +3,8 @@ import fs from 'fs';
 import ethereumjsUtil  from 'ethereumjs-util';
 
 export const block_size = 16; // AES block size in bytes
-export const addressSize = 160;
-export const signatureSize = 4;
+export const addressSize = 20; // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
+export const funcSigSize = 4;
 export const nonceSize = 8;
 export const ctSize = 32;
 export const keySize = 32;
@@ -116,8 +116,8 @@ export function sign(sender, addr, funcSig, nonce, ct, key) {
     if (addr.length !== addressSize) {
         throw new RangeError(`Invalid contract address length: ${addr.length} bytes, must be ${addressSize} bytes`);
     }
-    if (funcSig.length !== signatureSize) {
-        throw new RangeError(`Invalid signature size: ${funcSig.length} bytes, must be ${signatureSize} bytes`);
+    if (funcSig.length !== funcSigSize) {
+        throw new RangeError(`Invalid signature size: ${funcSig.length} bytes, must be ${funcSigSize} bytes`);
     }
     if (nonce.length !== nonceSize) {
         throw new RangeError(`Invalid nonce length: ${nonce.length} bytes, must be ${nonceSize} bytes`);
@@ -138,7 +138,7 @@ export function sign(sender, addr, funcSig, nonce, ct, key) {
     
     // Sign the message
     let signature = ethereumjsUtil.ecsign(hash, key);
-    signature.v = (signature.v - 27) // Convert v from 27-28 to 0-1 in order to be compatible with secp256k1
+    signature.v = (signature.v - 27) // Convert v from 27-28 to 0-1 in order to match the ecrecover of ethereum
     
     // Convert r, s, and v components to bytes
     let rBytes = Buffer.from(signature.r);

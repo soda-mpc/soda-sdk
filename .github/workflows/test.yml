@@ -50,6 +50,9 @@ jobs:
           go mod download
           go test -v -count=1 ./...
           
+      # During the Go tests, an encryption is saved to a file. 
+      # Subsequently, this encryption needs to be decrypted and verified in both the JavaScript and Python tests. 
+      # As part of this process, the JavaScript and Python decrypt tests are executed after the Go teststo ensure that the encryption is correctly decrypted.
       - name: JavaScript decrypt test
         working-directory: ./js
         run: |

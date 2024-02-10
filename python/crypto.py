@@ -10,8 +10,8 @@ from cryptography.hazmat.primitives.asymmetric import padding
 
 
 block_size = AES.block_size
-address_size = 160
-signature_size = 4
+address_size = 20
+func_sig_size = 4
 nonce_size = 8
 ct_size = 32
 key_size = 32
@@ -105,8 +105,8 @@ def sign(sender, addr, func_sig, nonce, ct, key):
         raise ValueError(f"Invalid sender address length: {len(sender)} bytes, must be {address_size} bytes")
     if len(addr) != address_size:
         raise ValueError(f"Invalid contract address length: {len(addr)} bytes, must be {address_size} bytes")
-    if len(func_sig) != signature_size:
-        raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {signature_size} bytes")
+    if len(func_sig) != func_sig_size:
+        raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {func_sig_size} bytes")
     if len(nonce) != nonce_size:
         raise ValueError(f"Invalid nonce length: {len(nonce)} bytes, must be {nonce_size} bytes")
     if len(ct) != ct_size:

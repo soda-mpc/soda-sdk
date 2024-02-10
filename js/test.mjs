@@ -1,6 +1,6 @@
 import { assert } from 'chai';
 import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, sign, generateRSAKeyPair, encryptRSA, decryptRSA } from './crypto.js';
-import { block_size, addressSize, signatureSize, nonceSize, ctSize, keySize } from './crypto.js';
+import { block_size, addressSize, funcSigSize, nonceSize, ctSize, keySize } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
 import ethereumjsUtil  from 'ethereumjs-util';
@@ -9,10 +9,12 @@ describe('Crypto Tests', () => {
 
     // Test case for encrypt and decrypt
     it('should encrypt and decrypt successfully', () => {
+        // Arrange
         const plaintextInteger = 100;
         const plaintextBuffer = Buffer.alloc(1);
         plaintextBuffer.writeUInt8(plaintextInteger);
 
+        // Act
         const key = generateAesKey();
 
         const { ciphertext, r } = encrypt(key, plaintextBuffer);
@@ -20,15 +22,20 @@ describe('Crypto Tests', () => {
 
         const decryptedInteger = decryptedBuffer.readUInt8();
 
+        // Assert
         assert.strictEqual(decryptedInteger, plaintextInteger);
     });
 
     // Test case for load and write AES key
     it('should load and write AES key successfully', () => {
+        // Arrange
         const key = generateAesKey();
+
+        // Act
         writeAesKey('key.txt', key);
         const loadedKey = loadAesKey('key.txt');
 
+        // Assert
         assert.deepStrictEqual(loadedKey, key);
 
         // Delete the key file
@@ -41,54 +48,63 @@ describe('Crypto Tests', () => {
 
     // Test case for invalid plaintext size
     it('should throw error for invalid plaintext size', () => {
+        // Arrange
         const key = generateAesKey();
         const plaintextBuffer = Buffer.alloc(20); // Bigger than 128 bits
 
+        // Act and Assert
         assert.throws(() => encrypt(key, plaintextBuffer), RangeError);
         
     });
 
     // Test case for invalid ciphertext size
     it('should throw error for invalid ciphertext size', () => {
+        // Arrange
         const key = generateAesKey();
         const ciphertext = Buffer.from([0x01, 0x02, 0x03]); // Smaller than 128 bits
-        const r = Buffer.alloc(16);
+        const r = Buffer.alloc(block_size);
 
+        // Act and Assert
         assert.throws(() => decrypt(key, r, ciphertext), RangeError);
     });
 
     // Test case for invalid random size
     it('should throw error for invalid random size', () => {
+        // Arrange
         const key = generateAesKey();
         const r = Buffer.from([0x01, 0x02, 0x03]); // Smaller than 128 bits
-        const ciphertext = Buffer.alloc(16);
+        const ciphertext = Buffer.alloc(block_size);
 
+        // Act and Assert
         assert.throws(() => decrypt(key, r, ciphertext), RangeError);
     });
 
     // Test case for invalid key size
     it('should throw error for invalid key size', () => {
+        // Arrange
         const key = Buffer.from([0x01, 0x02, 0x03]); // Smaller than 128 bits
 
+        // Act and Assert
         // Test invalid key size when writing key
         assert.throws(() => writeAesKey('key.txt', key), RangeError);
 
         // Test invalid key size when encrypting
-        const plaintextBuffer = Buffer.alloc(16);
+        const plaintextBuffer = Buffer.alloc(block_size);
         assert.throws(() => encrypt(key, plaintextBuffer), RangeError);
 
         // Test invalid key size when decrypting
-        const ciphertext = Buffer.alloc(16);
-        const r = Buffer.alloc(16);
+        const ciphertext = Buffer.alloc(block_size);
+        const r = Buffer.alloc(block_size);
         assert.throws(() => decrypt(key, r, ciphertext), RangeError);
     });
 
     // Test case for verify signature
     it('should sign and verify the signature', () => {
+        // Arrange
         // Simulate the generation of random bytes
         const sender = crypto.randomBytes(addressSize);
         const addr = crypto.randomBytes(addressSize);
-        const funcSig = crypto.randomBytes(signatureSize);
+        const funcSig = crypto.randomBytes(funcSigSize);
         const nonce = crypto.randomBytes(nonceSize);
         let key = crypto.randomBytes(keySize);
         
@@ -99,6 +115,7 @@ describe('Crypto Tests', () => {
         const { ciphertext, r } = encrypt(aeskey, plaintextBuffer);
         let ct = Buffer.concat([ciphertext, r]);
 
+        // Act
         // Generate the signature
         const signatureBytes = sign(sender, addr, funcSig, nonce, ct, key);
         
@@ -114,7 +131,9 @@ describe('Crypto Tests', () => {
         // Convert v buffer back to integer
         let v = vByte.readUInt8();
 
-        // Add 27 to v if necessary to make it compatible with Ethereum
+        // JS expects v to be 27 or 28. But in Ethereum, v is either 0 or 1. 
+        // In the sign function, 27 is subtracted from v in order to make it work with ethereum. 
+        // Now 27 should be added back to v to make it work with JS veification.
         if (v !== 27 && v !== 28) {
             v += 27;
         }
@@ -134,23 +153,26 @@ describe('Crypto Tests', () => {
         // Compare the derived address with the expected signer's address
         const isVerified = address === expectedAddress;
 
+        // Assert
         assert.strictEqual(isVerified, true);
     });
 
     // Test case for verify signature
     it('should sign a fixed message and write the signature to a file', () => {
+        // Arrange
         // Simulate the generation of random bytes
-        const sender = Buffer.from('ee706584bf9a9414997840785b14d157bf315abab2745f60ebe2ba4d9971718181dcdf99154cdfed368256fe1f0fb4bd952296377b70f19817a0511d5a45a28e69a2c0f6cf28e4e7d52f6d966081579d115a22173b91efe5411622df117324d0b23bb13f5dd5f95d72a32aeb559f859179ffa2c84db6a4315af1aab83b03a2b02e7dd9501dd68e7529c9cc8a7140d011b2bf9845a5325a8e2703cae75713a871', 'hex');
-        const addr = Buffer.from('f2c401492410f9f8842a1b028a88c057f92539c14ca814dc67baad26884b65b3d8491accac662aee08353aed84e00bb856d12e6d816072be64cb87379347ab921e9772b31d47ee70c0bac432366bd669f58a8791a945ddee9a8f2b5d8b8c2a3b891b81d294ddf91bd9176875ce83887dedd6a62e70500bd9017d74dca4f2e284c69cd46ec889ffb9196dbd250e7e0183a2a1502d086baa8e4de2f6c8715cdf3c', 'hex');
-        const funcSig = Buffer.from('eb7dcb05', 'hex');
-        const nonce = Buffer.from('0cdab3e6457ec793', 'hex');
-        const ct = Buffer.from('195c6bbabb9483f5f6d0b95fa5486ebe1ad365fa21bf55f7158b87d560212207', 'hex');
-        const key = Buffer.from('e96d2e93781c3ee08d98d650c4a9888cc272675dddde76fdedc699871765d7a1', 'hex');
+        const sender = Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex');
+        const addr = Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex');
+        const funcSig = Buffer.from('dc85563d', 'hex');
+        const nonce = Buffer.from('5f24aebc4e4586ec', 'hex');
+        const ct = Buffer.from('f8765e191e03bf341c1422e0899d092674fc73beb624845199cd6e14b7895882', 'hex');
+        const key = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
 
+        // Act
         // Generate the signature
         const signature = sign(sender, addr, funcSig, nonce, ct, key);
 
-        const filename = 'jsSignature.txt'; // Name of the file to write to
+        const filename = 'test_jsSignature.txt'; // Name of the file to write to
 
         // Convert hexadecimal string to buffer
         let sigString = signature.toString('hex');
@@ -166,16 +188,18 @@ describe('Crypto Tests', () => {
 
     // Test case for test rsa encryption scheme
     it('should encrypt and decrypt a message using RSA scheme', () => {
+        // Arrange
         const plaintext = Buffer.from('hello world');
 
         const { publicKey, privateKey } = generateRSAKeyPair();
 
+        // Act
         const ciphertext = encryptRSA(publicKey, plaintext);
         
         const hexString = privateKey.toString('hex') + "\n" + publicKey.toString('hex');
 
         // Write buffer to the file
-        const filename = 'jsRSAEncryption.txt'; // Name of the file to write to
+        const filename = 'test_jsRSAEncryption.txt'; // Name of the file to write to
         fs.writeFile(filename, hexString, (err) => {
             if (err) {
                 console.error('Error writing to file:', err);
@@ -185,6 +209,7 @@ describe('Crypto Tests', () => {
 
         const decrypted = decryptRSA(privateKey, ciphertext);
 
+        // Assert
         assert.deepStrictEqual(plaintext, decrypted);
     });
 
@@ -210,16 +235,19 @@ describe('Crypto Tests', () => {
     }
 
     function readEncFromFileAndCheck(filename) {
+        // Arrange
         const plaintext = Buffer.from('hello world');
 
-        // Define private key and ciphertext
-        
+        // Act
+        // Read private key and ciphertext
         readHexFromFile(filename)
             .then(([hexData1, hexData2, hexData3]) => {
                 const privateKey = Buffer.from(hexData1, 'hex');
                 const ciphertext = Buffer.from(hexData3, 'hex');
 
                 const decrypted = decryptRSA(privateKey, ciphertext);
+
+                // Assert
                 assert.deepStrictEqual(plaintext, decrypted);
             })
             .catch(error => {
@@ -230,9 +258,9 @@ describe('Crypto Tests', () => {
 
     // Test case for test rsa decryption scheme
     it('should decrypt a message using RSA scheme', () => {
-        readEncFromFileAndCheck('jsRSAEncryption.txt');
-        fs.unlinkSync('jsRSAEncryption.txt');
-        readEncFromFileAndCheck('../golang_cli/crypto/goRSAEncryption.txt');
+        readEncFromFileAndCheck('test_jsRSAEncryption.txt');
+        fs.unlinkSync('test_jsRSAEncryption.txt');
+        readEncFromFileAndCheck('../golang_cli/crypto/test_goRSAEncryption.txt');
     });
 
 });

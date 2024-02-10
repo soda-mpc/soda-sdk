@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ethereum/go-ethereum/crypto"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 // PadWithZeros pads the input with zeros to make its length a multiple of blockSize.
@@ -146,13 +146,27 @@ func GenerateAESKey() ([]byte, error) {
 }
 
 const (
-	AddressSize   = 160
-	SignatureSize = 4
-	NonceSize     = 8
-	CtSize        = 32
-	KeySize       = 32
+	AddressSize = 20 // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
+	FuncSigSize = 4
+	NonceSize   = 8
+	CtSize      = 32
+	KeySize     = 32
 )
 
+// Sign is a function that signes an hashed message using ECDSA. It takes in six parameters:
+// sender: The address of the sender. It should be a byte slice of length AddressSize.
+// addr: The contract address. It should be a byte slice of length AddressSize.
+// funcSig: The function signature. It should be a byte slice of length FuncSigSize.
+// nonce: The nonce, or number used once, for this transaction. It should be a byte slice of length NonceSize.
+// ct: The ciphertext to be signed. It should be a byte slice of length CtSize.
+// key: The private key used for signing. It should be a byte slice of length KeySize.
+// It first checks if the lengths of these parameters are correct according to predefined constants.
+// If any of them are not of the correct length, it returns an error.
+// It then concatenates (sender | contract | funcSignature | nonce | ct) to create a message.
+// This message is then hashed using the Keccak-256 algorithm.
+// The function then creates an ECDSA private key from the provided key.
+// Finally, it signs the hashed message using the created private key.
+// If all steps are successful, it returns the signature and no error.
 func Sign(sender, addr, funcSig, nonce, ct, key []byte) ([]byte, error) {
 	// Ensure all input sizes are the correct length
 	if len(sender) != AddressSize {
@@ -161,8 +175,8 @@ func Sign(sender, addr, funcSig, nonce, ct, key []byte) ([]byte, error) {
 	if len(addr) != AddressSize {
 		return nil, fmt.Errorf("Invalid contract address length: %d bytes, must be %d bytes", len(addr), AddressSize)
 	}
-	if len(funcSig) != SignatureSize {
-		return nil, fmt.Errorf("Invalid signature size: %d bytes, must be %d bytes", len(funcSig), SignatureSize)
+	if len(funcSig) != FuncSigSize {
+		return nil, fmt.Errorf("Invalid signature size: %d bytes, must be %d bytes", len(funcSig), FuncSigSize)
 	}
 	if len(nonce) != NonceSize {
 		return nil, fmt.Errorf("Invalid nonce length: %d bytes, must be %d bytes", len(nonce), NonceSize)
@@ -182,16 +196,16 @@ func Sign(sender, addr, funcSig, nonce, ct, key []byte) ([]byte, error) {
 	message = append(message, ct...)
 
 	// Create an ECDSA private key from raw bytes
-	privateKey, err := crypto.ToECDSA(key)
+	privateKey, err := ethcrypto.ToECDSA(key)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create ECDSA private key: %v", err)
 	}
 
 	// Hash the concatenated message using Keccak-256
-	hash := crypto.Keccak256(message)
+	hash := ethcrypto.Keccak256(message)
 
 	// Sign the message
-	signature, err := crypto.Sign(hash, privateKey)
+	signature, err := ethcrypto.Sign(hash, privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to sign message: %v", err)
 	}
@@ -208,9 +222,9 @@ func VerifySignature(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature []
 	message = append(message, ct...)
 
 	// Hash the concatenated message using Keccak-256
-	hash := crypto.Keccak256(message)
+	hash := ethcrypto.Keccak256(message)
 
-	return crypto.VerifySignature(pubKeyBytes, hash, signature[:64])
+	return ethcrypto.VerifySignature(pubKeyBytes, hash, signature[:64])
 }
 
 func GenerateRSAKeyPair() ([]byte, []byte, error) {

@@ -39,29 +39,35 @@ func encryptDecrypt(t *testing.T, plaintextBytes []byte) []byte {
 }
 
 func TestEncryptDecrypt(t *testing.T) {
-
+	// Arrange
 	// Create plaintext with the value 100 as a big integer with 128 bits
 	plaintextValue := big.NewInt(100)
 	plaintextBytes := make([]byte, aes.BlockSize)
 	plaintextValue.FillBytes(plaintextBytes)
 
+	// Act
 	decrypted := encryptDecrypt(t, plaintextBytes)
 
+	// Assert
 	assert.Equal(t, plaintextBytes, decrypted, "Decrypted message should match the original plaintext")
 }
 
 func TestEncryptDecryptWithPadding(t *testing.T) {
+	// Arrange
 	// Create plaintext with the value 100 as a big integer with less than 128 bits
 	plaintextValue := big.NewInt(100)
 	plaintextBytes := plaintextValue.Bytes()
 
+	// Act
 	decrypted := encryptDecrypt(t, plaintextBytes)
 	decryptedValue := new(big.Int).SetBytes(decrypted)
 
+	// Assert
 	assert.Equal(t, plaintextValue, decryptedValue, "Decrypted message should match the original plaintext")
 }
 
 func TestLoadWriteAESKey(t *testing.T) {
+	// Arrange and Assert
 	// Create a temporary file for testing
 	tempFile := "temp_key_file.txt"
 	defer os.Remove(tempFile)
@@ -72,6 +78,7 @@ func TestLoadWriteAESKey(t *testing.T) {
 		t.Fatalf("Failed to generate random key: %v", err)
 	}
 
+	// Act and Assert
 	// Test WriteAESKey
 	err = WriteAESKey(tempFile, key)
 	require.NoError(t, err, "WriteAESKey should not return an error")
@@ -83,6 +90,7 @@ func TestLoadWriteAESKey(t *testing.T) {
 }
 
 func TestGenerateAndWriteAESKey(t *testing.T) {
+	// Arrange and Assert
 	// Create a temporary file for testing
 	tempFile := "temp_key_file.txt"
 	defer os.Remove(tempFile)
@@ -90,6 +98,7 @@ func TestGenerateAndWriteAESKey(t *testing.T) {
 	key, err := GenerateAESKey()
 	require.NoError(t, err, "GenerateAESKey should not return an error")
 
+	// Act and Assert
 	err = WriteAESKey(tempFile, key)
 	require.NoError(t, err, "WriteAESKey should not return an error")
 
@@ -100,12 +109,12 @@ func TestGenerateAndWriteAESKey(t *testing.T) {
 }
 
 func TestSignature(t *testing.T) {
-	// Create plaintext with the value 100 as a big integer with less than 128 bits
+	// Arrange
 	sender := make([]byte, AddressSize)
 	_, err := rand.Read(sender)
 	addr := make([]byte, AddressSize)
 	_, err = rand.Read(addr)
-	funcSig := make([]byte, SignatureSize)
+	funcSig := make([]byte, FuncSigSize)
 	_, err = rand.Read(funcSig)
 	nonce := make([]byte, NonceSize)
 	_, err = rand.Read(nonce)
@@ -122,6 +131,9 @@ func TestSignature(t *testing.T) {
 
 	ct := append(ciphertext, r...)
 
+	fmt.Println("ct:", hex.EncodeToString(ct))
+
+	// Act and assert
 	signature, err := Sign(sender, addr, funcSig, nonce, ct, key)
 	require.NoError(t, err, "Sign should not return an error")
 
@@ -132,7 +144,7 @@ func TestSignature(t *testing.T) {
 	// Verify the signature
 	pubKey := privateKey.Public()
 	pubKeyECDSA, ok := pubKey.(*ecdsa.PublicKey)
-	assert.Equal(t, ok, true, "Error casting public key to ECDSA")
+	require.Equal(t, ok, true, "Error casting public key to ECDSA")
 
 	// Get the bytes from the public key
 	pubKeyBytes := crypto.FromECDSAPub(pubKeyECDSA)
@@ -170,30 +182,38 @@ func readSignatureFromFile(path string) ([]byte, error) {
 }
 
 func readSigFromFileAndCompare(t *testing.T, filePath string, signature []byte) {
-	pythonSignature, err := readSignatureFromFile(filePath)
+	fileSig, err := readSignatureFromFile(filePath)
 	require.NoError(t, err, "Read Signature should not return an error")
 
 	err = os.Remove(filePath)
 	require.NoError(t, err, "Delete file should not return an error")
 
-	assert.Equal(t, pythonSignature, signature, "signature should match the python signature")
+	assert.Equal(t, fileSig, signature, "signature should match the python signature")
 }
 
+// TestFixedMsgSignature is a test function that checks the functionality of the Sign and VerifySignature functions.
+// It first decodes fixed hexadecimal strings into byte slices representing the sender, address, function signature, nonce, ciphertext, and key.
+// It then signs a message using these parameters and checks for errors.
+// The function then reads signatures from two files (one Python and one JavaScript) and compares them to the generated signature.
+// This ensures that the signature is correct in both python and javascript implementations.
+// It then verifies the signature using the VerifySignature function and asserts that the result should be true.
 func TestFixedMsgSignature(t *testing.T) {
+	// Arrange
 	// Create plaintext with the value 100 as a big integer with less than 128 bits
-	sender, _ := hex.DecodeString("ee706584bf9a9414997840785b14d157bf315abab2745f60ebe2ba4d9971718181dcdf99154cdfed368256fe1f0fb4bd952296377b70f19817a0511d5a45a28e69a2c0f6cf28e4e7d52f6d966081579d115a22173b91efe5411622df117324d0b23bb13f5dd5f95d72a32aeb559f859179ffa2c84db6a4315af1aab83b03a2b02e7dd9501dd68e7529c9cc8a7140d011b2bf9845a5325a8e2703cae75713a871")
-	addr, _ := hex.DecodeString("f2c401492410f9f8842a1b028a88c057f92539c14ca814dc67baad26884b65b3d8491accac662aee08353aed84e00bb856d12e6d816072be64cb87379347ab921e9772b31d47ee70c0bac432366bd669f58a8791a945ddee9a8f2b5d8b8c2a3b891b81d294ddf91bd9176875ce83887dedd6a62e70500bd9017d74dca4f2e284c69cd46ec889ffb9196dbd250e7e0183a2a1502d086baa8e4de2f6c8715cdf3c")
-	funcSig, _ := hex.DecodeString("eb7dcb05")
-	nonce, _ := hex.DecodeString("0cdab3e6457ec793")
-	ct, _ := hex.DecodeString("195c6bbabb9483f5f6d0b95fa5486ebe1ad365fa21bf55f7158b87d560212207")
-	key, _ := hex.DecodeString("e96d2e93781c3ee08d98d650c4a9888cc272675dddde76fdedc699871765d7a1")
+	sender, _ := hex.DecodeString("d67fe7792f18fbd663e29818334a050240887c28")
+	addr, _ := hex.DecodeString("69413851f025306dbe12c48ff2225016fc5bbe1b")
+	funcSig, _ := hex.DecodeString("dc85563d")
+	nonce, _ := hex.DecodeString("5f24aebc4e4586ec")
+	ct, _ := hex.DecodeString("f8765e191e03bf341c1422e0899d092674fc73beb624845199cd6e14b7895882")
+	key, _ := hex.DecodeString("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
 
+	// Act and assert
 	// Sign the message
 	signature, err := Sign(sender, addr, funcSig, nonce, ct, key)
 	require.NoError(t, err, "Sign should not return an error")
 
-	readSigFromFileAndCompare(t, "../../python/pythonSignature.txt", signature)
-	readSigFromFileAndCompare(t, "../../js/jsSignature.txt", signature)
+	readSigFromFileAndCompare(t, "../../python/test_pythonSignature.txt", signature)
+	readSigFromFileAndCompare(t, "../../js/test_jsSignature.txt", signature)
 
 	// Create an ECDSA private key from raw bytes
 	privateKey, err := crypto.ToECDSA(key)
@@ -202,7 +222,7 @@ func TestFixedMsgSignature(t *testing.T) {
 	// Verify the signature
 	pubKey := privateKey.Public()
 	pubKeyECDSA, ok := pubKey.(*ecdsa.PublicKey)
-	assert.Equal(t, ok, true, "Error casting public key to ECDSA")
+	require.Equal(t, ok, true, "Error casting public key to ECDSA")
 
 	// Get the bytes from the public key
 	pubKeyBytes := crypto.FromECDSAPub(pubKeyECDSA)
@@ -214,6 +234,7 @@ func TestFixedMsgSignature(t *testing.T) {
 }
 
 func TestRSAEncryption(t *testing.T) {
+	// Arrange
 	// Generate key pair
 	privateKey, publicKey, err := GenerateRSAKeyPair()
 	require.NoError(t, err, "Generate RSA key pair should not return an error")
@@ -221,12 +242,13 @@ func TestRSAEncryption(t *testing.T) {
 	// Message to encrypt
 	plaintext := []byte("hello world")
 
+	// Act and assert
 	// Encrypt the plaintext
 	cipher, err := EncryptRSA(publicKey, plaintext)
 	require.NoError(t, err, "Encrypt should not return an error")
 
 	hexString := hex.EncodeToString(privateKey) + "\n" + hex.EncodeToString(publicKey) + "\n" + hex.EncodeToString(cipher)
-	err = appendHexToFile("goRSAEncryption.txt", hexString)
+	err = appendHexToFile("test_goRSAEncryption.txt", hexString)
 	require.NoError(t, err, "Write to file should not return an error")
 
 	// Decrypt the ciphertext
@@ -294,7 +316,6 @@ func appendHexToFile(filename string, hexString string) error {
 	defer file.Close()
 
 	// Write the hexadecimal string to the file
-	// _, err = fmt.Fprintf(file, "%s\n", "")
 	_, err = fmt.Fprintf(file, "%s\n", hexString)
 	if err != nil {
 		return err
@@ -303,26 +324,35 @@ func appendHexToFile(filename string, hexString string) error {
 	return nil
 }
 
-func TestRSAEncryptionFixed(t *testing.T) {
-	_, pythonKey, err := readRSAKeysFromFile("../../python/pythonRSAEncryption.txt")
-	require.NoError(t, err, "Read Signature should not return an error")
+// encryptMessage is a test helper function that reads RSA keys from a file, encrypts a plaintext message using the RSA public key,
+// and then appends the encrypted message (in hexadecimal format) to the same file.
+// It takes two parameters:
+// t: The testing object, used for reporting errors in the test execution.
+// keysFilePath: The path to the file containing the RSA keys.
+// The function first reads the RSA keys from the file and checks for errors.
+// It then defines a plaintext message to be encrypted.
+// The plaintext message is encrypted using the RSA public key, and the function checks for errors.
+// Finally, the encrypted message is converted to hexadecimal format and appended to the file containing the RSA keys.
+func encryptMessage(t *testing.T, keysFilePath string) {
+	_, key, err := readRSAKeysFromFile(keysFilePath)
+	require.NoError(t, err, "Read RSA keys should not return an error")
 
 	// Message to encrypt
 	plaintext := []byte("hello world")
 
 	// Decrypt the ciphertext
-	ciphertext, err := EncryptRSA(pythonKey, plaintext)
+	ciphertext, err := EncryptRSA(key, plaintext)
 	require.NoError(t, err, "Encrypt should not return an error")
 
-	appendHexToFile("../../python/pythonRSAEncryption.txt", "\n"+hex.EncodeToString(ciphertext))
+	appendHexToFile(keysFilePath, "\n"+hex.EncodeToString(ciphertext))
+}
 
-	_, jsKey, err := readRSAKeysFromFile("../../js/jsRSAEncryption.txt")
-	require.NoError(t, err, "Read Signature should not return an error")
-
-	// Decrypt the ciphertext
-	ciphertext, err = EncryptRSA(jsKey, plaintext)
-	require.NoError(t, err, "Encrypt should not return an error")
-
-	appendHexToFile("../../js/jsRSAEncryption.txt", "\n"+hex.EncodeToString(ciphertext))
-
+// TestRSAEncryptionFixed is a test function that encrypts a fixed message using the RSA public keys generated by python and javascript tests.
+// It uses the helper function encryptMessage to encrypt a plaintext message using RSA keys stored in files.
+// The encrypted message is then appended to the same file.
+// After the encryption is appended to the same file, the python and javascript tests check the encrypted message against the expected value.
+// This test simulates the case that a user generates his own RSA keys in python or javascript tools and after that decrypts a message that was encrypted in the evm (which uses Go).
+func TestRSAEncryptionFixed(t *testing.T) {
+	encryptMessage(t, "../../python/test_pythonRSAEncryption.txt")
+	encryptMessage(t, "../../js/test_jsRSAEncryption.txt")
 }
