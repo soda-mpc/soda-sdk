@@ -220,7 +220,7 @@ func Sign(message, key []byte) ([]byte, error) {
 	return signature, nil
 }
 
-func VerifyIT(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature []byte) bool {
+func VerifyIT(sender, addr, funcSig, nonce, ct, signature []byte) bool {
 
 	// Create the message to be signed by appending all inputs
 	message := append(sender, addr...)
@@ -228,15 +228,19 @@ func VerifyIT(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature []byte) b
 	message = append(message, nonce...)
 	message = append(message, ct...)
 
-	return VerifySignature(message, pubKeyBytes, signature)
+	return VerifySignature(message, signature)
 }
 
-func VerifySignature(message, pubKeyBytes, signature []byte) bool {
-
+func VerifySignature(message, signature []byte) bool {
 	// Hash the concatenated message using Keccak-256
 	hash := ethcrypto.Keccak256(message)
 
-	return ethcrypto.VerifySignature(pubKeyBytes, hash, signature[:64])
+	pubkey, err := ethcrypto.Ecrecover(hash, signature)
+	if err != nil {
+		fmt.Println("Error parsing public key:", err)
+	}
+
+	return ethcrypto.VerifySignature(pubkey, hash, signature[:64])
 }
 
 func GenerateRSAKeyPair() ([]byte, []byte, error) {
