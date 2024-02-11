@@ -2,9 +2,9 @@
   "type": "module",
   "dependencies": {
     "chai": "^5.0.3",
+    "ethereumjs-util": "^7.1.5",
     "mocha": "^10.2.0"
   },
-  
   "devDependencies": {
     "esm": "^3.2.25"
   }

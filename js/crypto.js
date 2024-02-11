@@ -1,7 +1,13 @@
 import crypto from 'crypto';
 import fs from 'fs';
+import ethereumjsUtil  from 'ethereumjs-util';
 
-const block_size = 16; // AES block size in bytes
+export const block_size = 16; // AES block size in bytes
+export const addressSize = 20; // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
+export const funcSigSize = 4;
+export const nonceSize = 8;
+export const ctSize = 32;
+export const keySize = 32;
 
 export function encrypt(key, plaintext) {
     
@@ -100,4 +106,86 @@ export function generateAesKey() {
     const key = crypto.randomBytes(block_size);
 
     return key;
+}
+
+export function sign(sender, addr, funcSig, nonce, ct, key) {
+    // Ensure all input sizes are the correct length
+    if (sender.length !== addressSize) {
+        throw new RangeError(`Invalid sender address length: ${sender.length} bytes, must be ${addressSize} bytes`);
+    }
+    if (addr.length !== addressSize) {
+        throw new RangeError(`Invalid contract address length: ${addr.length} bytes, must be ${addressSize} bytes`);
+    }
+    if (funcSig.length !== funcSigSize) {
+        throw new RangeError(`Invalid signature size: ${funcSig.length} bytes, must be ${funcSigSize} bytes`);
+    }
+    if (nonce.length !== nonceSize) {
+        throw new RangeError(`Invalid nonce length: ${nonce.length} bytes, must be ${nonceSize} bytes`);
+    }
+    if (ct.length !== ctSize) {
+        throw new RangeError(`Invalid ct length: ${ct.length} bytes, must be ${ctSize} bytes`);
+    }
+    // Ensure the key is the correct length
+    if (key.length !== keySize) {
+        throw new RangeError(`Invalid key length: ${key.length} bytes, must be ${keySize} bytes`);
+    }
+
+    // Create the message to be signed by concatenating all inputs
+    let message = Buffer.concat([sender, addr, funcSig, nonce, ct]);
+
+    // Hash the concatenated message using Keccak-256
+    const hash = ethereumjsUtil.keccak256(message);
+    
+    // Sign the message
+    let signature = ethereumjsUtil.ecsign(hash, key);
+    signature.v = (signature.v - 27) // Convert v from 27-28 to 0-1 in order to match the ecrecover of ethereum
+    
+    // Convert r, s, and v components to bytes
+    let rBytes = Buffer.from(signature.r);
+    let sBytes = Buffer.from(signature.s);
+    let vByte = Buffer.from([signature.v]);
+
+    // Concatenate r, s, and v bytes
+    return Buffer.concat([rBytes, sBytes, vByte]);
+}
+
+export function generateRSAKeyPair() {
+    // Generate a new RSA key pair
+    return crypto.generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: {
+            type: 'spki',
+            format: 'der' // Specify 'der' format for binary data
+        },
+        privateKeyEncoding: {
+            type: 'pkcs8',
+            format: 'der' // Specify 'der' format for binary data
+        }
+    });
+}
+
+export function encryptRSA(publicKey, plaintext) {
+    // Load the public key in PEM format
+    let publicKeyPEM = publicKey.toString('base64');
+    publicKeyPEM = `-----BEGIN PUBLIC KEY-----\n${publicKeyPEM}\n-----END PUBLIC KEY-----`;
+    
+    // Encrypt the plaintext using RSA-OAEP
+    return crypto.publicEncrypt({
+        key: publicKeyPEM,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256'
+    }, plaintext);
+}
+
+export function decryptRSA(privateKey, ciphertext) {
+    // Load the private key in PEM format
+    let privateKeyPEM = privateKey.toString('base64');
+    privateKeyPEM = `-----BEGIN PRIVATE KEY-----\n${privateKeyPEM}\n-----END PRIVATE KEY-----`;
+
+    // Decrypt the ciphertext using RSA-OAEP
+    return crypto.privateDecrypt({
+        key: privateKeyPEM,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256'
+    }, ciphertext);
 }

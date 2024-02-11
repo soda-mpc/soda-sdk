@@ -5,18 +5,28 @@ print_blue() {
     echo -e "\e[94m$1\e[0m"
 }
 
-print_blue "Running golang tests..."
-cd golang_cli
-go mod download
-go test -v ./...
-cd ..
-
 print_blue "Running javascript tests..."
 cd js
-npx mocha --require esm test.mjs
+npx mocha --require esm --grep "^(?!.*should decrypt a message using RSA scheme$)" test.mjs
 cd ..
 
 print_blue "Running python tests..."
 cd python
-python3 -m unittest test.py
+python3 -m unittest -v test.py -k "TestMpcHelper"
+cd ..
 
+print_blue "Running golang tests..."
+cd golang_cli
+go mod download
+go test -v -count=1 ./...
+cd ..
+
+print_blue "Running javascript decrypt test..."
+cd js
+npx mocha --require esm --grep "should decrypt a message using RSA scheme" test.mjs
+cd ..
+
+print_blue "Running python decrypt test..."
+cd python
+python3 -m unittest -v test.py -k "TestDecrypt"
+cd ..

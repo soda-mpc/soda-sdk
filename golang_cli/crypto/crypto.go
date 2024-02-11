@@ -3,9 +3,14 @@ package crypto
 import (
 	"crypto/aes"
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"fmt"
 	"os"
+
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 // PadWithZeros pads the input with zeros to make its length a multiple of blockSize.
@@ -138,4 +143,164 @@ func GenerateAESKey() ([]byte, error) {
 	}
 
 	return key, nil
+}
+
+const (
+	AddressSize = 20 // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
+	FuncSigSize = 4
+	NonceSize   = 8
+	CtSize      = 32
+	KeySize     = 32
+)
+
+// Sign is a function that signes an hashed message using ECDSA. It takes in six parameters:
+// sender: The address of the sender. It should be a byte slice of length AddressSize.
+// addr: The contract address. It should be a byte slice of length AddressSize.
+// funcSig: The function signature. It should be a byte slice of length FuncSigSize.
+// nonce: The nonce, or number used once, for this transaction. It should be a byte slice of length NonceSize.
+// ct: The ciphertext to be signed. It should be a byte slice of length CtSize.
+// key: The private key used for signing. It should be a byte slice of length KeySize.
+// It first checks if the lengths of these parameters are correct according to predefined constants.
+// If any of them are not of the correct length, it returns an error.
+// It then concatenates (sender | contract | funcSignature | nonce | ct) to create a message.
+// This message is then hashed using the Keccak-256 algorithm.
+// The function then creates an ECDSA private key from the provided key.
+// Finally, it signs the hashed message using the created private key.
+// If all steps are successful, it returns the signature and no error.
+func Sign(sender, addr, funcSig, nonce, ct, key []byte) ([]byte, error) {
+	// Ensure all input sizes are the correct length
+	if len(sender) != AddressSize {
+		return nil, fmt.Errorf("Invalid sender address length: %d bytes, must be %d bytes", len(sender), AddressSize)
+	}
+	if len(addr) != AddressSize {
+		return nil, fmt.Errorf("Invalid contract address length: %d bytes, must be %d bytes", len(addr), AddressSize)
+	}
+	if len(funcSig) != FuncSigSize {
+		return nil, fmt.Errorf("Invalid signature size: %d bytes, must be %d bytes", len(funcSig), FuncSigSize)
+	}
+	if len(nonce) != NonceSize {
+		return nil, fmt.Errorf("Invalid nonce length: %d bytes, must be %d bytes", len(nonce), NonceSize)
+	}
+	if len(ct) != CtSize {
+		return nil, fmt.Errorf("Invalid ct length: %d bytes, must be %d bytes", len(ct), CtSize)
+	}
+	// Ensure the key is the correct length
+	if len(key) != KeySize {
+		return nil, fmt.Errorf("Invalid key length: %d bytes, must be %d bytes", len(key), KeySize)
+	}
+
+	// Create the message to be signed by appending all inputs
+	message := append(sender, addr...)
+	message = append(message, funcSig...)
+	message = append(message, nonce...)
+	message = append(message, ct...)
+
+	// Create an ECDSA private key from raw bytes
+	privateKey, err := ethcrypto.ToECDSA(key)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create ECDSA private key: %v", err)
+	}
+
+	// Hash the concatenated message using Keccak-256
+	hash := ethcrypto.Keccak256(message)
+
+	// Sign the message
+	signature, err := ethcrypto.Sign(hash, privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to sign message: %v", err)
+	}
+
+	return signature, nil
+}
+
+func VerifySignature(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature []byte) bool {
+
+	// Create the message to be signed by appending all inputs
+	message := append(sender, addr...)
+	message = append(message, funcSig...)
+	message = append(message, nonce...)
+	message = append(message, ct...)
+
+	// Hash the concatenated message using Keccak-256
+	hash := ethcrypto.Keccak256(message)
+
+	return ethcrypto.VerifySignature(pubKeyBytes, hash, signature[:64])
+}
+
+func GenerateRSAKeyPair() ([]byte, []byte, error) {
+	// Generate RSA key pair
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		fmt.Println("Error generating RSA key pair:", err)
+		return nil, nil, err
+	}
+
+	// Marshal private key to DER format
+	privateKeyBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		fmt.Println("Error marshaling private key:", err)
+		return nil, nil, err
+	}
+
+	// Marshal public key to DER format
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		fmt.Println("Error marshaling public key:", err)
+		return nil, nil, err
+	}
+
+	return privateKeyBytes, publicKeyBytes, nil
+}
+
+func EncryptRSA(publicKeyBytes []byte, message []byte) ([]byte, error) {
+
+	// Parse public key from DER format
+	publicKey, err := x509.ParsePKIXPublicKey(publicKeyBytes)
+	if err != nil {
+		fmt.Println("Error parsing public key:", err)
+		return nil, err
+	}
+
+	// Type assert parsed key to *rsa.PublicKey
+	rsaPublicKey, ok := publicKey.(*rsa.PublicKey)
+	if !ok {
+		fmt.Println("Error type asserting public key:", err)
+		return nil, err
+	}
+	// Encrypt message using RSA public key with OAEP padding
+	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, rsaPublicKey, message, nil)
+	if err != nil {
+		fmt.Println("Error encrypting message:", err)
+		return nil, err
+	}
+
+	return ciphertext, nil
+
+}
+
+func DecryptRSA(privateKeyBytes []byte, ciphertext []byte) ([]byte, error) {
+
+	// Parse private key from DER format
+	privateKey, err := x509.ParsePKCS8PrivateKey(privateKeyBytes)
+	if err != nil {
+		fmt.Println("Error parsing private key:", err)
+		return nil, err
+	}
+
+	// Convert parsedKey to *rsa.PrivateKey
+	rsaPrivateKey, ok := privateKey.(*rsa.PrivateKey)
+	if !ok {
+		fmt.Println("Error: Parsed key is not an RSA private key")
+		return nil, fmt.Errorf("parsed key is not an RSA private key")
+	}
+
+	// Decrypt message using RSA private key with OAEP padding
+	decryptedMessage, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, rsaPrivateKey, ciphertext, nil)
+	if err != nil {
+		fmt.Println("Error decrypting message:", err)
+		return nil, err
+	}
+
+	return decryptedMessage, nil
+
 }

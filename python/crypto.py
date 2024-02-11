@@ -2,8 +2,19 @@ from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 import os
 import binascii
+from eth_keys import keys
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+
 
 block_size = AES.block_size
+address_size = 20
+func_sig_size = 4
+nonce_size = 8
+ct_size = 32
+key_size = 32
 
 def encrypt(key, plaintext):
     
@@ -87,3 +98,80 @@ def generate_aes_key():
     key = get_random_bytes(block_size)
 
     return key
+
+def sign(sender, addr, func_sig, nonce, ct, key):
+    # Ensure all input sizes are the correct length
+    if len(sender) != address_size:
+        raise ValueError(f"Invalid sender address length: {len(sender)} bytes, must be {address_size} bytes")
+    if len(addr) != address_size:
+        raise ValueError(f"Invalid contract address length: {len(addr)} bytes, must be {address_size} bytes")
+    if len(func_sig) != func_sig_size:
+        raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {func_sig_size} bytes")
+    if len(nonce) != nonce_size:
+        raise ValueError(f"Invalid nonce length: {len(nonce)} bytes, must be {nonce_size} bytes")
+    if len(ct) != ct_size:
+        raise ValueError(f"Invalid ct length: {len(ct)} bytes, must be {ct_size} bytes")
+    # Ensure the key is the correct length
+    if len(key) != key_size:
+        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {key_size} bytes")
+
+    # Create the message to be signed by appending all inputs
+    message = sender + addr + func_sig + nonce + ct
+ 
+    # Sign the message
+    pk = keys.PrivateKey(key)
+    signature = pk.sign_msg(message).to_bytes()
+
+    return signature
+
+def generate_rsa_keypair():
+    # Generate RSA key pair
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048
+    )
+    
+    # Serialize private key
+    private_key_bytes = private_key.private_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    )
+    # Get public key
+    public_key = private_key.public_key()
+    # Serialize public key
+    public_key_bytes = public_key.public_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
+    return private_key_bytes, public_key_bytes
+
+def encrypt_rsa(public_key_bytes, plaintext):
+    # Load public key
+    public_key = serialization.load_der_public_key(public_key_bytes)
+    # Encrypt plaintext
+    ciphertext = public_key.encrypt(
+        plaintext,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    return ciphertext
+
+def decrypt_rsa(private_key_bytes, ciphertext):
+    # Load private key
+    private_key = serialization.load_der_private_key(private_key_bytes, password=None)
+    # Decrypt ciphertext
+    plaintext = private_key.decrypt(
+        ciphertext,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    return plaintext
+
