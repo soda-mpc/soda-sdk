@@ -150,7 +150,7 @@ func TestSignature(t *testing.T) {
 	pubKeyBytes := crypto.FromECDSAPub(pubKeyECDSA)
 
 	// Verify the signature
-	verified := VerifySignature(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature)
+	verified := VerifyIT(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature)
 
 	assert.Equal(t, verified, true, "Verify signature should return true")
 }
@@ -229,7 +229,7 @@ func TestFixedMsgSignature(t *testing.T) {
 	pubKeyBytes := crypto.FromECDSAPub(pubKeyECDSA)
 
 	// Verify the signature
-	verified := VerifySignature(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature)
+	verified := VerifyIT(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature)
 
 	assert.Equal(t, verified, true, "Verify signature should return true")
 }
