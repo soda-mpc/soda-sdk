@@ -220,13 +220,18 @@ func Sign(message, key []byte) ([]byte, error) {
 	return signature, nil
 }
 
-func VerifySignature(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature []byte) bool {
+func VerifyIT(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature []byte) bool {
 
 	// Create the message to be signed by appending all inputs
 	message := append(sender, addr...)
 	message = append(message, funcSig...)
 	message = append(message, nonce...)
 	message = append(message, ct...)
+
+	return VerifySignature(message, pubKeyBytes, signature)
+}
+
+func VerifySignature(message, pubKeyBytes, signature []byte) bool {
 
 	// Hash the concatenated message using Keccak-256
 	hash := ethcrypto.Keccak256(message)
