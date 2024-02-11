@@ -99,7 +99,7 @@ def generate_aes_key():
 
     return key
 
-def sign(sender, addr, func_sig, nonce, ct, key):
+def signIT(sender, addr, func_sig, nonce, ct, key):
     # Ensure all input sizes are the correct length
     if len(sender) != address_size:
         raise ValueError(f"Invalid sender address length: {len(sender)} bytes, must be {address_size} bytes")
@@ -117,7 +117,11 @@ def sign(sender, addr, func_sig, nonce, ct, key):
 
     # Create the message to be signed by appending all inputs
     message = sender + addr + func_sig + nonce + ct
- 
+
+    return sign(message, key)
+
+def sign(message, key):
+    
     # Sign the message
     pk = keys.PrivateKey(key)
     signature = pk.sign_msg(message).to_bytes()

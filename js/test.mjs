@@ -1,5 +1,5 @@
 import { assert } from 'chai';
-import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, sign, generateRSAKeyPair, encryptRSA, decryptRSA } from './crypto.js';
+import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA } from './crypto.js';
 import { block_size, addressSize, funcSigSize, nonceSize, ctSize, keySize } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -117,7 +117,7 @@ describe('Crypto Tests', () => {
 
         // Act
         // Generate the signature
-        const signatureBytes = sign(sender, addr, funcSig, nonce, ct, key);
+        const signatureBytes = signIT(sender, addr, funcSig, nonce, ct, key);
         
         // Extract r, s, and v as buffers
         let rBytes = Buffer.alloc(32);
@@ -170,14 +170,14 @@ describe('Crypto Tests', () => {
 
         // Act
         // Generate the signature
-        const signature = sign(sender, addr, funcSig, nonce, ct, key);
+        const signature = signIT(sender, addr, funcSig, nonce, ct, key);
 
         const filename = 'test_jsSignature.txt'; // Name of the file to write to
 
         // Convert hexadecimal string to buffer
         let sigString = signature.toString('hex');
 
-        // Write buffer to the file
+        // Write buffer to the file, this simulates the communication between the evm (golang) and the user (python/js)
         fs.writeFile(filename, sigString, (err) => {
             if (err) {
                 console.error('Error writing to file:', err);
@@ -241,6 +241,7 @@ describe('Crypto Tests', () => {
 
         // Act
         // Read private key and ciphertext
+        // Reading from file simulates the communication between the evm (golang) and the user (python/js)
         readHexFromFile('test_jsRSAEncryption.txt')
             .then(([hexData1, hexData2, hexData3]) => {
                 const privateKey = Buffer.from(hexData1, 'hex');

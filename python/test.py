@@ -3,7 +3,7 @@ import tempfile
 import os
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
-from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, sign, generate_rsa_keypair, encrypt_rsa, decrypt_rsa
+from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa
 from crypto import block_size, address_size, func_sig_size, nonce_size, key_size
 from eth_keys import keys
 import sys
@@ -136,7 +136,7 @@ class TestMpcHelper(unittest.TestCase):
 
         # Act
         # Call the sign function
-        signature_bytes = sign(sender, addr, func_sig, nonce, ct, key)
+        signature_bytes = signIT(sender, addr, func_sig, nonce, ct, key)
         
         # Create the message to be 
         message = sender + addr + func_sig + nonce + ct
@@ -160,8 +160,8 @@ class TestMpcHelper(unittest.TestCase):
 
         # Act
         # Call the sign function
-        signature_bytes = sign(sender, addr, func_sig, nonce, ct, key)
-        # Write hexadecimal string to a file
+        signature_bytes = signIT(sender, addr, func_sig, nonce, ct, key)
+        # Write hexadecimal string to a file, this simulates the communication between the evm (golang) and the user (python/js)
         with open("test_pythonSignature.txt", "w") as f:
             f.write(signature_bytes.hex())
         
@@ -184,6 +184,7 @@ class TestMpcHelper(unittest.TestCase):
         # Act
         ciphertext = encrypt_rsa(public_key, plaintext)
 
+        # Writing to a file simulates the communication between the evm (golang) and the user (python/js)
         with open("test_pythonRSAEncryption.txt", "w") as f:
             f.write(private_key.hex())
             f.write("\n")
@@ -203,6 +204,7 @@ class TestDecrypt(unittest.TestCase):
         public_key_hex = ""
         cipher_hex = ""
 
+        # Reading from file simulates the communication between the evm (golang) and the user (python/js)
         with open("test_pythonRSAEncryption.txt", "r") as file:
             private_key_hex = file.readline().strip()  
             public_key_hex = file.readline().strip()  
