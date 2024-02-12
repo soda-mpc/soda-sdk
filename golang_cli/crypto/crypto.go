@@ -167,7 +167,7 @@ const (
 // The function then creates an ECDSA private key from the provided key.
 // Finally, it signs the hashed message using the created private key.
 // If all steps are successful, it returns the signature and no error.
-func Sign(sender, addr, funcSig, nonce, ct, key []byte) ([]byte, error) {
+func SignIT(sender, addr, funcSig, nonce, ct, key []byte) ([]byte, error) {
 	// Ensure all input sizes are the correct length
 	if len(sender) != AddressSize {
 		return nil, fmt.Errorf("Invalid sender address length: %d bytes, must be %d bytes", len(sender), AddressSize)
@@ -195,6 +195,13 @@ func Sign(sender, addr, funcSig, nonce, ct, key []byte) ([]byte, error) {
 	message = append(message, nonce...)
 	message = append(message, ct...)
 
+	return Sign(message, key)
+}
+
+// Sign is a function that hashes a message using the Keccak-256 algorithm and then signs the hashed message using ECDSA.
+// If all steps are successful, it returns the signature and no error.
+func Sign(message, key []byte) ([]byte, error) {
+
 	// Create an ECDSA private key from raw bytes
 	privateKey, err := ethcrypto.ToECDSA(key)
 	if err != nil {
@@ -213,13 +220,18 @@ func Sign(sender, addr, funcSig, nonce, ct, key []byte) ([]byte, error) {
 	return signature, nil
 }
 
-func VerifySignature(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature []byte) bool {
+func VerifyIT(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature []byte) bool {
 
 	// Create the message to be signed by appending all inputs
 	message := append(sender, addr...)
 	message = append(message, funcSig...)
 	message = append(message, nonce...)
 	message = append(message, ct...)
+
+	return VerifySignature(message, pubKeyBytes, signature)
+}
+
+func VerifySignature(message, pubKeyBytes, signature []byte) bool {
 
 	// Hash the concatenated message using Keccak-256
 	hash := ethcrypto.Keccak256(message)

@@ -108,7 +108,7 @@ export function generateAesKey() {
     return key;
 }
 
-export function sign(sender, addr, funcSig, nonce, ct, key) {
+export function signIT(sender, addr, funcSig, nonce, ct, key) {
     // Ensure all input sizes are the correct length
     if (sender.length !== addressSize) {
         throw new RangeError(`Invalid sender address length: ${sender.length} bytes, must be ${addressSize} bytes`);
@@ -132,6 +132,12 @@ export function sign(sender, addr, funcSig, nonce, ct, key) {
 
     // Create the message to be signed by concatenating all inputs
     let message = Buffer.concat([sender, addr, funcSig, nonce, ct]);
+
+    // Concatenate r, s, and v bytes
+    return sign(message, key);
+}
+
+export function sign(message, key) {
 
     // Hash the concatenated message using Keccak-256
     const hash = ethereumjsUtil.keccak256(message);

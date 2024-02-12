@@ -134,7 +134,7 @@ func TestSignature(t *testing.T) {
 	fmt.Println("ct:", hex.EncodeToString(ct))
 
 	// Act and assert
-	signature, err := Sign(sender, addr, funcSig, nonce, ct, key)
+	signature, err := SignIT(sender, addr, funcSig, nonce, ct, key)
 	require.NoError(t, err, "Sign should not return an error")
 
 	// Create an ECDSA private key from raw bytes
@@ -150,7 +150,7 @@ func TestSignature(t *testing.T) {
 	pubKeyBytes := crypto.FromECDSAPub(pubKeyECDSA)
 
 	// Verify the signature
-	verified := VerifySignature(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature)
+	verified := VerifyIT(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature)
 
 	assert.Equal(t, verified, true, "Verify signature should return true")
 }
@@ -209,9 +209,10 @@ func TestFixedMsgSignature(t *testing.T) {
 
 	// Act and assert
 	// Sign the message
-	signature, err := Sign(sender, addr, funcSig, nonce, ct, key)
+	signature, err := SignIT(sender, addr, funcSig, nonce, ct, key)
 	require.NoError(t, err, "Sign should not return an error")
 
+	// Reading from file simulates the communication between the evm (golang) and the user (python/js)
 	readSigFromFileAndCompare(t, "../../python/test_pythonSignature.txt", signature)
 	readSigFromFileAndCompare(t, "../../js/test_jsSignature.txt", signature)
 
@@ -228,7 +229,7 @@ func TestFixedMsgSignature(t *testing.T) {
 	pubKeyBytes := crypto.FromECDSAPub(pubKeyECDSA)
 
 	// Verify the signature
-	verified := VerifySignature(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature)
+	verified := VerifyIT(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature)
 
 	assert.Equal(t, verified, true, "Verify signature should return true")
 }
@@ -279,19 +280,19 @@ func readRSAKeysFromFile(path string) ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("Expected two hex strings in the file")
 	}
 
-	cipherBytes, err := hex.DecodeString(string(hexStrings[0]))
+	privateKeyBytes, err := hex.DecodeString(string(hexStrings[0]))
 	if err != nil {
 		fmt.Println("Error decoding hex:", err)
 		return nil, nil, err
 	}
 
-	keyBytes, err := hex.DecodeString(string(hexStrings[1]))
+	publicKeyBytes, err := hex.DecodeString(string(hexStrings[1]))
 	if err != nil {
 		fmt.Println("Error decoding hex:", err)
 		return nil, nil, err
 	}
 
-	return cipherBytes, keyBytes, nil
+	return privateKeyBytes, publicKeyBytes, nil
 }
 
 func appendHexToFile(filename string, hexString string) error {
@@ -330,6 +331,7 @@ func appendHexToFile(filename string, hexString string) error {
 // The plaintext message is encrypted using the RSA public key, and the function checks for errors.
 // Finally, the encrypted message is converted to hexadecimal format and appended to the file containing the RSA keys.
 func encryptMessage(t *testing.T, keysFilePath string) {
+	// Reading and writing from/to a file simulates the communication between the evm (golang) and the user (python/js)
 	_, key, err := readRSAKeysFromFile(keysFilePath)
 	require.NoError(t, err, "Read RSA keys should not return an error")
 
