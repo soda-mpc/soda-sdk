@@ -228,10 +228,10 @@ func VerifyIT(sender, addr, funcSig, nonce, ct, signature []byte) bool {
 	message = append(message, nonce...)
 	message = append(message, ct...)
 
-	return VerifySignature(message, signature)
+	return RecoverPKAndVerifySignature(message, signature)
 }
 
-func VerifySignature(message, signature []byte) bool {
+func RecoverPKAndVerifySignature(message, signature []byte) bool {
 	// Hash the concatenated message using Keccak-256
 	hash := ethcrypto.Keccak256(message)
 
