@@ -4,7 +4,6 @@ package crypto
 import (
 	"bytes"
 	"crypto/aes"
-	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -13,7 +12,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -137,20 +135,8 @@ func TestSignature(t *testing.T) {
 	signature, err := SignIT(sender, addr, funcSig, nonce, ct, key)
 	require.NoError(t, err, "Sign should not return an error")
 
-	// Create an ECDSA private key from raw bytes
-	privateKey, err := crypto.ToECDSA(key)
-	require.NoError(t, err, "ToECDSA should not return an error")
-
 	// Verify the signature
-	pubKey := privateKey.Public()
-	pubKeyECDSA, ok := pubKey.(*ecdsa.PublicKey)
-	require.Equal(t, ok, true, "Error casting public key to ECDSA")
-
-	// Get the bytes from the public key
-	pubKeyBytes := crypto.FromECDSAPub(pubKeyECDSA)
-
-	// Verify the signature
-	verified := VerifyIT(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature)
+	verified := VerifyIT(sender, addr, funcSig, nonce, ct, signature)
 
 	assert.Equal(t, verified, true, "Verify signature should return true")
 }
@@ -216,20 +202,8 @@ func TestFixedMsgSignature(t *testing.T) {
 	readSigFromFileAndCompare(t, "../../python/test_pythonSignature.txt", signature)
 	readSigFromFileAndCompare(t, "../../js/test_jsSignature.txt", signature)
 
-	// Create an ECDSA private key from raw bytes
-	privateKey, err := crypto.ToECDSA(key)
-	require.NoError(t, err, "ToECDSA should not return an error")
-
 	// Verify the signature
-	pubKey := privateKey.Public()
-	pubKeyECDSA, ok := pubKey.(*ecdsa.PublicKey)
-	require.Equal(t, ok, true, "Error casting public key to ECDSA")
-
-	// Get the bytes from the public key
-	pubKeyBytes := crypto.FromECDSAPub(pubKeyECDSA)
-
-	// Verify the signature
-	verified := VerifyIT(sender, addr, funcSig, nonce, ct, pubKeyBytes, signature)
+	verified := VerifyIT(sender, addr, funcSig, nonce, ct, signature)
 
 	assert.Equal(t, verified, true, "Verify signature should return true")
 }
