@@ -127,8 +127,6 @@ func TestSignature(t *testing.T) {
 
 	ct := append(ciphertext, r...)
 
-	fmt.Println("ct:", hex.EncodeToString(ct))
-
 	// Act and assert
 	signature, err := SignIT(sender, addr, funcSig, ct, key)
 	require.NoError(t, err, "Sign should not return an error")
@@ -209,8 +207,6 @@ func TestRSAEncryption(t *testing.T) {
 	// Arrange
 	// Generate key pair
 	privateKey, publicKey, err := GenerateRSAKeyPair()
-	fmt.Println("privateKey hex:", hex.EncodeToString(privateKey))
-	fmt.Println("publicKey:", privateKey)
 	require.NoError(t, err, "Generate RSA key pair should not return an error")
 
 	// Message to encrypt
