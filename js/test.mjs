@@ -1,6 +1,6 @@
 import { assert } from 'chai';
 import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA } from './crypto.js';
-import { block_size, addressSize, funcSigSize, nonceSize, ctSize, keySize } from './crypto.js';
+import { block_size, addressSize, funcSigSize, keySize } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
 import ethereumjsUtil  from 'ethereumjs-util';
@@ -105,7 +105,6 @@ describe('Crypto Tests', () => {
         const sender = crypto.randomBytes(addressSize);
         const addr = crypto.randomBytes(addressSize);
         const funcSig = crypto.randomBytes(funcSigSize);
-        const nonce = crypto.randomBytes(nonceSize);
         let key = crypto.randomBytes(keySize);
         
         // Create a ciphertext
@@ -117,7 +116,7 @@ describe('Crypto Tests', () => {
 
         // Act
         // Generate the signature
-        const signatureBytes = signIT(sender, addr, funcSig, nonce, ct, key);
+        const signatureBytes = signIT(sender, addr, funcSig, ct, key);
         
         // Extract r, s, and v as buffers
         let rBytes = Buffer.alloc(32);
@@ -142,7 +141,7 @@ describe('Crypto Tests', () => {
         const expectedPublicKey = ethereumjsUtil.privateToPublic(key);
         const expectedAddress = ethereumjsUtil.toChecksumAddress('0x' + expectedPublicKey.toString('hex'));
         
-        const message = Buffer.concat([sender, addr, funcSig, nonce, ct]);
+        const message = Buffer.concat([sender, addr, funcSig, ct]);
         const hash = ethereumjsUtil.keccak256(message);
         
         // Recover the public key from the signature
@@ -164,13 +163,12 @@ describe('Crypto Tests', () => {
         const sender = Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex');
         const addr = Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex');
         const funcSig = Buffer.from('dc85563d', 'hex');
-        const nonce = Buffer.from('5f24aebc4e4586ec', 'hex');
         const ct = Buffer.from('f8765e191e03bf341c1422e0899d092674fc73beb624845199cd6e14b7895882', 'hex');
         const key = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
 
         // Act
         // Generate the signature
-        const signature = signIT(sender, addr, funcSig, nonce, ct, key);
+        const signature = signIT(sender, addr, funcSig, ct, key);
 
         const filename = 'test_jsSignature.txt'; // Name of the file to write to
 

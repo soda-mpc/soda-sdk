@@ -5,7 +5,6 @@ import ethereumjsUtil  from 'ethereumjs-util';
 export const block_size = 16; // AES block size in bytes
 export const addressSize = 20; // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
 export const funcSigSize = 4;
-export const nonceSize = 8;
 export const ctSize = 32;
 export const keySize = 32;
 
@@ -108,7 +107,7 @@ export function generateAesKey() {
     return key;
 }
 
-export function signIT(sender, addr, funcSig, nonce, ct, key) {
+export function signIT(sender, addr, funcSig, ct, key) {
     // Ensure all input sizes are the correct length
     if (sender.length !== addressSize) {
         throw new RangeError(`Invalid sender address length: ${sender.length} bytes, must be ${addressSize} bytes`);
@@ -119,9 +118,6 @@ export function signIT(sender, addr, funcSig, nonce, ct, key) {
     if (funcSig.length !== funcSigSize) {
         throw new RangeError(`Invalid signature size: ${funcSig.length} bytes, must be ${funcSigSize} bytes`);
     }
-    if (nonce.length !== nonceSize) {
-        throw new RangeError(`Invalid nonce length: ${nonce.length} bytes, must be ${nonceSize} bytes`);
-    }
     if (ct.length !== ctSize) {
         throw new RangeError(`Invalid ct length: ${ct.length} bytes, must be ${ctSize} bytes`);
     }
@@ -131,7 +127,7 @@ export function signIT(sender, addr, funcSig, nonce, ct, key) {
     }
 
     // Create the message to be signed by concatenating all inputs
-    let message = Buffer.concat([sender, addr, funcSig, nonce, ct]);
+    let message = Buffer.concat([sender, addr, funcSig, ct]);
 
     // Concatenate r, s, and v bytes
     return sign(message, key);

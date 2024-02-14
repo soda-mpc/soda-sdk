@@ -12,7 +12,6 @@ from cryptography.hazmat.primitives.asymmetric import padding
 block_size = AES.block_size
 address_size = 20
 func_sig_size = 4
-nonce_size = 8
 ct_size = 32
 key_size = 32
 
@@ -99,7 +98,7 @@ def generate_aes_key():
 
     return key
 
-def signIT(sender, addr, func_sig, nonce, ct, key):
+def signIT(sender, addr, func_sig, ct, key):
     # Ensure all input sizes are the correct length
     if len(sender) != address_size:
         raise ValueError(f"Invalid sender address length: {len(sender)} bytes, must be {address_size} bytes")
@@ -107,8 +106,6 @@ def signIT(sender, addr, func_sig, nonce, ct, key):
         raise ValueError(f"Invalid contract address length: {len(addr)} bytes, must be {address_size} bytes")
     if len(func_sig) != func_sig_size:
         raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {func_sig_size} bytes")
-    if len(nonce) != nonce_size:
-        raise ValueError(f"Invalid nonce length: {len(nonce)} bytes, must be {nonce_size} bytes")
     if len(ct) != ct_size:
         raise ValueError(f"Invalid ct length: {len(ct)} bytes, must be {ct_size} bytes")
     # Ensure the key is the correct length
@@ -116,7 +113,7 @@ def signIT(sender, addr, func_sig, nonce, ct, key):
         raise ValueError(f"Invalid key length: {len(key)} bytes, must be {key_size} bytes")
 
     # Create the message to be signed by appending all inputs
-    message = sender + addr + func_sig + nonce + ct
+    message = sender + addr + func_sig + ct
 
     return sign(message, key)
 

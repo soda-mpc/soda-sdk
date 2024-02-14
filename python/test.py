@@ -4,7 +4,7 @@ import os
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa
-from crypto import block_size, address_size, func_sig_size, nonce_size, key_size
+from crypto import block_size, address_size, func_sig_size, key_size
 from eth_keys import keys
 import sys
 
@@ -123,7 +123,6 @@ class TestMpcHelper(unittest.TestCase):
         sender = os.urandom(address_size)
         addr = os.urandom(address_size)
         func_sig = os.urandom(func_sig_size)
-        nonce = os.urandom(nonce_size)
         key = os.urandom(key_size)
 
         # Create plaintext with the value 100 as a big integer with less than 128 bits
@@ -136,10 +135,10 @@ class TestMpcHelper(unittest.TestCase):
 
         # Act
         # Call the sign function
-        signature_bytes = signIT(sender, addr, func_sig, nonce, ct, key)
+        signature_bytes = signIT(sender, addr, func_sig, ct, key)
         
         # Create the message to be 
-        message = sender + addr + func_sig + nonce + ct
+        message = sender + addr + func_sig + ct
 
         pk = keys.PrivateKey(key)
         signature = keys.Signature(signature_bytes)
@@ -154,19 +153,18 @@ class TestMpcHelper(unittest.TestCase):
         sender = bytes.fromhex("d67fe7792f18fbd663e29818334a050240887c28")
         addr = bytes.fromhex("69413851f025306dbe12c48ff2225016fc5bbe1b")
         func_sig = bytes.fromhex("dc85563d")
-        nonce = bytes.fromhex("5f24aebc4e4586ec")
         ct = bytes.fromhex("f8765e191e03bf341c1422e0899d092674fc73beb624845199cd6e14b7895882")
         key = bytes.fromhex("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
 
         # Act
         # Call the sign function
-        signature_bytes = signIT(sender, addr, func_sig, nonce, ct, key)
+        signature_bytes = signIT(sender, addr, func_sig, ct, key)
         # Write hexadecimal string to a file, this simulates the communication between the evm (golang) and the user (python/js)
         with open("test_pythonSignature.txt", "w") as f:
             f.write(signature_bytes.hex())
         
         # Create the message to be 
-        message = sender + addr + func_sig + nonce + ct
+        message = sender + addr + func_sig + ct
 
         pk = keys.PrivateKey(key)
         signature = keys.Signature(signature_bytes)

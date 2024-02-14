@@ -114,8 +114,6 @@ func TestSignature(t *testing.T) {
 	_, err = rand.Read(addr)
 	funcSig := make([]byte, FuncSigSize)
 	_, err = rand.Read(funcSig)
-	nonce := make([]byte, NonceSize)
-	_, err = rand.Read(nonce)
 
 	key := make([]byte, KeySize)
 	_, err = rand.Read(key)
@@ -132,11 +130,11 @@ func TestSignature(t *testing.T) {
 	fmt.Println("ct:", hex.EncodeToString(ct))
 
 	// Act and assert
-	signature, err := SignIT(sender, addr, funcSig, nonce, ct, key)
+	signature, err := SignIT(sender, addr, funcSig, ct, key)
 	require.NoError(t, err, "Sign should not return an error")
 
 	// Verify the signature
-	verified := VerifyIT(sender, addr, funcSig, nonce, ct, signature)
+	verified := VerifyIT(sender, addr, funcSig, ct, signature)
 
 	assert.Equal(t, verified, true, "Verify signature should return true")
 }
@@ -178,7 +176,7 @@ func readSigFromFileAndCompare(t *testing.T, filePath string, signature []byte) 
 }
 
 // TestFixedMsgSignature is a test function that checks the functionality of the Sign and VerifySignature functions.
-// It first decodes fixed hexadecimal strings into byte slices representing the sender, address, function signature, nonce, ciphertext, and key.
+// It first decodes fixed hexadecimal strings into byte slices representing the sender, address, function signature, ciphertext, and key.
 // It then signs a message using these parameters and checks for errors.
 // The function then reads signatures from two files (one Python and one JavaScript) and compares them to the generated signature.
 // This ensures that the signature is correct in both python and javascript implementations.
@@ -189,13 +187,12 @@ func TestFixedMsgSignature(t *testing.T) {
 	sender, _ := hex.DecodeString("d67fe7792f18fbd663e29818334a050240887c28")
 	addr, _ := hex.DecodeString("69413851f025306dbe12c48ff2225016fc5bbe1b")
 	funcSig, _ := hex.DecodeString("dc85563d")
-	nonce, _ := hex.DecodeString("5f24aebc4e4586ec")
 	ct, _ := hex.DecodeString("f8765e191e03bf341c1422e0899d092674fc73beb624845199cd6e14b7895882")
 	key, _ := hex.DecodeString("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
 
 	// Act and assert
 	// Sign the message
-	signature, err := SignIT(sender, addr, funcSig, nonce, ct, key)
+	signature, err := SignIT(sender, addr, funcSig, ct, key)
 	require.NoError(t, err, "Sign should not return an error")
 
 	// Reading from file simulates the communication between the evm (golang) and the user (python/js)
@@ -203,7 +200,7 @@ func TestFixedMsgSignature(t *testing.T) {
 	readSigFromFileAndCompare(t, "../../js/test_jsSignature.txt", signature)
 
 	// Verify the signature
-	verified := VerifyIT(sender, addr, funcSig, nonce, ct, signature)
+	verified := VerifyIT(sender, addr, funcSig, ct, signature)
 
 	assert.Equal(t, verified, true, "Verify signature should return true")
 }
@@ -212,6 +209,8 @@ func TestRSAEncryption(t *testing.T) {
 	// Arrange
 	// Generate key pair
 	privateKey, publicKey, err := GenerateRSAKeyPair()
+	fmt.Println("privateKey hex:", hex.EncodeToString(privateKey))
+	fmt.Println("publicKey:", privateKey)
 	require.NoError(t, err, "Generate RSA key pair should not return an error")
 
 	// Message to encrypt
