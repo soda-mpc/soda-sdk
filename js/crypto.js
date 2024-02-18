@@ -191,3 +191,17 @@ export function decryptRSA(privateKey, ciphertext) {
         oaepHash: 'sha256'
     }, ciphertext);
 }
+
+export function getFuncSig(functionSig) {
+    // Encode the string to a Buffer
+    const functionBytes = Buffer.from(functionSig, "utf8");
+
+    // Hash the function signature using Keccak-256
+    const hash = ethereumjsUtil.keccak256(functionBytes);
+
+    // Get the first 4 bytes from the buffer
+    const firstFourBytes = Buffer.alloc(4);
+    hash.copy(firstFourBytes, 0, 0, 4);
+
+    return hash.readUInt32BE();
+}
