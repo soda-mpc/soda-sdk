@@ -10,6 +10,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -137,7 +138,7 @@ func TestSignature(t *testing.T) {
 	assert.Equal(t, verified, true, "Verify signature should return true")
 }
 
-func readSignatureFromFile(path string) ([]byte, error) {
+func readValFromFile(path string) ([]byte, error) {
 	// Open the file for reading
 	file, err := os.Open(path)
 	if err != nil {
@@ -150,6 +151,15 @@ func readSignatureFromFile(path string) ([]byte, error) {
 	data, err := io.ReadAll(file)
 	if err != nil {
 		fmt.Println("Error:", err)
+		return nil, err
+	}
+
+	return data, nil
+}
+
+func readSignatureFromFile(path string) ([]byte, error) {
+	data, err := readValFromFile(path)
+	if err != nil {
 		return nil, err
 	}
 
@@ -226,18 +236,8 @@ func TestRSAEncryption(t *testing.T) {
 }
 
 func readRSAKeysFromFile(path string) ([]byte, []byte, error) {
-	// Open the file for reading
-	file, err := os.Open(path)
+	data, err := readValFromFile(path)
 	if err != nil {
-		fmt.Println("Error:", err)
-		return nil, nil, err
-	}
-	defer file.Close() // Make sure to close the file when done
-
-	// Read the contents of the file as a string
-	data, err := io.ReadAll(file)
-	if err != nil {
-		fmt.Println("Error:", err)
 		return nil, nil, err
 	}
 
@@ -322,4 +322,34 @@ func encryptMessage(t *testing.T, keysFilePath string) {
 func TestRSAEncryptionFixed(t *testing.T) {
 	encryptMessage(t, "../../python/test_pythonRSAEncryption.txt")
 	encryptMessage(t, "../../js/test_jsRSAEncryption.txt")
+}
+
+func checkFunctionSignature(t *testing.T, filePath string, expected uint32) {
+	pythonVal, err := readValFromFile(filePath)
+
+	// Convert string to uint32
+	num, err := strconv.ParseUint(string(pythonVal), 10, 32)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	require.NoError(t, err, "Read python value should not return an error")
+	assert.Equal(t, expected, uint32(num), "hashed values should match")
+	err = os.Remove(filePath)
+}
+
+func TestHashFunction(t *testing.T) {
+	functionSig := "sign(bytes)"
+	// Hash the function signature using Keccak-256 and return the first 4 bytes
+	hash := HashFunction(functionSig)
+
+	// Check that the python hashed value matches the Golang hashed value
+	filePath := "../../python/test_pythonFunctionKeccak.txt"
+	checkFunctionSignature(t, filePath, hash)
+
+	// Check that the js hashed value matches the Golang hashed value
+	filePath = "../../js/test_jsFunctionKeccak.txt"
+	checkFunctionSignature(t, filePath, hash)
+
 }

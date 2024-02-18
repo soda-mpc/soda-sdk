@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -312,4 +313,10 @@ func DecryptRSA(privateKeyBytes []byte, ciphertext []byte) ([]byte, error) {
 
 	return decryptedMessage, nil
 
+}
+
+func HashFunction(functionSig string) uint32 {
+	// Hash the function signature using Keccak-256 and return the first 4 bytes
+	hash := ethcrypto.Keccak256(([]byte)(functionSig))[:4]
+	return binary.BigEndian.Uint32(hash)
 }

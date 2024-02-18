@@ -1,7 +1,9 @@
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
+from Crypto.Hash import keccak
 import os
 import binascii
+import struct
 from eth_keys import keys
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
@@ -175,4 +177,28 @@ def decrypt_rsa(private_key_bytes, ciphertext):
         )
     )
     return plaintext
+
+# Function to compute Keccak-256 hash
+def keccak256(data):
+    # Create Keccak-256 hash object
+    hash_obj = keccak.new(digest_bits=256)
+
+    # Update hash object with data
+    hash_obj.update(data)
+
+    # Compute hash and return
+    return hash_obj.digest()
+
+
+def hash_function(functionSig):
+    # Convert function signature to bytes
+    functionSigBytes = functionSig.encode('utf-8')
+
+    # Compute Keccak-256 hash on the function signature
+    hash = keccak256(functionSigBytes)
+
+    # Take first 4 bytes of the hash and interpret as uint32
+    return struct.unpack('>I', hash[:4])[0]
+
+
 
