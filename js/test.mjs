@@ -1,5 +1,5 @@
 import { assert } from 'chai';
-import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, hashFunction } from './crypto.js';
+import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, getFuncSig } from './crypto.js';
 import { block_size, addressSize, funcSigSize, keySize } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -256,17 +256,15 @@ describe('Crypto Tests', () => {
         fs.unlinkSync('test_jsRSAEncryption.txt');
     });
 
-    // Test case for test rsa decryption scheme
+    // Test case for test function signature
     it('should hash a function signature', () => {
         // Arrange
         const functionSig = 'sign(bytes)';
 
         // Act
-        const hash = hashFunction(functionSig);
+        const hash = getFuncSig(functionSig);
         
-        // Write buffer to the file
         const filename = 'test_jsFunctionKeccak.txt'; // Name of the file to write to
-        
         // Write Buffer to file
         fs.writeFileSync(filename, hash.toString());
     

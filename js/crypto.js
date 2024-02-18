@@ -192,7 +192,7 @@ export function decryptRSA(privateKey, ciphertext) {
     }, ciphertext);
 }
 
-export function hashFunction(functionSig) {
+export function getFuncSig(functionSig) {
     // Encode the string to a Buffer
     const functionBytes = Buffer.from(functionSig, "utf8");
 

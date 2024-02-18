@@ -190,7 +190,7 @@ def keccak256(data):
     return hash_obj.digest()
 
 
-def hash_function(functionSig):
+def get_func_sig(functionSig):
     # Convert function signature to bytes
     functionSigBytes = functionSig.encode('utf-8')
 

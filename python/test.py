@@ -3,7 +3,7 @@ import tempfile
 import os
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
-from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, hash_function
+from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig
 from crypto import block_size, address_size, func_sig_size, key_size
 from eth_keys import keys
 import sys
@@ -193,11 +193,11 @@ class TestMpcHelper(unittest.TestCase):
         # Assert
         self.assertEqual(plaintext, decrypted)
 
-    def test_hash_function(self):
+    def test_get_func_sig(self):
         # Arrange
         functionSig = "sign(bytes)"
         # Act
-        hashed = hash_function(functionSig)
+        hashed = get_func_sig(functionSig)
 
         # Writing to a file simulates the communication between the evm (golang) and the user (python/js)
         with open("test_pythonFunctionKeccak.txt", "w") as f:

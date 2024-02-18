@@ -339,10 +339,10 @@ func checkFunctionSignature(t *testing.T, filePath string, expected uint32) {
 	err = os.Remove(filePath)
 }
 
-func TestHashFunction(t *testing.T) {
+func TestGetFuncSig(t *testing.T) {
 	functionSig := "sign(bytes)"
 	// Hash the function signature using Keccak-256 and return the first 4 bytes
-	hash := HashFunction(functionSig)
+	hash := GetFuncSig(functionSig)
 
 	// Check that the python hashed value matches the Golang hashed value
 	filePath := "../../python/test_pythonFunctionKeccak.txt"

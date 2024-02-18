@@ -315,7 +315,7 @@ func DecryptRSA(privateKeyBytes []byte, ciphertext []byte) ([]byte, error) {
 
 }
 
-func HashFunction(functionSig string) uint32 {
+func GetFuncSig(functionSig string) uint32 {
 	// Hash the function signature using Keccak-256 and return the first 4 bytes
 	hash := ethcrypto.Keccak256(([]byte)(functionSig))[:4]
 	return binary.BigEndian.Uint32(hash)
