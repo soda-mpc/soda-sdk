@@ -148,7 +148,6 @@ func GenerateAESKey() ([]byte, error) {
 const (
 	AddressSize = 20 // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
 	FuncSigSize = 4
-	NonceSize   = 8
 	CtSize      = 32
 	KeySize     = 32
 )
@@ -157,17 +156,16 @@ const (
 // sender: The address of the sender. It should be a byte slice of length AddressSize.
 // addr: The contract address. It should be a byte slice of length AddressSize.
 // funcSig: The function signature. It should be a byte slice of length FuncSigSize.
-// nonce: The nonce, or number used once, for this transaction. It should be a byte slice of length NonceSize.
 // ct: The ciphertext to be signed. It should be a byte slice of length CtSize.
 // key: The private key used for signing. It should be a byte slice of length KeySize.
 // It first checks if the lengths of these parameters are correct according to predefined constants.
 // If any of them are not of the correct length, it returns an error.
-// It then concatenates (sender | contract | funcSignature | nonce | ct) to create a message.
+// It then concatenates (sender | contract | funcSignature | ct) to create a message.
 // This message is then hashed using the Keccak-256 algorithm.
 // The function then creates an ECDSA private key from the provided key.
 // Finally, it signs the hashed message using the created private key.
 // If all steps are successful, it returns the signature and no error.
-func SignIT(sender, addr, funcSig, nonce, ct, key []byte) ([]byte, error) {
+func SignIT(sender, addr, funcSig, ct, key []byte) ([]byte, error) {
 	// Ensure all input sizes are the correct length
 	if len(sender) != AddressSize {
 		return nil, fmt.Errorf("Invalid sender address length: %d bytes, must be %d bytes", len(sender), AddressSize)
@@ -177,9 +175,6 @@ func SignIT(sender, addr, funcSig, nonce, ct, key []byte) ([]byte, error) {
 	}
 	if len(funcSig) != FuncSigSize {
 		return nil, fmt.Errorf("Invalid signature size: %d bytes, must be %d bytes", len(funcSig), FuncSigSize)
-	}
-	if len(nonce) != NonceSize {
-		return nil, fmt.Errorf("Invalid nonce length: %d bytes, must be %d bytes", len(nonce), NonceSize)
 	}
 	if len(ct) != CtSize {
 		return nil, fmt.Errorf("Invalid ct length: %d bytes, must be %d bytes", len(ct), CtSize)
@@ -192,7 +187,6 @@ func SignIT(sender, addr, funcSig, nonce, ct, key []byte) ([]byte, error) {
 	// Create the message to be signed by appending all inputs
 	message := append(sender, addr...)
 	message = append(message, funcSig...)
-	message = append(message, nonce...)
 	message = append(message, ct...)
 
 	return Sign(message, key)
@@ -220,12 +214,11 @@ func Sign(message, key []byte) ([]byte, error) {
 	return signature, nil
 }
 
-func VerifyIT(sender, addr, funcSig, nonce, ct, signature []byte) bool {
+func VerifyIT(sender, addr, funcSig, ct, signature []byte) bool {
 
 	// Create the message to be signed by appending all inputs
 	message := append(sender, addr...)
 	message = append(message, funcSig...)
-	message = append(message, nonce...)
 	message = append(message, ct...)
 
 	return RecoverPKAndVerifySignature(message, signature)
