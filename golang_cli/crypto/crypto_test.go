@@ -283,8 +283,6 @@ func TestIT(t *testing.T) {
 	addr, _ := hex.DecodeString("69413851f025306dbe12c48ff2225016fc5bbe1b")
 	funcSig, _ := hex.DecodeString("dc85563d")
 	userKey, _ := hex.DecodeString("b3c3fe73c1bb91862b166a29fe1d63e9")
-	// userKey, _ := GenerateAESKey()
-	// fmt.Println(hex.EncodeToString(userKey))
 	signingKey, _ := hex.DecodeString("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
 
 	// Act and assert
