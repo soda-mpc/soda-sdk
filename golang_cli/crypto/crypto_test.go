@@ -213,6 +213,40 @@ func TestFixedMsgSignature(t *testing.T) {
 	assert.Equal(t, verified, true, "Verify signature should return true")
 }
 
+func TestIT(t *testing.T) {
+	// Arrange
+	// Create plaintext with the value 100 as a big integer with less than 128 bits
+	plaintext := []byte("hello world")
+	sender, _ := hex.DecodeString("d67fe7792f18fbd663e29818334a050240887c28")
+	addr, _ := hex.DecodeString("69413851f025306dbe12c48ff2225016fc5bbe1b")
+	funcSig, _ := hex.DecodeString("dc85563d")
+	userKey, _ := hex.DecodeString("b3c3fe73c1bb91862b166a29fe1d63e9")
+	// userKey, _ := GenerateAESKey()
+	// fmt.Println(hex.EncodeToString(userKey))
+	signingKey, _ := hex.DecodeString("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
+
+	// Act and assert
+	// Sign the message
+	ct, signature, err := prepareIT(plaintext, userKey, sender, addr, funcSig, signingKey)
+	require.NoError(t, err, "Sign should not return an error")
+
+	// Reading from file simulates the communication between the evm (golang) and the user (python/js)
+	// readSigFromFileAndCompare(t, "../../python/test_pythonSignature.txt", signature)
+	// readSigFromFileAndCompare(t, "../../js/test_jsSignature.txt", signature)
+
+	// Verify the signature
+	verified := VerifyIT(sender, addr, funcSig, ct, signature)
+	assert.Equal(t, verified, true, "Verify signature should return true")
+
+	decryptedText, err := Decrypt(userKey, ct[aes.BlockSize:], ct[:aes.BlockSize])
+	if err != nil {
+		t.Fatalf("Decrypt failed: %v", err)
+	}
+
+	// Verify decrypted plaintext matches original message
+	assert.Equal(t, plaintext, decryptedText[len(decryptedText)-len(plaintext):], "Decrypted plaintext should match original message")
+}
+
 func TestRSAEncryption(t *testing.T) {
 	// Arrange
 	// Generate key pair

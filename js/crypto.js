@@ -151,6 +151,17 @@ export function sign(message, key) {
     return Buffer.concat([rBytes, sBytes, vByte]);
 }
 
+export function prepareIT(plaintext, userAesKey, sender, addr, funcSig, signingKey) {
+    // Encrypt the plaintext using AES key
+    const { ciphertext, r } = encrypt(userAesKey, plaintext);
+    let ct = Buffer.concat([ciphertext, r]);
+
+    // Sign the message
+    const signature = signIT(sender, addr, funcSig, ct, signingKey);
+
+    return { ct, signature };
+}
+
 export function generateRSAKeyPair() {
     // Generate a new RSA key pair
     return crypto.generateKeyPairSync('rsa', {

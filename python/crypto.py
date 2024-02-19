@@ -127,6 +127,16 @@ def sign(message, key):
 
     return signature
 
+def prepareIT(plaintext, user_aes_key, sender, addr, func_sig, signing_key):
+    # Encrypt the plaintext with the user's AES key
+    ciphertext, r = encrypt(user_aes_key, plaintext)
+    ct = ciphertext + r
+
+    # Sign the message
+    signature = signIT(sender, addr, func_sig, ct, signing_key)
+
+    return ct, signature
+
 def generate_rsa_keypair():
     # Generate RSA key pair
     private_key = rsa.generate_private_key(
