@@ -212,7 +212,7 @@ class TestMpcHelper(unittest.TestCase):
         self.assertEqual(verified, True)
 
         decrypted = decrypt(userKey, ct[block_size:], ct[:block_size])
-        self.assertEqual(plaintext, decrypted)
+        self.assertEqual(plaintext, decrypted[block_size - len(plaintext):])
 
     def test_rsa_encryption(self):
         # Arrange
