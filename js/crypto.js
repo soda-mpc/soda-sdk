@@ -30,7 +30,7 @@ export function encrypt(key, plaintext) {
     const encryptedR = cipher.update(r);
     
     // Pad the plaintext with zeros if it's smaller than the block size
-    const plaintext_padded = Buffer.concat([plaintext, Buffer.alloc(block_size - plaintext.length)]);
+    const plaintext_padded = Buffer.concat([Buffer.alloc(block_size - plaintext.length), plaintext]);
 
     // XOR the encrypted random value 'r' with the plaintext to obtain the ciphertext
     const ciphertext = Buffer.alloc(encryptedR.length);
