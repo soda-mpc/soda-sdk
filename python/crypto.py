@@ -37,7 +37,7 @@ def encrypt(key, plaintext):
     encrypted_r = cipher.encrypt(r)
     
     # Pad the plaintext with zeros if it's smaller than the block size
-    plaintext_padded = plaintext + bytes(block_size - len(plaintext))
+    plaintext_padded = bytes(block_size - len(plaintext)) + plaintext
 
     # XOR the encrypted random value 'r' with the plaintext to obtain the ciphertext
     ciphertext = bytes(x ^ y for x, y in zip(encrypted_r, plaintext_padded))

@@ -20,7 +20,11 @@ describe('Crypto Tests', () => {
         const { ciphertext, r } = encrypt(key, plaintextBuffer);
         const decryptedBuffer = decrypt(key, r, ciphertext);
 
-        const decryptedInteger = decryptedBuffer.readUInt8();
+        // Write Buffer to file to later check in Go
+        fs.writeFileSync("test_jsEncryption.txt", key.toString('hex') + "\n" + ciphertext.toString('hex') + "\n" + r.toString('hex'));
+
+        const rightBits = decryptedBuffer.subarray(decryptedBuffer.length - 4, decryptedBuffer.length);
+        const decryptedInteger = rightBits.readInt32BE();
 
         // Assert
         assert.strictEqual(decryptedInteger, plaintextInteger);

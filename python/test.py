@@ -26,16 +26,24 @@ class TestMpcHelper(unittest.TestCase):
         plaintext_integer = 100
         
         # Convert the integer to a byte slice with size aligned to 8.
-        plaintext_message = plaintext_integer.to_bytes((plaintext_integer.bit_length() + 7) // 8, 'little')
+        plaintext_message = plaintext_integer.to_bytes((plaintext_integer.bit_length() + 7) // 8, 'big')
 
         # Act
         # Call the encrypt function
         ciphertext, r = encrypt(key, plaintext_message)
 
+        # Writing to a file to later check in Go
+        with open("test_pythonEncryption.txt", "w") as f:
+            f.write(key.hex())
+            f.write("\n")
+            f.write(ciphertext.hex())
+            f.write("\n")
+            f.write(r.hex())
+
         # Call the decrypt function
         decrypted_message = decrypt(key, r, ciphertext)
 
-        decrypted_integer = int.from_bytes(decrypted_message, 'little')
+        decrypted_integer = int.from_bytes(decrypted_message, 'big')
 
         # Assert
         # Ensure the decrypted message is equal to the original plaintext
