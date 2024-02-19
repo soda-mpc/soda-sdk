@@ -65,6 +65,68 @@ func TestEncryptDecryptWithPadding(t *testing.T) {
 	assert.Equal(t, plaintextValue, decryptedValue, "Decrypted message should match the original plaintext")
 }
 
+func readEncryptionFromFile(path string) ([]byte, []byte, []byte, error) {
+	data, err := readValFromFile(path)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Split the data into two hex strings
+	hexStrings := bytes.Split(data, []byte("\n"))
+
+	// Convert the hex strings to bytes
+	if len(hexStrings) != 3 {
+		return nil, nil, nil, fmt.Errorf("Expected three hex strings in the file")
+	}
+
+	keyBytes, err := hex.DecodeString(string(hexStrings[0]))
+	if err != nil {
+		fmt.Println("Error decoding hex:", err)
+		return nil, nil, nil, err
+	}
+
+	cipherBytes, err := hex.DecodeString(string(hexStrings[1]))
+	if err != nil {
+		fmt.Println("Error decoding hex:", err)
+		return nil, nil, nil, err
+	}
+
+	randomBytes, err := hex.DecodeString(string(hexStrings[2]))
+	if err != nil {
+		fmt.Println("Error decoding hex:", err)
+		return nil, nil, nil, err
+	}
+
+	return keyBytes, cipherBytes, randomBytes, nil
+}
+
+func checkEncryption(t *testing.T, filePath string) {
+	// Arrange
+	plaintextValue := big.NewInt(100)
+
+	// Read python encryption from a file
+	key, ciphertext, r, err := readEncryptionFromFile(filePath)
+	require.NoError(t, err, "Read encryption should not return an error")
+
+	err = os.Remove(filePath)
+	require.NoError(t, err, "Delete file should not return an error")
+
+	// Act
+	decrypted, err := Decrypt(key, r, ciphertext)
+	require.NoError(t, err, "Decrypt should not return an error")
+
+	decryptedValue := new(big.Int).SetBytes(decrypted)
+
+	// Assert
+	assert.Equal(t, plaintextValue, decryptedValue, "Python decrypted message should match the original plaintext")
+}
+
+func TestPythonJSEnsryption(t *testing.T) {
+
+	checkEncryption(t, "../../python/test_pythonEncryption.txt")
+	checkEncryption(t, "../../js/test_jsEncryption.txt")
+}
+
 func TestLoadWriteAESKey(t *testing.T) {
 	// Arrange and Assert
 	// Create a temporary file for testing
