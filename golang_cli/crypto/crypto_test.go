@@ -104,7 +104,7 @@ func checkEncryption(t *testing.T, filePath string) {
 	// Arrange
 	plaintextValue := big.NewInt(100)
 
-	// Read python encryption from a file
+	// Read encryption from a file
 	key, ciphertext, r, err := readEncryptionFromFile(filePath)
 	require.NoError(t, err, "Read encryption should not return an error")
 
