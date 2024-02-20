@@ -200,7 +200,7 @@ class TestMpcHelper(unittest.TestCase):
             f.write("\n")
             f.write(signature.hex())
 
-         # Create the message to be 
+         # Create the message to be signed
         message = sender + addr + func_sig + ct
 
         pk = keys.PrivateKey(signingKey)
