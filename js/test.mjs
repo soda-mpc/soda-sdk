@@ -1,5 +1,5 @@
 import { assert } from 'chai';
-import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, getFuncSig } from './crypto.js';
+import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, getFuncSig, prepareIT } from './crypto.js';
 import { block_size, addressSize, funcSigSize, keySize } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -186,6 +186,31 @@ describe('Crypto Tests', () => {
                 return;
             }
         });
+    });
+
+    // Test case for verify signature
+    it('should prepare IT using fixed data', () => {
+        // Arrange
+        // Simulate the generation of random bytes
+        const plaintext = Buffer.from('hello world');
+        const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');
+        const sender = Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex');
+        const addr = Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex');
+        const funcSig = Buffer.from('dc85563d', 'hex');
+        const signingKey = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
+
+        // Act
+        // Generate the signature
+        const {ct, signature} = prepareIT(plaintext, userKey, sender, addr, funcSig, signingKey);
+
+        // Write Buffer to file to later check in Go
+        fs.writeFileSync("test_jsIT.txt", ct.toString('hex') + "\n" + signature.toString('hex'));
+
+        // Decrypt the ct and check the decrypted value is equal to the plaintext
+        const decryptedBuffer = decrypt(userKey, ct.subarray(block_size, ct.length), ct.subarray(0, block_size));
+
+        // Assert
+        assert.deepStrictEqual(plaintext, decryptedBuffer.subarray(decryptedBuffer.length - plaintext.length, decryptedBuffer.length));
     });
 
     // Test case for test rsa encryption scheme

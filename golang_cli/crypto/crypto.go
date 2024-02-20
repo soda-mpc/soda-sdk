@@ -237,6 +237,34 @@ func RecoverPKAndVerifySignature(message, signature []byte) bool {
 	return ethcrypto.VerifySignature(pubkey, hash, signature[:64])
 }
 
+// prepareIT prepares the inputs for the verifyIT function
+// It takes in the parameters:
+// plaintext: The plaintext to encrypt
+// userAesKey: Aes key used to encrypt the plaintext
+// sender: The address of the sender
+// addr: The address of the contract
+// funcSig: The signature of the calling function
+// signingKey: The private key used for signing
+// The function encrypt the plaintext using the userAesKey
+// and then signs on the concatination of sender, addr, funcSig, and the ciphertext.
+// It returns the ciphertext, signature, and an error if any occurred.
+func prepareIT(plaintext, userAesKey, sender, addr, funcSig, signingKey []byte) ([]byte, []byte, error) {
+	// Encrypt the plaintext
+	ciphertext, r, err := Encrypt(userAesKey, plaintext)
+	if err != nil {
+		return nil, nil, err
+	}
+	ct := append(ciphertext, r...)
+
+	// Sign the message
+	signature, err := SignIT(sender, addr, funcSig, ct, signingKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return ct, signature, nil
+}
+
 func GenerateRSAKeyPair() ([]byte, []byte, error) {
 	// Generate RSA key pair
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)

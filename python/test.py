@@ -3,7 +3,7 @@ import tempfile
 import os
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
-from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig
+from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepareIT
 from crypto import block_size, address_size, func_sig_size, key_size
 from eth_keys import keys
 import sys
@@ -182,6 +182,38 @@ class TestMpcHelper(unittest.TestCase):
         # Assert
         self.assertEqual(verified, True)
     
+    def test_prepareIT(self):
+        # Arrange
+        plaintext = b"hello world"
+        userKey = bytes.fromhex("b3c3fe73c1bb91862b166a29fe1d63e9")
+        sender = bytes.fromhex("d67fe7792f18fbd663e29818334a050240887c28")
+        addr = bytes.fromhex("69413851f025306dbe12c48ff2225016fc5bbe1b")
+        func_sig = bytes.fromhex("dc85563d")
+        signingKey = bytes.fromhex("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
+
+        # Act
+        # Call the sign function
+        ct, signature = prepareIT(plaintext, userKey, sender, addr, func_sig, signingKey)
+        # Write hexadecimal string to a file, this simulates the communication between the evm (golang) and the user (python/js)
+        with open("test_pythonIT.txt", "w") as f:
+            f.write(ct.hex())
+            f.write("\n")
+            f.write(signature.hex())
+
+         # Create the message to be signed
+        message = sender + addr + func_sig + ct
+
+        pk = keys.PrivateKey(signingKey)
+        signature = keys.Signature(signature)
+        # Verify the signature against the message hash and the public key
+        verified = signature.verify_msg(message, pk.public_key)
+       
+        # Assert
+        self.assertEqual(verified, True)
+
+        decrypted = decrypt(userKey, ct[block_size:], ct[:block_size])
+        self.assertEqual(plaintext, decrypted[block_size - len(plaintext):])
+
     def test_rsa_encryption(self):
         # Arrange
         plaintext = b"hello world"

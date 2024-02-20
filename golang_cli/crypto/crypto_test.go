@@ -275,6 +275,49 @@ func TestFixedMsgSignature(t *testing.T) {
 	assert.Equal(t, verified, true, "Verify signature should return true")
 }
 
+func TestIT(t *testing.T) {
+	// Arrange
+	// Create plaintext with the value 100 as a big integer with less than 128 bits
+	plaintext := []byte("hello world")
+	sender, _ := hex.DecodeString("d67fe7792f18fbd663e29818334a050240887c28")
+	addr, _ := hex.DecodeString("69413851f025306dbe12c48ff2225016fc5bbe1b")
+	funcSig, _ := hex.DecodeString("dc85563d")
+	userKey, _ := hex.DecodeString("b3c3fe73c1bb91862b166a29fe1d63e9")
+	signingKey, _ := hex.DecodeString("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
+
+	// Act and assert
+	// Sign the message
+	ct, signature, err := prepareIT(plaintext, userKey, sender, addr, funcSig, signingKey)
+	require.NoError(t, err, "Sign should not return an error")
+
+	checkIT(t, plaintext, userKey, sender, addr, funcSig, ct, signature)
+
+	// Reading from file simulates the communication between the evm (golang) and the user (python/js)
+	pythonCt, pythonSignature, err := readTwoHexStringsFromFile("../../python/test_pythonIT.txt")
+	require.NoError(t, err, "Read file should not return an error")
+	checkIT(t, plaintext, userKey, sender, addr, funcSig, pythonCt, pythonSignature)
+	err = os.Remove("../../python/test_pythonIT.txt")
+
+	jsCt, jsSignature, err := readTwoHexStringsFromFile("../../js/test_jsIT.txt")
+	require.NoError(t, err, "Read file should not return an error")
+	checkIT(t, plaintext, userKey, sender, addr, funcSig, jsCt, jsSignature)
+	err = os.Remove("../../js/test_jsIT.txt")
+}
+
+func checkIT(t *testing.T, plaintext, userKey, sender, addr, funcSig, ct, signature []byte) {
+	// Verify the signature
+	verified := VerifyIT(sender, addr, funcSig, ct, signature)
+	assert.Equal(t, verified, true, "Verify signature should return true")
+
+	decryptedText, err := Decrypt(userKey, ct[aes.BlockSize:], ct[:aes.BlockSize])
+	if err != nil {
+		t.Fatalf("Decrypt failed: %v", err)
+	}
+
+	// Verify decrypted plaintext matches original message
+	assert.Equal(t, plaintext, decryptedText[len(decryptedText)-len(plaintext):], "Decrypted plaintext should match original message")
+}
+
 func TestRSAEncryption(t *testing.T) {
 	// Arrange
 	// Generate key pair
@@ -297,7 +340,7 @@ func TestRSAEncryption(t *testing.T) {
 	assert.Equal(t, plaintext, decryptedText, "Decrypted plaintext should match original message")
 }
 
-func readRSAKeysFromFile(path string) ([]byte, []byte, error) {
+func readTwoHexStringsFromFile(path string) ([]byte, []byte, error) {
 	data, err := readValFromFile(path)
 	if err != nil {
 		return nil, nil, err
@@ -363,7 +406,7 @@ func appendHexToFile(filename string, hexString string) error {
 // Finally, the encrypted message is converted to hexadecimal format and appended to the file containing the RSA keys.
 func encryptMessage(t *testing.T, keysFilePath string) {
 	// Reading and writing from/to a file simulates the communication between the evm (golang) and the user (python/js)
-	_, key, err := readRSAKeysFromFile(keysFilePath)
+	_, key, err := readTwoHexStringsFromFile(keysFilePath)
 	require.NoError(t, err, "Read RSA keys should not return an error")
 
 	// Message to encrypt
