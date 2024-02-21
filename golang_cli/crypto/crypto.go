@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -250,7 +251,7 @@ func RecoverPKAndVerifySignature(message, signature []byte) bool {
 // The function encrypt the plaintext using the userAesKey
 // and then signs on the concatination of sender, addr, funcSig, and the ciphertext.
 // It returns the ciphertext, signature, and an error if any occurred.
-func prepareIT(plaintext, userAesKey []byte, sender, contract common.Address, funcSig string, signingKey []byte) (*big.Int, []byte, error) {
+func prepareIT(plaintext uint64, userAesKey []byte, sender, contract common.Address, funcSig string, signingKey []byte) (*big.Int, []byte, error) {
 	// Get the bytes of the addresses
 	senderBytes := sender.Bytes()
 	contractBytes := contract.Bytes()
@@ -259,7 +260,9 @@ func prepareIT(plaintext, userAesKey []byte, sender, contract common.Address, fu
 	funcHash := GetFuncSig(funcSig)
 
 	// Encrypt the plaintext
-	ciphertext, r, err := Encrypt(userAesKey, plaintext)
+	plaintextBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(plaintextBytes, plaintext)
+	ciphertext, r, err := Encrypt(userAesKey, plaintextBytes)
 	if err != nil {
 		return nil, nil, err
 	}

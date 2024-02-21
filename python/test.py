@@ -185,7 +185,7 @@ class TestMpcHelper(unittest.TestCase):
     
     def test_prepareIT(self):
         # Arrange
-        plaintext = b"hello world"
+        plaintext = 100
         userKey = bytes.fromhex("b3c3fe73c1bb91862b166a29fe1d63e9")
         # Create an account object manually
         sender = Account()
@@ -225,7 +225,8 @@ class TestMpcHelper(unittest.TestCase):
         self.assertEqual(verified, True)
 
         decrypted = decrypt(userKey, ctBytes[block_size:], ctBytes[:block_size])
-        self.assertEqual(plaintext, decrypted[block_size - len(plaintext):])
+        decrypted_integer = int.from_bytes(decrypted, 'big')
+        self.assertEqual(plaintext, decrypted_integer)
 
     def test_rsa_encryption(self):
         # Arrange

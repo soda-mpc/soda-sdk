@@ -192,7 +192,7 @@ describe('Crypto Tests', () => {
     it('should prepare IT using fixed data', () => {
         // Arrange
         // Simulate the generation of random bytes
-        const plaintext = Buffer.from('hello world');
+        const plaintext = BigInt("100");
         const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');;
         const sender = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex')));
         const contract = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex')));
@@ -214,8 +214,11 @@ describe('Crypto Tests', () => {
         // Decrypt the ct and check the decrypted value is equal to the plaintext
         const decryptedBuffer = decrypt(userKey, ctBuffer.subarray(block_size, ctBuffer.length), ctBuffer.subarray(0, block_size));
 
+        // Convert the plaintext to bytes
+        const hexString = plaintext.toString(16);
+        const plaintextBytes = Buffer.from(hexString, 'hex'); 
         // Assert
-        assert.deepStrictEqual(plaintext, decryptedBuffer.subarray(decryptedBuffer.length - plaintext.length, decryptedBuffer.length));
+        assert.deepStrictEqual(plaintextBytes, decryptedBuffer.subarray(decryptedBuffer.length - plaintextBytes.length, decryptedBuffer.length));
     });
 
     // Test case for test rsa encryption scheme

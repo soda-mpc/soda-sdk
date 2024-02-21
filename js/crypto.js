@@ -160,8 +160,11 @@ export function prepareIT(plaintext, userAesKey, sender, contract, funcSig, sign
     
     const hashFunc = getFuncSig(funcSig);
 
+    // Convert the plaintext to bytes
+    const hexString = plaintext.toString(16);
+    const plaintextBytes = Buffer.from(hexString, 'hex'); 
     // Encrypt the plaintext using AES key
-    const { ciphertext, r } = encrypt(userAesKey, plaintext);
+    const { ciphertext, r } = encrypt(userAesKey, plaintextBytes);
     let ct = Buffer.concat([ciphertext, r]);
 
     // Sign the message

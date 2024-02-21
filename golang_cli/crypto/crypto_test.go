@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -278,7 +279,7 @@ func TestFixedMsgSignature(t *testing.T) {
 func TestIT(t *testing.T) {
 	// Arrange
 	// Create plaintext with the value 100 as a big integer with less than 128 bits
-	plaintext := []byte("hello world")
+	plaintext := uint64(100)
 	sender := common.HexToAddress("d67fe7792f18fbd663e29818334a050240887c28")
 	contract := common.HexToAddress("69413851f025306dbe12c48ff2225016fc5bbe1b")
 	funcSig := "test(bytes)"
@@ -290,17 +291,20 @@ func TestIT(t *testing.T) {
 	ct, signature, err := prepareIT(plaintext, userKey, sender, contract, funcSig, signingKey)
 	require.NoError(t, err, "Sign should not return an error")
 
-	checkIT(t, plaintext, userKey, sender.Bytes(), contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), signature)
+	plaintextBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(plaintextBytes, plaintext)
+
+	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), signature)
 
 	// Reading from file simulates the communication between the evm (golang) and the user (python/js)
 	pythonCt, pythonSignature, err := readTwoHexStringsFromFile("../../python/test_pythonIT.txt")
 	require.NoError(t, err, "Read file should not return an error")
-	checkIT(t, plaintext, userKey, contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), pythonCt, pythonSignature)
+	checkIT(t, plaintextBytes, userKey, contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), pythonCt, pythonSignature)
 	err = os.Remove("../../python/test_pythonIT.txt")
 
 	jsCt, jsSignature, err := readTwoHexStringsFromFile("../../js/test_jsIT.txt")
 	require.NoError(t, err, "Read file should not return an error")
-	checkIT(t, plaintext, userKey, contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), jsCt, jsSignature)
+	checkIT(t, plaintextBytes, userKey, contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), jsCt, jsSignature)
 	err = os.Remove("../../js/test_jsIT.txt")
 }
 
