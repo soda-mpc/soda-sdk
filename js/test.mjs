@@ -193,21 +193,26 @@ describe('Crypto Tests', () => {
         // Arrange
         // Simulate the generation of random bytes
         const plaintext = Buffer.from('hello world');
-        const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');
-        const sender = Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex');
-        const addr = Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex');
-        const funcSig = Buffer.from('dc85563d', 'hex');
+        const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');;
+        const sender = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex')));
+        const contract = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex')));
+        const funcSig = 'test(bytes)';
         const signingKey = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
 
         // Act
         // Generate the signature
-        const {ct, signature} = prepareIT(plaintext, userKey, sender, addr, funcSig, signingKey);
+        const {ctInt, signature} = prepareIT(plaintext, userKey, sender, contract, funcSig, signingKey);
+
+        const ctHex = ctInt.toString(16);
+        console.log(ctHex);
+        // Create a Buffer to hold the bytes
+        const ctBuffer = Buffer.from(ctHex, 'hex'); 
 
         // Write Buffer to file to later check in Go
-        fs.writeFileSync("test_jsIT.txt", ct.toString('hex') + "\n" + signature.toString('hex'));
+        fs.writeFileSync("test_jsIT.txt", ctInt.toString(16) + "\n" + signature.toString('hex'));
 
         // Decrypt the ct and check the decrypted value is equal to the plaintext
-        const decryptedBuffer = decrypt(userKey, ct.subarray(block_size, ct.length), ct.subarray(0, block_size));
+        const decryptedBuffer = decrypt(userKey, ctBuffer.subarray(block_size, ctBuffer.length), ctBuffer.subarray(0, block_size));
 
         // Assert
         assert.deepStrictEqual(plaintext, decryptedBuffer.subarray(decryptedBuffer.length - plaintext.length, decryptedBuffer.length));
@@ -295,7 +300,7 @@ describe('Crypto Tests', () => {
         
         const filename = 'test_jsFunctionKeccak.txt'; // Name of the file to write to
         // Write Buffer to file
-        fs.writeFileSync(filename, hash.toString());
+        fs.writeFileSync(filename, hash.toString('hex'));
     
     });
 
