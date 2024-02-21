@@ -118,7 +118,7 @@ def generate_ECDSA_private_key():
         random_int = int.from_bytes(random_bytes, byteorder='big')
 
     # Generate a new random ECDSA private key
-    private_key = keys.PrivateKey(os.urandom(key_size))
+    private_key = keys.PrivateKey(random_bytes)
 
     # Get the raw bytes of the private key
     return private_key.to_bytes()
