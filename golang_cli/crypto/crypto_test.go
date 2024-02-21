@@ -178,8 +178,7 @@ func TestSignature(t *testing.T) {
 	funcSig := make([]byte, FuncSigSize)
 	_, err = rand.Read(funcSig)
 
-	key := make([]byte, KeySize)
-	_, err = rand.Read(key)
+	key := GenerateECDSAPrivateKey()
 	require.NoError(t, err, "Failed to generate random key")
 
 	// Create plaintext with the value 100 as a big integer with less than 128 bits

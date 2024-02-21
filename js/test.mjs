@@ -1,5 +1,5 @@
 import { assert } from 'chai';
-import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, getFuncSig, prepareIT } from './crypto.js';
+import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, getFuncSig, prepareIT, generateECDSAPrivateKey } from './crypto.js';
 import { block_size, addressSize, funcSigSize, keySize } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -109,7 +109,7 @@ describe('Crypto Tests', () => {
         const sender = crypto.randomBytes(addressSize);
         const addr = crypto.randomBytes(addressSize);
         const funcSig = crypto.randomBytes(funcSigSize);
-        let key = crypto.randomBytes(keySize);
+        let key = generateECDSAPrivateKey();
         
         // Create a ciphertext
         const plaintextBuffer = Buffer.alloc(1);

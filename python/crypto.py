@@ -100,6 +100,29 @@ def generate_aes_key():
 
     return key
 
+def generate_ECDSA_private_key():
+    random_bytes = os.urandom(32)
+
+    # Convert the byte array to an integer
+    random_int = int.from_bytes(random_bytes, byteorder='big')
+
+    # Define the upper bound of the curve's range
+    curve_order = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+
+
+    # Check if the integer falls within the valid range
+    while random_int > curve_order:
+        random_bytes = os.urandom(32)
+
+        # Convert the byte array to an integer
+        random_int = int.from_bytes(random_bytes, byteorder='big')
+
+    # Generate a new random ECDSA private key
+    private_key = keys.PrivateKey(os.urandom(key_size))
+
+    # Get the raw bytes of the private key
+    return private_key.to_bytes()
+
 def signIT(sender, addr, func_sig, ct, key):
     # Ensure all input sizes are the correct length
     if len(sender) != address_size:
