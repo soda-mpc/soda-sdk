@@ -204,12 +204,11 @@ describe('Crypto Tests', () => {
         const {ctInt, signature} = prepareIT(plaintext, userKey, sender, contract, funcSig, signingKey);
 
         const ctHex = ctInt.toString(16);
-        console.log(ctHex);
         // Create a Buffer to hold the bytes
         const ctBuffer = Buffer.from(ctHex, 'hex'); 
 
         // Write Buffer to file to later check in Go
-        fs.writeFileSync("test_jsIT.txt", ctInt.toString(16) + "\n" + signature.toString('hex'));
+        fs.writeFileSync("test_jsIT.txt", ctHex + "\n" + signature.toString('hex'));
 
         // Decrypt the ct and check the decrypted value is equal to the plaintext
         const decryptedBuffer = decrypt(userKey, ctBuffer.subarray(block_size, ctBuffer.length), ctBuffer.subarray(0, block_size));
