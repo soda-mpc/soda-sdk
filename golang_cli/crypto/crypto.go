@@ -17,6 +17,14 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
+const (
+	AddressSize     = 20 // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
+	FuncSigSize     = 4
+	CtSize          = 32
+	KeySize         = 32
+	Uint64BytesSize = 8
+)
+
 // PadWithZeros pads the input with zeros to make its length a multiple of blockSize.
 func PadWithZeros(input []byte, blockSize int) []byte {
 	if len(input)%blockSize == 0 {
@@ -149,13 +157,6 @@ func GenerateAESKey() ([]byte, error) {
 	return key, nil
 }
 
-const (
-	AddressSize = 20 // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
-	FuncSigSize = 4
-	CtSize      = 32
-	KeySize     = 32
-)
-
 func GenerateECDSAPrivateKey() []byte {
 	// Generate a new private key
 	privateKey, err := ethcrypto.GenerateKey()
@@ -270,7 +271,7 @@ func prepareIT(plaintext uint64, userAesKey []byte, sender, contract common.Addr
 	funcHash := GetFuncSig(funcSig)
 
 	// Encrypt the plaintext
-	plaintextBytes := make([]byte, 8)
+	plaintextBytes := make([]byte, Uint64BytesSize) // Create a slice of 8 bytes for 64 bits to hold the plaintext bytes
 	binary.BigEndian.PutUint64(plaintextBytes, plaintext)
 	ciphertext, r, err := Encrypt(userAesKey, plaintextBytes)
 	if err != nil {

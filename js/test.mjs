@@ -1,6 +1,6 @@
 import { assert } from 'chai';
 import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, getFuncSig, prepareIT, generateECDSAPrivateKey } from './crypto.js';
-import { block_size, addressSize, funcSigSize, keySize } from './crypto.js';
+import { block_size, addressSize, funcSigSize, hexBase } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
 import ethereumjsUtil  from 'ethereumjs-util';
@@ -203,7 +203,7 @@ describe('Crypto Tests', () => {
         // Generate the signature
         const {ctInt, signature} = prepareIT(plaintext, userKey, sender, contract, funcSig, signingKey);
 
-        const ctHex = ctInt.toString(16);
+        const ctHex = ctInt.toString(hexBase);
         // Create a Buffer to hold the bytes
         const ctBuffer = Buffer.from(ctHex, 'hex'); 
 

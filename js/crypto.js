@@ -10,6 +10,7 @@ export const addressSize = 20; // 160-bit is the output of the Keccak-256 algori
 export const funcSigSize = 4;
 export const ctSize = 32;
 export const keySize = 32;
+export const hexBase = 16;
 
 export function encrypt(key, plaintext) {
     
@@ -175,7 +176,7 @@ export function prepareIT(plaintext, userAesKey, sender, contract, funcSig, sign
     const hashFunc = getFuncSig(funcSig);
 
     // Convert the plaintext to bytes
-    const hexString = plaintext.toString(16);
+    const hexString = plaintext.toString(hexBase); 
     const plaintextBytes = Buffer.from(hexString, 'hex'); 
     // Encrypt the plaintext using AES key
     const { ciphertext, r } = encrypt(userAesKey, plaintextBytes);
