@@ -3,7 +3,7 @@ import tempfile
 import os
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
-from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepareIT
+from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepareIT, generate_ECDSA_private_key
 from crypto import block_size, address_size, func_sig_size, key_size
 from eth_keys import keys
 import sys
@@ -131,7 +131,7 @@ class TestMpcHelper(unittest.TestCase):
         sender = os.urandom(address_size)
         addr = os.urandom(address_size)
         func_sig = os.urandom(func_sig_size)
-        key = os.urandom(key_size)
+        key = generate_ECDSA_private_key()
 
         # Create plaintext with the value 100 as a big integer with less than 128 bits
         plaintext_integer = 100
