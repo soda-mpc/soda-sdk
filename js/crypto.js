@@ -2,6 +2,8 @@ import crypto from 'crypto';
 import fs from 'fs';
 import ethereumjsUtil  from 'ethereumjs-util';
 import { Address, toBuffer } from 'ethereumjs-util';
+import pkg from 'elliptic';
+const EC = pkg.ec;
 
 export const block_size = 16; // AES block size in bytes
 export const addressSize = 20; // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
@@ -106,6 +108,18 @@ export function generateAesKey() {
     const key = crypto.randomBytes(block_size);
 
     return key;
+}
+
+export function generateECDSAPrivateKey(){
+    // Create an elliptic curve instance using secp256k1 curve
+    const ec = new EC('secp256k1');
+
+    // Generate a key pair
+    const keyPair = ec.genKeyPair();
+
+    // Get the raw bytes of the private key
+    return keyPair.getPrivate().toArrayLike(Buffer, 'be', 32);
+
 }
 
 export function signIT(sender, addr, funcSig, ct, key) {

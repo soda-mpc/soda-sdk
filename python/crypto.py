@@ -5,6 +5,7 @@ import os
 import binascii
 import struct
 from eth_keys import keys
+from Crypto.PublicKey import ECC
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives import hashes
@@ -99,6 +100,16 @@ def generate_aes_key():
     key = get_random_bytes(block_size)
 
     return key
+
+def generate_ECDSA_private_key():
+
+    # Generate a new ECDSA private key
+    private_key = ECC.generate(curve='P-256')
+
+
+    # Get the raw bytes of the private key
+    return private_key.d.to_bytes(private_key.d.size_in_bytes(), byteorder='big')
+
 
 def signIT(sender, addr, func_sig, ct, key):
     # Ensure all input sizes are the correct length

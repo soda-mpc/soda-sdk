@@ -156,6 +156,16 @@ const (
 	KeySize     = 32
 )
 
+func GenerateECDSAPrivateKey() []byte {
+	// Generate a new private key
+	privateKey, err := ethcrypto.GenerateKey()
+	if err != nil {
+		fmt.Println("Error generating private key:", err)
+	}
+	// Convert the private key to raw bytes
+	return ethcrypto.FromECDSA(privateKey)
+}
+
 // Sign is a function that signes an hashed message using ECDSA. It takes in six parameters:
 // sender: The address of the sender. It should be a byte slice of length AddressSize.
 // addr: The contract address. It should be a byte slice of length AddressSize.
