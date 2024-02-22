@@ -5,14 +5,15 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"math/big"
 	"os"
-	"strconv"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -218,7 +219,7 @@ func readValFromFile(path string) ([]byte, error) {
 	return data, nil
 }
 
-func readSignatureFromFile(path string) ([]byte, error) {
+func readHexValFromFile(path string) ([]byte, error) {
 	data, err := readValFromFile(path)
 	if err != nil {
 		return nil, err
@@ -235,7 +236,7 @@ func readSignatureFromFile(path string) ([]byte, error) {
 }
 
 func readSigFromFileAndCompare(t *testing.T, filePath string, signature []byte) {
-	fileSig, err := readSignatureFromFile(filePath)
+	fileSig, err := readHexValFromFile(filePath)
 	require.NoError(t, err, "Read Signature should not return an error")
 
 	err = os.Remove(filePath)
@@ -277,29 +278,32 @@ func TestFixedMsgSignature(t *testing.T) {
 func TestIT(t *testing.T) {
 	// Arrange
 	// Create plaintext with the value 100 as a big integer with less than 128 bits
-	plaintext := []byte("hello world")
-	sender, _ := hex.DecodeString("d67fe7792f18fbd663e29818334a050240887c28")
-	addr, _ := hex.DecodeString("69413851f025306dbe12c48ff2225016fc5bbe1b")
-	funcSig, _ := hex.DecodeString("dc85563d")
+	plaintext := uint64(100)
+	sender := common.HexToAddress("d67fe7792f18fbd663e29818334a050240887c28")
+	contract := common.HexToAddress("69413851f025306dbe12c48ff2225016fc5bbe1b")
+	funcSig := "test(bytes)"
 	userKey, _ := hex.DecodeString("b3c3fe73c1bb91862b166a29fe1d63e9")
 	signingKey, _ := hex.DecodeString("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
 
 	// Act and assert
 	// Sign the message
-	ct, signature, err := prepareIT(plaintext, userKey, sender, addr, funcSig, signingKey)
+	ct, signature, err := prepareIT(plaintext, userKey, sender, contract, funcSig, signingKey)
 	require.NoError(t, err, "Sign should not return an error")
 
-	checkIT(t, plaintext, userKey, sender, addr, funcSig, ct, signature)
+	plaintextBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(plaintextBytes, plaintext)
+
+	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), signature)
 
 	// Reading from file simulates the communication between the evm (golang) and the user (python/js)
 	pythonCt, pythonSignature, err := readTwoHexStringsFromFile("../../python/test_pythonIT.txt")
 	require.NoError(t, err, "Read file should not return an error")
-	checkIT(t, plaintext, userKey, sender, addr, funcSig, pythonCt, pythonSignature)
+	checkIT(t, plaintextBytes, userKey, contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), pythonCt, pythonSignature)
 	err = os.Remove("../../python/test_pythonIT.txt")
 
 	jsCt, jsSignature, err := readTwoHexStringsFromFile("../../js/test_jsIT.txt")
 	require.NoError(t, err, "Read file should not return an error")
-	checkIT(t, plaintext, userKey, sender, addr, funcSig, jsCt, jsSignature)
+	checkIT(t, plaintextBytes, userKey, contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), jsCt, jsSignature)
 	err = os.Remove("../../js/test_jsIT.txt")
 }
 
@@ -428,18 +432,10 @@ func TestRSAEncryptionFixed(t *testing.T) {
 	encryptMessage(t, "../../js/test_jsRSAEncryption.txt")
 }
 
-func checkFunctionSignature(t *testing.T, filePath string, expected uint32) {
-	pythonVal, err := readValFromFile(filePath)
-
-	// Convert string to uint32
-	num, err := strconv.ParseUint(string(pythonVal), 10, 32)
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
-
+func checkFunctionSignature(t *testing.T, filePath string, expected []byte) {
+	val, err := readHexValFromFile(filePath)
 	require.NoError(t, err, "Read python value should not return an error")
-	assert.Equal(t, expected, uint32(num), "hashed values should match")
+	assert.Equal(t, expected, val, "hashed values should match")
 	err = os.Remove(filePath)
 }
 

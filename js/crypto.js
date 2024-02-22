@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import ethereumjsUtil  from 'ethereumjs-util';
+import { Address, toBuffer } from 'ethereumjs-util';
 import pkg from 'elliptic';
 const EC = pkg.ec;
 
@@ -9,6 +10,7 @@ export const addressSize = 20; // 160-bit is the output of the Keccak-256 algori
 export const funcSigSize = 4;
 export const ctSize = 32;
 export const keySize = 32;
+export const hexBase = 16;
 
 export function encrypt(key, plaintext) {
     
@@ -165,15 +167,28 @@ export function sign(message, key) {
     return Buffer.concat([rBytes, sBytes, vByte]);
 }
 
-export function prepareIT(plaintext, userAesKey, sender, addr, funcSig, signingKey) {
+export function prepareIT(plaintext, userAesKey, sender, contract, funcSig, signingKey) {
+
+    // Get the bytes of the sender, contract, and function signature
+    const senderBytes = toBuffer(sender)
+    const contractBytes = toBuffer(contract)
+    
+    const hashFunc = getFuncSig(funcSig);
+
+    // Convert the plaintext to bytes
+    const hexString = plaintext.toString(hexBase); 
+    const plaintextBytes = Buffer.from(hexString, 'hex'); 
     // Encrypt the plaintext using AES key
-    const { ciphertext, r } = encrypt(userAesKey, plaintext);
+    const { ciphertext, r } = encrypt(userAesKey, plaintextBytes);
     let ct = Buffer.concat([ciphertext, r]);
 
     // Sign the message
-    const signature = signIT(sender, addr, funcSig, ct, signingKey);
+    const signature = signIT(senderBytes, contractBytes, hashFunc, ct, signingKey);
 
-    return { ct, signature };
+    // Convert the ciphertext to BigInt
+    const ctInt = BigInt('0x' + ct.toString('hex'));
+
+    return { ctInt, signature };
 }
 
 export function generateRSAKeyPair() {
@@ -224,9 +239,5 @@ export function getFuncSig(functionSig) {
     // Hash the function signature using Keccak-256
     const hash = ethereumjsUtil.keccak256(functionBytes);
 
-    // Get the first 4 bytes from the buffer
-    const firstFourBytes = Buffer.alloc(4);
-    hash.copy(firstFourBytes, 0, 0, 4);
-
-    return hash.readUInt32BE();
+    return hash.subarray(0, 4);
 }

@@ -3,10 +3,11 @@ import tempfile
 import os
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
-from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepareIT, generate_ECDSA_private_key
+from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key
 from crypto import block_size, address_size, func_sig_size, key_size
 from eth_keys import keys
 import sys
+from web3 import Account
 
 class TestMpcHelper(unittest.TestCase):
     def setUp(self):
@@ -184,24 +185,36 @@ class TestMpcHelper(unittest.TestCase):
     
     def test_prepareIT(self):
         # Arrange
-        plaintext = b"hello world"
+        plaintext = 100
         userKey = bytes.fromhex("b3c3fe73c1bb91862b166a29fe1d63e9")
-        sender = bytes.fromhex("d67fe7792f18fbd663e29818334a050240887c28")
-        addr = bytes.fromhex("69413851f025306dbe12c48ff2225016fc5bbe1b")
-        func_sig = bytes.fromhex("dc85563d")
+        # Create an account object manually
+        sender = Account()
+        sender.address = "0xd67fe7792f18fbd663e29818334a050240887c28"
+        contract = Account()
+        contract.address = "0x69413851f025306dbe12c48ff2225016fc5bbe1b"
+        func_sig = "test(bytes)"
         signingKey = bytes.fromhex("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
 
         # Act
         # Call the sign function
-        ct, signature = prepareIT(plaintext, userKey, sender, addr, func_sig, signingKey)
+        ct, signature = prepare_IT(plaintext, userKey, sender, contract, func_sig, signingKey)
         # Write hexadecimal string to a file, this simulates the communication between the evm (golang) and the user (python/js)
         with open("test_pythonIT.txt", "w") as f:
-            f.write(ct.hex())
+            f.write(ct.to_bytes((ct.bit_length() + 7) // 8, 'big').hex())
             f.write("\n")
             f.write(signature.hex())
 
+        sender_address_bytes = bytes.fromhex(sender.address[2:])
+        contract_address_bytes = bytes.fromhex(contract.address[2:])
+
+        # create the function signature
+        func_hash = get_func_sig(func_sig)
+
+        # Convert the integer to a byte slice with size aligned to 8.
+        ctBytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
+
          # Create the message to be signed
-        message = sender + addr + func_sig + ct
+        message = sender_address_bytes + contract_address_bytes + func_hash + ctBytes
 
         pk = keys.PrivateKey(signingKey)
         signature = keys.Signature(signature)
@@ -211,8 +224,9 @@ class TestMpcHelper(unittest.TestCase):
         # Assert
         self.assertEqual(verified, True)
 
-        decrypted = decrypt(userKey, ct[block_size:], ct[:block_size])
-        self.assertEqual(plaintext, decrypted[block_size - len(plaintext):])
+        decrypted = decrypt(userKey, ctBytes[block_size:], ctBytes[:block_size])
+        decrypted_integer = int.from_bytes(decrypted, 'big')
+        self.assertEqual(plaintext, decrypted_integer)
 
     def test_rsa_encryption(self):
         # Arrange
@@ -241,7 +255,7 @@ class TestMpcHelper(unittest.TestCase):
 
         # Writing to a file simulates the communication between the evm (golang) and the user (python/js)
         with open("test_pythonFunctionKeccak.txt", "w") as f:
-            f.write(str(hashed))
+            f.write(hashed.hex())
 
 class TestDecrypt(unittest.TestCase):
 

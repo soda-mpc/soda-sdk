@@ -138,15 +138,28 @@ def sign(message, key):
 
     return signature
 
-def prepareIT(plaintext, user_aes_key, sender, addr, func_sig, signing_key):
+def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key):
+    # Get addresses as bytes
+    sender_address_bytes = bytes.fromhex(sender.address[2:])
+    contract_address_bytes = bytes.fromhex(contract.address[2:])
+
+    # Create the function signature
+    func_hash = get_func_sig(func_sig)
+
+    # Convert the integer to a byte slice with size aligned to 8.
+    plaintext_bytes = plaintext.to_bytes((plaintext.bit_length() + 7) // 8, 'big')
+    
     # Encrypt the plaintext with the user's AES key
-    ciphertext, r = encrypt(user_aes_key, plaintext)
+    ciphertext, r = encrypt(user_aes_key, plaintext_bytes)
     ct = ciphertext + r
 
     # Sign the message
-    signature = signIT(sender, addr, func_sig, ct, signing_key)
+    signature = signIT(sender_address_bytes, contract_address_bytes, func_hash, ct, signing_key)
 
-    return ct, signature
+    # Convert the ct to an integer
+    ctInt = int.from_bytes(ct, byteorder='big')
+
+    return ctInt, signature
 
 def generate_rsa_keypair():
     # Generate RSA key pair
@@ -218,8 +231,8 @@ def get_func_sig(functionSig):
     # Compute Keccak-256 hash on the function signature
     hash = keccak256(functionSigBytes)
 
-    # Take first 4 bytes of the hash and interpret as uint32
-    return struct.unpack('>I', hash[:4])[0]
+    # Take first 4 bytes of the hash 
+    return hash[:4]
 
 
 

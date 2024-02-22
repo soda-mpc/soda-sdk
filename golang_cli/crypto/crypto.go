@@ -9,9 +9,20 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"os"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+)
+
+const (
+	AddressSize     = 20 // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
+	FuncSigSize     = 4
+	CtSize          = 32
+	KeySize         = 32
+	Uint64BytesSize = 8
 )
 
 // PadWithZeros pads the input with zeros to make its length a multiple of blockSize.
@@ -146,13 +157,6 @@ func GenerateAESKey() ([]byte, error) {
 	return key, nil
 }
 
-const (
-	AddressSize = 20 // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
-	FuncSigSize = 4
-	CtSize      = 32
-	KeySize     = 32
-)
-
 func GenerateECDSAPrivateKey() []byte {
 	// Generate a new private key
 	privateKey, err := ethcrypto.GenerateKey()
@@ -258,21 +262,32 @@ func RecoverPKAndVerifySignature(message, signature []byte) bool {
 // The function encrypt the plaintext using the userAesKey
 // and then signs on the concatination of sender, addr, funcSig, and the ciphertext.
 // It returns the ciphertext, signature, and an error if any occurred.
-func prepareIT(plaintext, userAesKey, sender, addr, funcSig, signingKey []byte) ([]byte, []byte, error) {
+func prepareIT(plaintext uint64, userAesKey []byte, sender, contract common.Address, funcSig string, signingKey []byte) (*big.Int, []byte, error) {
+	// Get the bytes of the addresses
+	senderBytes := sender.Bytes()
+	contractBytes := contract.Bytes()
+
+	// Create the function signature
+	funcHash := GetFuncSig(funcSig)
+
 	// Encrypt the plaintext
-	ciphertext, r, err := Encrypt(userAesKey, plaintext)
+	plaintextBytes := make([]byte, Uint64BytesSize) // Create a slice of 8 bytes for 64 bits to hold the plaintext bytes
+	binary.BigEndian.PutUint64(plaintextBytes, plaintext)
+	ciphertext, r, err := Encrypt(userAesKey, plaintextBytes)
 	if err != nil {
 		return nil, nil, err
 	}
 	ct := append(ciphertext, r...)
 
 	// Sign the message
-	signature, err := SignIT(sender, addr, funcSig, ct, signingKey)
+	signature, err := SignIT(senderBytes, contractBytes, funcHash, ct, signingKey)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return ct, signature, nil
+	// Convert ct to uint64
+	ctIntValue := new(big.Int).SetBytes(ct)
+	return ctIntValue, signature, nil
 }
 
 func GenerateRSAKeyPair() ([]byte, []byte, error) {
@@ -353,8 +368,7 @@ func DecryptRSA(privateKeyBytes []byte, ciphertext []byte) ([]byte, error) {
 
 }
 
-func GetFuncSig(functionSig string) uint32 {
+func GetFuncSig(functionSig string) []byte {
 	// Hash the function signature using Keccak-256 and return the first 4 bytes
-	hash := ethcrypto.Keccak256(([]byte)(functionSig))[:4]
-	return binary.BigEndian.Uint32(hash)
+	return ethcrypto.Keccak256(([]byte)(functionSig))[:4]
 }
