@@ -138,12 +138,15 @@ def sign(message, key):
 
     return signature
 
-def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key):
+def prepare_IT(plaintext, user_aes_key, sender, contract, func, signing_key):
     # Get addresses as bytes
     sender_address_bytes = bytes.fromhex(sender.address[2:])
     contract_address_bytes = bytes.fromhex(contract.address[2:])
 
-    # Create the function signature
+    # Generate the function signature
+    input_types = ','.join([param['type'] for param in func.abi.get('inputs', [])])
+    func_sig = f"{func.abi['name']}({input_types})"
+    # Create the Keccak on the function signature
     func_hash = get_func_sig(func_sig)
 
     # Convert the integer to a byte slice with size aligned to 8.
