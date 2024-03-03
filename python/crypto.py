@@ -139,12 +139,15 @@ def sign(message, key):
     return signature
 
 def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key):
+    # Create the function signature
+    func_hash = get_func_sig(func_sig)
+
+    return inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_hash, signing_key)
+
+def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, signing_key):
     # Get addresses as bytes
     sender_address_bytes = bytes.fromhex(sender.address[2:])
     contract_address_bytes = bytes.fromhex(contract.address[2:])
-
-    # Create the function signature
-    func_hash = get_func_sig(func_sig)
 
     # Convert the integer to a byte slice with size aligned to 8.
     plaintext_bytes = plaintext.to_bytes((plaintext.bit_length() + 7) // 8, 'big')
@@ -154,7 +157,7 @@ def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key)
     ct = ciphertext + r
 
     # Sign the message
-    signature = signIT(sender_address_bytes, contract_address_bytes, func_hash, ct, signing_key)
+    signature = signIT(sender_address_bytes, contract_address_bytes, func_sig_hash, ct, signing_key)
 
     # Convert the ct to an integer
     ctInt = int.from_bytes(ct, byteorder='big')

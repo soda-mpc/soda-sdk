@@ -167,17 +167,16 @@ export function sign(message, key) {
     return Buffer.concat([rBytes, sBytes, vByte]);
 }
 
-export function prepareIT(plaintext, userAesKey, sender, contract, funcSig, signingKey) {
+export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey) {
 
     // Get the bytes of the sender, contract, and function signature
     const senderBytes = toBuffer(sender)
     const contractBytes = toBuffer(contract)
     
-    const hashFunc = getFuncSig(funcSig);
-
     // Convert the plaintext to bytes
-    const hexString = plaintext.toString(hexBase); 
-    const plaintextBytes = Buffer.from(hexString, 'hex'); 
+    const plaintextBytes = Buffer.alloc(8); // Allocate a buffer of size 8 bytes
+    plaintextBytes.writeBigUInt64BE(BigInt(plaintext)); // Write the uint64 value to the buffer as little-endian
+
     // Encrypt the plaintext using AES key
     const { ciphertext, r } = encrypt(userAesKey, plaintextBytes);
     let ct = Buffer.concat([ciphertext, r]);

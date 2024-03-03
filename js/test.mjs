@@ -201,7 +201,8 @@ describe('Crypto Tests', () => {
 
         // Act
         // Generate the signature
-        const {ctInt, signature} = prepareIT(plaintext, userKey, sender, contract, funcSig, signingKey);
+        const hash_func = getFuncSig(funcSig);
+        const {ctInt, signature} = prepareIT(plaintext, userKey, sender, contract, hash_func, signingKey);
 
         const ctHex = ctInt.toString(hexBase);
         // Create a Buffer to hold the bytes
