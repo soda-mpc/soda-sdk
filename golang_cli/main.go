@@ -135,7 +135,7 @@ func handleGenerateKey() {
 		return
 	}
 
-	filePath := path.Join(home, "Tools", "golang_cli", fileName)
+	filePath := path.Join(home, "soda-sdk", "golang_cli", fileName)
 
 	if _, err := os.Stat(filePath); !os.IsNotExist(err) {
 		log.Printf("Error: File %s already exists. Refusing to overwrite.", filePath)
