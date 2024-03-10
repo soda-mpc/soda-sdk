@@ -210,6 +210,8 @@ def test_prepareIT(self):
 
     # Decrypt the ciphertext using the AES key and check the decrypted value agains the original plaintext
     ctBytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
+    
+    # ctBytes is divided into two components: random and encrypted data. The decrypt function processes each component separately. 
     decrypted = decrypt(userKey, ctBytes[block_size:], ctBytes[:block_size])
     decrypted_integer = int.from_bytes(decrypted, 'big')
     self.assertEqual(plaintext, decrypted_integer)
@@ -241,7 +243,7 @@ import { encrypt } from './crypto.js';
 Below is an example of RSA encryption scheme. The code can be found in the test.mjs file, lets break it down:
 
 ```bash
-const plaintext = Buffer.from('hello world');
+const plaintext = Buffer.from('I love soda labs');
 # Generate RSA key pair
 const { publicKey, privateKey } = generateRSAKeyPair();
 
