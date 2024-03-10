@@ -1,4 +1,4 @@
-# Tools
+# Soda-sdk
 
 # CLI Tool for a random AES Encryption and Decryption
 
@@ -49,13 +49,13 @@ cli-tool --generate-key mykey.txt
 Clone the repository:
 
 ```bash
-git clone https://github.com/soda-mpc/tools.git
+git clone https://github.com/soda-mpc/soda-sdk.git
 ```
 
 Navigate to the project directory:
 
 ```bash
-cd tools/golang_cli
+cd soda-sdk/golang_cli
 ```
 
 Build the project:
