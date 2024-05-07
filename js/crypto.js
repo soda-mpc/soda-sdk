@@ -245,12 +245,12 @@ export function recoverUserKey(privateKey, encryptedKeyShare0, encryptedKeyShare
     const decryptedKeyShare0 = decryptRSA(privateKey, encryptedKeyShare0);
     const decryptedKeyShare1 = decryptRSA(privateKey, encryptedKeyShare1);
 
-    const key = Buffer.alloc(decryptedKeyShare0.length);
+    const aesKey = Buffer.alloc(decryptedKeyShare0.length);
     for (let i = 0; i < decryptedKeyShare0.length; i++) {
-        key[i] = decryptedKeyShare0[i] ^ decryptedKeyShare1[i];
+        aesKey[i] = decryptedKeyShare0[i] ^ decryptedKeyShare1[i];
     }
 
-    return key;
+    return aesKey;
 }
 
 export function getFuncSig(functionSig) {
