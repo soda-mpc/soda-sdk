@@ -231,6 +231,28 @@ export function decryptRSA(privateKey, ciphertext) {
     }, ciphertext);
 }
 
+/**
+ * This function recovers a user's key by decrypting two encrypted key shares with the given private key, 
+ * and then XORing the two key shares together.
+ *
+ * @param {Buffer} privateKey - The private key used to decrypt the key shares.
+ * @param {Buffer} encryptedKeyShare0 - The first encrypted key share.
+ * @param {Buffer} encryptedKeyShare1 - The second encrypted key share.
+ *
+ * @returns {Buffer} - The recovered user key.
+ */
+export function recoverUserKey(privateKey, encryptedKeyShare0, encryptedKeyShare1) {
+    const decryptedKeyShare0 = decryptRSA(privateKey, encryptedKeyShare0);
+    const decryptedKeyShare1 = decryptRSA(privateKey, encryptedKeyShare1);
+
+    const key = Buffer.alloc(decryptedKeyShare0.length);
+    for (let i = 0; i < decryptedKeyShare0.length; i++) {
+        key[i] = decryptedKeyShare0[i] ^ decryptedKeyShare1[i];
+    }
+
+    return key;
+}
+
 export function getFuncSig(functionSig) {
     // Encode the string to a Buffer
     const functionBytes = Buffer.from(functionSig, "utf8");
