@@ -164,6 +164,20 @@ def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, s
 
     return ctInt, signature
 
+def prepare_delete_key_signature(sender, contract, func_sig, signing_key):
+    # Create the function signature
+    func_hash = get_func_sig(func_sig)
+
+    # Get addresses as bytes
+    sender_address_bytes = bytes.fromhex(sender.address[2:])
+    contract_address_bytes = bytes.fromhex(contract.address[2:])
+
+    message = "deleteUserKey".encode() + sender_address_bytes + contract_address_bytes + func_hash
+
+    # Sign the message
+    return sign(message, signing_key)
+
+
 def generate_rsa_keypair():
     # Generate RSA key pair
     private_key = rsa.generate_private_key(
