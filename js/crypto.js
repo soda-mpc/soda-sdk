@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import ethereumjsUtil  from 'ethereumjs-util';
-import { Address, toBuffer } from 'ethereumjs-util';
+import { toBuffer, isValidAddress } from 'ethereumjs-util';
 import pkg from 'elliptic';
 const EC = pkg.ec;
 
@@ -208,6 +208,11 @@ export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, sig
  * @returns {string} The signature generated from the concatenated message and the signing key.
  */
 export function prepareDeleteKeySignature(sender, contract, hashFunc, signingKey){
+    // Validate the Ethereum addresses
+    if (!isValidAddress(sender) || !isValidAddress(contract)) {
+        throw new Error("Invalid Ethereum address provided.");
+    }
+    
     // Get the bytes of the sender, contract, and function signature
     const senderBytes = toBuffer(sender)
     const contractBytes = toBuffer(contract)
@@ -217,7 +222,7 @@ export function prepareDeleteKeySignature(sender, contract, hashFunc, signingKey
     // Create the message to be signed by concatenating all inputs
     let msg = Buffer.concat([messageBuffer, senderBytes, contractBytes, hashFunc]);
     
-    // Concatenate r, s, and v bytes
+    // Sign the message using the given signing key
     return sign(msg, signingKey);
 }
 
