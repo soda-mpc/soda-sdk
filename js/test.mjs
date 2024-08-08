@@ -180,6 +180,15 @@ describe('Crypto Tests', () => {
         // Generate the signature
         const signatureBytes = signIT(sender, addr, funcSig, ct, key, true);
 
+        // Extract r, s, and v as buffers
+        let rBytes = Buffer.alloc(32);
+        let sBytes = Buffer.alloc(32);
+        let vByte = Buffer.alloc(1);
+
+        signatureBytes.copy(rBytes, 0, 0, 32);
+        signatureBytes.copy(sBytes, 0, 32, 64);
+        signatureBytes.copy(vByte, 0, 64);
+
         // Verify the signature
         const expectedPublicKey = ethereumjsUtil.privateToPublic(key);
         const expectedAddress = ethereumjsUtil.toChecksumAddress('0x' + expectedPublicKey.toString('hex'));
@@ -188,7 +197,7 @@ describe('Crypto Tests', () => {
         const hash =hashPersonalMessage(message);
 
         // Recover the public key from the signature
-        const publicKey = ethereumjsUtil.ecrecover(hash, signatureBytes.v, signatureBytes.r, signatureBytes.s);
+        const publicKey = ethereumjsUtil.ecrecover(hash, vByte, rBytes, sBytes);
         // Derive the Ethereum address from the recovered public key
         const address = ethereumjsUtil.toChecksumAddress('0x' + publicKey.toString('hex'));
 

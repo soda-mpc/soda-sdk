@@ -175,10 +175,12 @@ export function signEIP191(message, key) {
     // Hash the concatenated message using Keccak-256
     const hash = hashPersonalMessage(message);
     // Sign the message
-    return ethereumjsUtil.ecsign(hash, key);
+    const signature =  ethereumjsUtil.ecsign(hash, key);
+    // Convert r, s, and v components to bytes
+    return Buffer.concat([Buffer.from(signature.r), Buffer.from(signature.s), Buffer.from([signature.v])]);
 }
 
-export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey) {
+export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191=false) {
 
     // Get the bytes of the sender, contract, and function signature
     const senderBytes = toBuffer(sender)
@@ -193,7 +195,7 @@ export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, sig
     let ct = Buffer.concat([ciphertext, r]);
 
     // Sign the message
-    const signature = signIT(senderBytes, contractBytes, hashFunc, ct, signingKey);
+    const signature = signIT(senderBytes, contractBytes, hashFunc, ct, signingKey, eip191);
 
     // Convert the ciphertext to BigInt
     const ctInt = BigInt('0x' + ct.toString('hex'));
