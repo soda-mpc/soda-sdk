@@ -10,7 +10,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
-
+from eth_account import Account
+from eth_account.messages import encode_defunct
 
 block_size = AES.block_size
 address_size = 20
@@ -111,8 +112,8 @@ def generate_ECDSA_private_key():
     return private_key.d.to_bytes(private_key.d.size_in_bytes(), byteorder='big')
 
 
-def signIT(sender, addr, func_sig, ct, key):
-    # Ensure all input sizes are the correct length
+def validate_input_lengths(sender, addr, func_sig, ct, key):
+    """Validate the lengths of inputs."""
     if len(sender) != address_size:
         raise ValueError(f"Invalid sender address length: {len(sender)} bytes, must be {address_size} bytes")
     if len(addr) != address_size:
@@ -121,22 +122,36 @@ def signIT(sender, addr, func_sig, ct, key):
         raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {func_sig_size} bytes")
     if len(ct) != ct_size:
         raise ValueError(f"Invalid ct length: {len(ct)} bytes, must be {ct_size} bytes")
-    # Ensure the key is the correct length
     if len(key) != key_size:
         raise ValueError(f"Invalid key length: {len(key)} bytes, must be {key_size} bytes")
+
+
+def signIT(sender, addr, func_sig, ct, key, eip191=False):
+    """Sign the message using either standard signing or EIP-191 signing."""
+    # Validate input lengths
+    validate_input_lengths(sender, addr, func_sig, ct, key)
 
     # Create the message to be signed by appending all inputs
     message = sender + addr + func_sig + ct
 
-    return sign(message, key)
+    # Sign the message
+    if eip191:
+        return sign_eip191(message, key)
+    else:
+        return sign(message, key)
+
 
 def sign(message, key):
-    
     # Sign the message
     pk = keys.PrivateKey(key)
     signature = pk.sign_msg(message).to_bytes()
-
     return signature
+
+
+def sign_eip191(message, key):
+    signed_message = Account.sign_message(encode_defunct(primitive=message), key)
+    return signed_message.signature
+
 
 def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key):
     # Create the function signature

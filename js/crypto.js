@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import ethereumjsUtil  from 'ethereumjs-util';
-import { Address, toBuffer } from 'ethereumjs-util';
+import { hashPersonalMessage, toBuffer } from 'ethereumjs-util';
 import pkg from 'elliptic';
 const EC = pkg.ec;
 
@@ -123,7 +123,7 @@ export function generateECDSAPrivateKey(){
 
 }
 
-export function signIT(sender, addr, funcSig, ct, key) {
+export function signIT(sender, addr, funcSig, ct, key, eip191=false) {
     // Ensure all input sizes are the correct length
     if (sender.length !== addressSize) {
         throw new RangeError(`Invalid sender address length: ${sender.length} bytes, must be ${addressSize} bytes`);
@@ -146,7 +146,11 @@ export function signIT(sender, addr, funcSig, ct, key) {
     let message = Buffer.concat([sender, addr, funcSig, ct]);
 
     // Concatenate r, s, and v bytes
-    return sign(message, key);
+    if (eip191) {
+        return signEIP191(message, key);
+    }else {
+        return sign(message, key);
+    }
 }
 
 export function sign(message, key) {
@@ -165,6 +169,13 @@ export function sign(message, key) {
 
     // Concatenate r, s, and v bytes
     return Buffer.concat([rBytes, sBytes, vByte]);
+}
+
+export function signEIP191(message, key) {
+    // Hash the concatenated message using Keccak-256
+    const hash = hashPersonalMessage(message);
+    // Sign the message
+    return ethereumjsUtil.ecsign(hash, key);
 }
 
 export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey) {
