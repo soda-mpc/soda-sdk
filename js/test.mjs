@@ -5,6 +5,22 @@ import fs from 'fs';
 import crypto from 'crypto';
 import ethereumjsUtil, {hashPersonalMessage} from 'ethereumjs-util';
 
+function extractSignatureComponents(signatureBytes) {
+    // Allocate buffers for r, s, and v
+    let rBytes = Buffer.alloc(32);
+    let sBytes = Buffer.alloc(32);
+    let vByte = Buffer.alloc(1);
+
+    // Copy the corresponding bytes from the signature
+    signatureBytes.copy(rBytes, 0, 0, 32);
+    signatureBytes.copy(sBytes, 0, 32, 64);
+    signatureBytes.copy(vByte, 0, 64);
+
+    // Return the components as an object
+    return { rBytes, sBytes, vByte };
+}
+
+
 describe('Crypto Tests', () => {
 
     // Test case for encrypt and decrypt
@@ -121,15 +137,8 @@ describe('Crypto Tests', () => {
         // Act
         // Generate the signature
         const signatureBytes = signIT(sender, addr, funcSig, ct, key);
-        
-        // Extract r, s, and v as buffers
-        let rBytes = Buffer.alloc(32);
-        let sBytes = Buffer.alloc(32);
-        let vByte = Buffer.alloc(1);
 
-        signatureBytes.copy(rBytes, 0, 0, 32);
-        signatureBytes.copy(sBytes, 0, 32, 64);
-        signatureBytes.copy(vByte, 0, 64);
+        const {rBytes, sBytes, vByte} = extractSignatureComponents(signatureBytes);
 
         // Convert v buffer back to integer
         let v = vByte.readUInt8();
@@ -180,6 +189,8 @@ describe('Crypto Tests', () => {
         // Generate the signature
         const signatureBytes = signIT(sender, addr, funcSig, ct, key, true);
 
+        const {rBytes, sBytes, vByte} = extractSignatureComponents(signatureBytes);
+
         // Verify the signature
         const expectedPublicKey = ethereumjsUtil.privateToPublic(key);
         const expectedAddress = ethereumjsUtil.toChecksumAddress('0x' + expectedPublicKey.toString('hex'));
@@ -188,7 +199,7 @@ describe('Crypto Tests', () => {
         const hash =hashPersonalMessage(message);
 
         // Recover the public key from the signature
-        const publicKey = ethereumjsUtil.ecrecover(hash, signatureBytes.v, signatureBytes.r, signatureBytes.s);
+        const publicKey = ethereumjsUtil.ecrecover(hash, vByte, rBytes, sBytes);
         // Derive the Ethereum address from the recovered public key
         const address = ethereumjsUtil.toChecksumAddress('0x' + publicKey.toString('hex'));
 

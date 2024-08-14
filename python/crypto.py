@@ -20,7 +20,7 @@ ct_size = 32
 key_size = 32
 
 def encrypt(key, plaintext):
-    
+
     # Ensure plaintext is smaller than 128 bits (16 bytes)
     if len(plaintext) > block_size:
         raise ValueError("Plaintext size must be 128 bits or smaller.")
@@ -37,7 +37,7 @@ def encrypt(key, plaintext):
 
     # Encrypt the random value 'r' using AES in ECB mode
     encrypted_r = cipher.encrypt(r)
-    
+
     # Pad the plaintext with zeros if it's smaller than the block size
     plaintext_padded = bytes(block_size - len(plaintext)) + plaintext
 
@@ -47,10 +47,10 @@ def encrypt(key, plaintext):
     return ciphertext, r
 
 def decrypt(key, r, ciphertext):
-    
+
     if len(ciphertext) != block_size:
         raise ValueError("Ciphertext size must be 128 bits.")
-    
+
     # Ensure key size is 128 bits (16 bytes)
     if len(key) != block_size:
         raise ValueError("Key size must be 128 bits.")
@@ -153,26 +153,26 @@ def sign_eip191(message, key):
     return signed_message.signature
 
 
-def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key):
+def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False):
     # Create the function signature
     func_hash = get_func_sig(func_sig)
 
-    return inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_hash, signing_key)
+    return inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_hash, signing_key, eip191)
 
-def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, signing_key):
+def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, signing_key, eip191):
     # Get addresses as bytes
     sender_address_bytes = bytes.fromhex(sender.address[2:])
     contract_address_bytes = bytes.fromhex(contract.address[2:])
 
     # Convert the integer to a byte slice with size aligned to 8.
     plaintext_bytes = plaintext.to_bytes((plaintext.bit_length() + 7) // 8, 'big')
-    
+
     # Encrypt the plaintext with the user's AES key
     ciphertext, r = encrypt(user_aes_key, plaintext_bytes)
     ct = ciphertext + r
 
     # Sign the message
-    signature = signIT(sender_address_bytes, contract_address_bytes, func_sig_hash, ct, signing_key)
+    signature = signIT(sender_address_bytes, contract_address_bytes, func_sig_hash, ct, signing_key, eip191)
 
     # Convert the ct to an integer
     ctInt = int.from_bytes(ct, byteorder='big')
@@ -185,7 +185,7 @@ def generate_rsa_keypair():
         public_exponent=65537,
         key_size=2048
     )
-    
+
     # Serialize private key
     private_key_bytes = private_key.private_bytes(
         encoding=serialization.Encoding.DER,
