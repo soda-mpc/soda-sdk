@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import fs from 'fs';
-import ethereumjsUtil  from 'ethereumjs-util';
+import ethereumjsUtil, {hashPersonalMessage} from 'ethereumjs-util';
 import { toBuffer, isValidAddress } from 'ethereumjs-util';
 import pkg from 'elliptic';
 const EC = pkg.ec;
@@ -123,7 +123,7 @@ export function generateECDSAPrivateKey(){
 
 }
 
-export function signIT(sender, addr, funcSig, ct, key) {
+export function signIT(sender, addr, funcSig, ct, key, eip191=false) {
     // Ensure all input sizes are the correct length
     if (sender.length !== addressSize) {
         throw new RangeError(`Invalid sender address length: ${sender.length} bytes, must be ${addressSize} bytes`);
@@ -146,7 +146,11 @@ export function signIT(sender, addr, funcSig, ct, key) {
     let message = Buffer.concat([sender, addr, funcSig, ct]);
 
     // Concatenate r, s, and v bytes
-    return sign(message, key);
+    if (eip191) {
+        return signEIP191(message, key);
+    }else {
+        return sign(message, key);
+    }
 }
 
 export function sign(message, key) {
@@ -167,7 +171,16 @@ export function sign(message, key) {
     return Buffer.concat([rBytes, sBytes, vByte]);
 }
 
-export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey) {
+export function signEIP191(message, key) {
+    // Hash the concatenated message using Keccak-256
+    const hash = hashPersonalMessage(message);
+    // Sign the message
+    const signature =  ethereumjsUtil.ecsign(hash, key);
+    // Convert r, s, and v components to bytes
+    return Buffer.concat([Buffer.from(signature.r), Buffer.from(signature.s), Buffer.from([signature.v])]);
+}
+
+export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191=false) {
 
     // Get the bytes of the sender, contract, and function signature
     const senderBytes = toBuffer(sender)
@@ -182,7 +195,7 @@ export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, sig
     let ct = Buffer.concat([ciphertext, r]);
 
     // Sign the message
-    const signature = signIT(senderBytes, contractBytes, hashFunc, ct, signingKey);
+    const signature = signIT(senderBytes, contractBytes, hashFunc, ct, signingKey, eip191);
 
     // Convert the ciphertext to BigInt
     const ctInt = BigInt('0x' + ct.toString('hex'));
