@@ -3,7 +3,23 @@ import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, gene
 import { block_size, addressSize, funcSigSize, hexBase } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
-import ethereumjsUtil  from 'ethereumjs-util';
+import ethereumjsUtil, {hashPersonalMessage} from 'ethereumjs-util';
+
+function extractSignatureComponents(signatureBytes) {
+    // Allocate buffers for r, s, and v
+    let rBytes = Buffer.alloc(32);
+    let sBytes = Buffer.alloc(32);
+    let vByte = Buffer.alloc(1);
+
+    // Copy the corresponding bytes from the signature
+    signatureBytes.copy(rBytes, 0, 0, 32);
+    signatureBytes.copy(sBytes, 0, 32, 64);
+    signatureBytes.copy(vByte, 0, 64);
+
+    // Return the components as an object
+    return { rBytes, sBytes, vByte };
+}
+
 
 describe('Crypto Tests', () => {
 
@@ -121,15 +137,8 @@ describe('Crypto Tests', () => {
         // Act
         // Generate the signature
         const signatureBytes = signIT(sender, addr, funcSig, ct, key);
-        
-        // Extract r, s, and v as buffers
-        let rBytes = Buffer.alloc(32);
-        let sBytes = Buffer.alloc(32);
-        let vByte = Buffer.alloc(1);
 
-        signatureBytes.copy(rBytes, 0, 0, 32);
-        signatureBytes.copy(sBytes, 0, 32, 64);
-        signatureBytes.copy(vByte, 0, 64);
+        const {rBytes, sBytes, vByte} = extractSignatureComponents(signatureBytes);
 
         // Convert v buffer back to integer
         let v = vByte.readUInt8();
@@ -153,6 +162,47 @@ describe('Crypto Tests', () => {
         // Derive the Ethereum address from the recovered public key
         const address = ethereumjsUtil.toChecksumAddress('0x' + publicKey.toString('hex'));
         
+        // Compare the derived address with the expected signer's address
+        const isVerified = address === expectedAddress;
+
+        // Assert
+        assert.strictEqual(isVerified, true);
+    });
+
+    // Test case for verify signature
+    it('should sign and verify the EIP191 signature', () => {
+        // Arrange
+        // Simulate the generation of random bytes
+        const sender = crypto.randomBytes(addressSize);
+        const addr = crypto.randomBytes(addressSize);
+        const funcSig = crypto.randomBytes(funcSigSize);
+        let key = generateECDSAPrivateKey();
+
+        // Create a ciphertext
+        const plaintextBuffer = Buffer.alloc(1);
+        plaintextBuffer.writeUInt8(100);
+        const aeskey = generateAesKey();
+        const { ciphertext, r } = encrypt(aeskey, plaintextBuffer);
+        let ct = Buffer.concat([ciphertext, r]);
+
+        // Act
+        // Generate the signature
+        const signatureBytes = signIT(sender, addr, funcSig, ct, key, true);
+
+        const {rBytes, sBytes, vByte} = extractSignatureComponents(signatureBytes);
+
+        // Verify the signature
+        const expectedPublicKey = ethereumjsUtil.privateToPublic(key);
+        const expectedAddress = ethereumjsUtil.toChecksumAddress('0x' + expectedPublicKey.toString('hex'));
+
+        const message = Buffer.concat([sender, addr, funcSig, ct]);
+        const hash = hashPersonalMessage(message);
+
+        // Recover the public key from the signature
+        const publicKey = ethereumjsUtil.ecrecover(hash, vByte, rBytes, sBytes);
+        // Derive the Ethereum address from the recovered public key
+        const address = ethereumjsUtil.toChecksumAddress('0x' + publicKey.toString('hex'));
+
         // Compare the derived address with the expected signer's address
         const isVerified = address === expectedAddress;
 

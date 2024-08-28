@@ -10,7 +10,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
-
+from eth_account import Account
+from eth_account.messages import encode_defunct
 
 block_size = AES.block_size
 address_size = 20
@@ -19,7 +20,7 @@ ct_size = 32
 key_size = 32
 
 def encrypt(key, plaintext):
-    
+
     # Ensure plaintext is smaller than 128 bits (16 bytes)
     if len(plaintext) > block_size:
         raise ValueError("Plaintext size must be 128 bits or smaller.")
@@ -36,7 +37,7 @@ def encrypt(key, plaintext):
 
     # Encrypt the random value 'r' using AES in ECB mode
     encrypted_r = cipher.encrypt(r)
-    
+
     # Pad the plaintext with zeros if it's smaller than the block size
     plaintext_padded = bytes(block_size - len(plaintext)) + plaintext
 
@@ -46,10 +47,10 @@ def encrypt(key, plaintext):
     return ciphertext, r
 
 def decrypt(key, r, ciphertext):
-    
+
     if len(ciphertext) != block_size:
         raise ValueError("Ciphertext size must be 128 bits.")
-    
+
     # Ensure key size is 128 bits (16 bytes)
     if len(key) != block_size:
         raise ValueError("Key size must be 128 bits.")
@@ -111,8 +112,8 @@ def generate_ECDSA_private_key():
     return private_key.d.to_bytes(private_key.d.size_in_bytes(), byteorder='big')
 
 
-def signIT(sender, addr, func_sig, ct, key):
-    # Ensure all input sizes are the correct length
+def validate_input_lengths(sender, addr, func_sig, ct, key):
+    """Validate the lengths of inputs."""
     if len(sender) != address_size:
         raise ValueError(f"Invalid sender address length: {len(sender)} bytes, must be {address_size} bytes")
     if len(addr) != address_size:
@@ -125,39 +126,54 @@ def signIT(sender, addr, func_sig, ct, key):
     if len(key) != key_size:
         raise ValueError(f"Invalid key length: {len(key)} bytes, must be {key_size} bytes")
 
+
+def signIT(sender, addr, func_sig, ct, key, eip191=False):
+    """Sign the message using either standard signing or EIP-191 signing."""
+    # Validate input lengths
+    validate_input_lengths(sender, addr, func_sig, ct, key)
+
     # Create the message to be signed by appending all inputs
     message = sender + addr + func_sig + ct
 
-    return sign(message, key)
+    # Sign the message
+    if eip191:
+        return sign_eip191(message, key)
+    else:
+        return sign(message, key)
+
 
 def sign(message, key):
-    
     # Sign the message
     pk = keys.PrivateKey(key)
     signature = pk.sign_msg(message).to_bytes()
-
     return signature
 
-def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key):
+
+def sign_eip191(message, key):
+    signed_message = Account.sign_message(encode_defunct(primitive=message), key)
+    return signed_message.signature
+
+
+def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False):
     # Create the function signature
     func_hash = get_func_sig(func_sig)
 
-    return inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_hash, signing_key)
+    return inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_hash, signing_key, eip191)
 
-def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, signing_key):
+def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, signing_key, eip191):
     # Get addresses as bytes
     sender_address_bytes = bytes.fromhex(sender.address[2:])
     contract_address_bytes = bytes.fromhex(contract.address[2:])
 
     # Convert the integer to a byte slice with size aligned to 8.
     plaintext_bytes = plaintext.to_bytes((plaintext.bit_length() + 7) // 8, 'big')
-    
+
     # Encrypt the plaintext with the user's AES key
     ciphertext, r = encrypt(user_aes_key, plaintext_bytes)
     ct = ciphertext + r
 
     # Sign the message
-    signature = signIT(sender_address_bytes, contract_address_bytes, func_sig_hash, ct, signing_key)
+    signature = signIT(sender_address_bytes, contract_address_bytes, func_sig_hash, ct, signing_key, eip191)
 
     # Convert the ct to an integer
     ctInt = int.from_bytes(ct, byteorder='big')
@@ -205,7 +221,7 @@ def generate_rsa_keypair():
         public_exponent=65537,
         key_size=2048
     )
-    
+
     # Serialize private key
     private_key_bytes = private_key.private_bytes(
         encoding=serialization.Encoding.DER,
