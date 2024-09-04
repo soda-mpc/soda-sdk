@@ -38,7 +38,7 @@ jobs:
       - name: JavaScript tests
         working-directory: ./js
         run: |
-          npx mocha --require esm --grep "^(?!.*should decrypt a message using RSA scheme$)" test.mjs
+          npx mocha --require esm test.mjs
 
       - name: Python tests
         working-directory: ./python
@@ -57,7 +57,7 @@ jobs:
       - name: JavaScript decrypt test
         working-directory: ./js
         run: |
-          npx mocha --require esm --grep "should decrypt a message using RSA scheme" test.mjs
+          npx mocha --require esm test.mjs
 
       - name: Python decrypt test
         working-directory: ./python

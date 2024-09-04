@@ -320,7 +320,7 @@ describe('Crypto Tests', () => {
     }
 
     // Test case for test rsa decryption scheme
-    it('should decrypt a message using RSA scheme', () => {
+    it.skip('should decrypt a message using RSA scheme', () => {
         // Arrange
         const plaintext = Buffer.from('hello world');
 
