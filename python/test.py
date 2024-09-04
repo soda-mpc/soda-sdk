@@ -6,8 +6,8 @@ from Crypto.Random import get_random_bytes
 from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key
 from crypto import block_size, address_size, func_sig_size, key_size
 from eth_keys import keys
-import sys
 from web3 import Account
+from eth_account.messages import encode_defunct
 
 class TestMpcHelper(unittest.TestCase):
     def setUp(self):
@@ -156,6 +156,35 @@ class TestMpcHelper(unittest.TestCase):
        
         # Assert
         self.assertEqual(verified, True)
+
+    def test_signature_eip191(self):
+        # Arrange
+        sender = os.urandom(address_size)
+        addr = os.urandom(address_size)
+        func_sig = os.urandom(func_sig_size)
+        key = generate_ECDSA_private_key()
+
+        # Create plaintext with the value 100 as a big integer with less than 128 bits
+        plaintext_integer = 100
+        # Convert the integer to a byte slice with size aligned to 8.
+        plaintext_message = plaintext_integer.to_bytes((plaintext_integer.bit_length() + 7) // 8, 'little')
+        # Call the encrypt function
+        ciphertext, r = encrypt(generate_aes_key(), plaintext_message)
+        ct = ciphertext + r
+
+        # Act
+        # Call the sign function
+        signature_bytes = signIT(sender, addr, func_sig, ct, key, eip191=True)
+
+        # Create the message to be
+        message = sender + addr + func_sig + ct
+        encoded_message = encode_defunct(primitive=message)
+        recovered_address = Account.recover_message(encoded_message, signature=signature_bytes)
+
+        account_address = Account.from_key(key).address
+
+        # Assert
+        self.assertEqual(recovered_address, account_address)
 
     def test_fixedMSG_Signature(self):
         # Arrange

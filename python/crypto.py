@@ -122,7 +122,6 @@ def validate_input_lengths(sender, addr, func_sig, ct, key):
         raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {func_sig_size} bytes")
     if len(ct) != ct_size:
         raise ValueError(f"Invalid ct length: {len(ct)} bytes, must be {ct_size} bytes")
-    # Ensure the key is the correct length
     if len(key) != key_size:
         raise ValueError(f"Invalid key length: {len(key)} bytes, must be {key_size} bytes")
 

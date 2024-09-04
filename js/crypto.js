@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
-import ethereumjsUtil, {hashPersonalMessage} from 'ethereumjs-util';
-import { toBuffer, isValidAddress } from 'ethereumjs-util';
+import ethereumjsUtil from 'ethereumjs-util';
+import { isValidAddress, hashPersonalMessage, toBuffer } from 'ethereumjs-util';
 import pkg from 'elliptic';
 const EC = pkg.ec;
 
