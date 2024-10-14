@@ -179,6 +179,41 @@ def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, s
 
     return ctInt, signature
 
+def prepare_delete_key_signature(sender, contract, func_sig, signing_key):
+    """
+    In order to delete user key, we need to make sure that the user who request to delete the key is the key's owner.
+    To do that, we sign on the phrase "deleteUserKey", the address of the user, the address of the contract and also the function signature.
+
+    Since the user's signature is required on the function that includes a call to delete the key, he must be aware that his key
+    will be deleted, and this will not happen accidentally or maliciously. This prevents a malicious contract from deleting
+    the user's key without his consent and knowledge.
+
+    This function prepares the message to sign and then signs the message and returns it.
+
+    Args:
+        sender: The address of the user.
+        contract: The address of the contract.
+        func_sig: The signature of the function calling for delete the user key
+        signing_key: The key used to sign
+
+    Returns:
+        The generated signature
+    """
+
+    # Hash the function signature
+    func_hash = get_func_sig(func_sig)
+
+    # Get addresses as bytes
+    sender_address_bytes = bytes.fromhex(sender.address[2:])
+    contract_address_bytes = bytes.fromhex(contract.address[2:])
+
+    # Create the messate to sign - the phrase "deleteUserKey" concatinate with the user’s address, the contract's address, and the function signature.
+    message = "deleteUserKey".encode() + sender_address_bytes + contract_address_bytes + func_hash
+
+    # Sign the message
+    return sign(message, signing_key)
+
+
 def generate_rsa_keypair():
     # Generate RSA key pair
     private_key = rsa.generate_private_key(
@@ -229,6 +264,25 @@ def decrypt_rsa(private_key_bytes, ciphertext):
         )
     )
     return plaintext
+
+def recover_user_key(private_key_bytes, encrypted_key_share0, encrypted_key_share1):
+    """
+    This function recovers a user's key by decrypting two encrypted key shares with the given private key,
+    and then XORing the two key shares together.
+
+    Args:
+        private_key_bytes (bytes): The private key used to decrypt the key shares.
+        encrypted_key_share0 (bytes): The first encrypted key share.
+        encrypted_key_share1 (bytes): The second encrypted key share.
+
+    Returns:
+        bytes: The recovered user key.
+    """
+    key_share0 = decrypt_rsa(private_key_bytes, encrypted_key_share0)
+    key_share1 = decrypt_rsa(private_key_bytes, encrypted_key_share1)
+
+    # XOR both key shares to get the user key
+    return bytes([a ^ b for a, b in zip(key_share0, key_share1)])
 
 # Function to compute Keccak-256 hash
 def keccak256(data):
