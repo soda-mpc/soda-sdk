@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
-import ethereumjsUtil  from 'ethereumjs-util';
-import { hashPersonalMessage, toBuffer } from 'ethereumjs-util';
+import ethereumjsUtil from 'ethereumjs-util';
+import { isValidAddress, hashPersonalMessage, toBuffer } from 'ethereumjs-util';
 import pkg from 'elliptic';
 const EC = pkg.ec;
 
@@ -203,6 +203,42 @@ export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, sig
     return { ctInt, signature };
 }
 
+/**
+ * In order to delete user key, we need to make sure that the user who request to delete the key is the key's owner.
+ * To do that, we sign on the phrase "deleteUserKey", the address of the user, the address of the contract and also the function signature.
+ *
+ * Since the user's signature is required on the function that includes a call to delete the key, he must be aware that his key
+ * will be deleted, and this will not happen accidentally or maliciously. This prevents a malicious contract from deleting
+ * the user's key without his consent and knowledge.
+ *
+ * This function prepares the message to sign and then signs the message and returns it.
+ *
+ * @param {string} sender - The address of the user.
+ * @param {string} contract - The address of the contract.
+ * @param {Buffer} hashFunc - The signature of the function calling for delete the user key
+ * @param {string} signingKey - The key used to sign the message.
+ *
+ * @returns {string} The signature generated from the concatenated message and the signing key.
+ */
+export function prepareDeleteKeySignature(sender, contract, hashFunc, signingKey){
+    // Validate the Ethereum addresses
+    if (!isValidAddress(sender) || !isValidAddress(contract)) {
+        throw new Error("Invalid Ethereum address provided.");
+    }
+
+    // Get the bytes of the sender, contract, and function signature
+    const senderBytes = toBuffer(sender)
+    const contractBytes = toBuffer(contract)
+
+    const message = "deleteUserKey";
+    const messageBuffer = Buffer.from(message, 'utf-8');
+    // Create the message to be signed by concatenating all inputs
+    let msg = Buffer.concat([messageBuffer, senderBytes, contractBytes, hashFunc]);
+
+    // Sign the message using the given signing key
+    return sign(msg, signingKey);
+}
+
 export function generateRSAKeyPair() {
     // Generate a new RSA key pair
     return crypto.generateKeyPairSync('rsa', {
@@ -242,6 +278,28 @@ export function decryptRSA(privateKey, ciphertext) {
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
         oaepHash: 'sha256'
     }, ciphertext);
+}
+
+/**
+ * This function recovers a user's key by decrypting two encrypted key shares with the given private key,
+ * and then XORing the two key shares together.
+ *
+ * @param {Buffer} privateKey - The private key used to decrypt the key shares.
+ * @param {Buffer} encryptedKeyShare0 - The first encrypted key share.
+ * @param {Buffer} encryptedKeyShare1 - The second encrypted key share.
+ *
+ * @returns {Buffer} - The recovered user key.
+ */
+export function recoverUserKey(privateKey, encryptedKeyShare0, encryptedKeyShare1) {
+    const decryptedKeyShare0 = decryptRSA(privateKey, encryptedKeyShare0);
+    const decryptedKeyShare1 = decryptRSA(privateKey, encryptedKeyShare1);
+
+    const aesKey = Buffer.alloc(decryptedKeyShare0.length);
+    for (let i = 0; i < decryptedKeyShare0.length; i++) {
+        aesKey[i] = decryptedKeyShare0[i] ^ decryptedKeyShare1[i];
+    }
+
+    return aesKey;
 }
 
 export function getFuncSig(functionSig) {
