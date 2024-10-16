@@ -203,42 +203,6 @@ export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, sig
     return { ctInt, signature };
 }
 
-/**
- * In order to delete user key, we need to make sure that the user who request to delete the key is the key's owner.
- * To do that, we sign on the phrase "deleteUserKey", the address of the user, the address of the contract and also the function signature.
- *
- * Since the user's signature is required on the function that includes a call to delete the key, he must be aware that his key
- * will be deleted, and this will not happen accidentally or maliciously. This prevents a malicious contract from deleting
- * the user's key without his consent and knowledge.
- *
- * This function prepares the message to sign and then signs the message and returns it.
- *
- * @param {string} sender - The address of the user.
- * @param {string} contract - The address of the contract.
- * @param {Buffer} hashFunc - The signature of the function calling for delete the user key
- * @param {string} signingKey - The key used to sign the message.
- *
- * @returns {string} The signature generated from the concatenated message and the signing key.
- */
-export function prepareDeleteKeySignature(sender, contract, hashFunc, signingKey){
-    // Validate the Ethereum addresses
-    if (!isValidAddress(sender) || !isValidAddress(contract)) {
-        throw new Error("Invalid Ethereum address provided.");
-    }
-
-    // Get the bytes of the sender, contract, and function signature
-    const senderBytes = toBuffer(sender)
-    const contractBytes = toBuffer(contract)
-
-    const message = "deleteUserKey";
-    const messageBuffer = Buffer.from(message, 'utf-8');
-    // Create the message to be signed by concatenating all inputs
-    let msg = Buffer.concat([messageBuffer, senderBytes, contractBytes, hashFunc]);
-
-    // Sign the message using the given signing key
-    return sign(msg, signingKey);
-}
-
 export function generateRSAKeyPair() {
     // Generate a new RSA key pair
     return crypto.generateKeyPairSync('rsa', {
