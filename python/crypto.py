@@ -179,6 +179,7 @@ def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, s
 
     return ctInt, signature
 
+
 def generate_rsa_keypair():
     # Generate RSA key pair
     private_key = rsa.generate_private_key(
@@ -229,6 +230,25 @@ def decrypt_rsa(private_key_bytes, ciphertext):
         )
     )
     return plaintext
+
+def recover_user_key(private_key_bytes, encrypted_key_share0, encrypted_key_share1):
+    """
+    This function recovers a user's key by decrypting two encrypted key shares with the given private key,
+    and then XORing the two key shares together.
+
+    Args:
+        private_key_bytes (bytes): The private key used to decrypt the key shares.
+        encrypted_key_share0 (bytes): The first encrypted key share.
+        encrypted_key_share1 (bytes): The second encrypted key share.
+
+    Returns:
+        bytes: The recovered user key.
+    """
+    key_share0 = decrypt_rsa(private_key_bytes, encrypted_key_share0)
+    key_share1 = decrypt_rsa(private_key_bytes, encrypted_key_share1)
+
+    # XOR both key shares to get the user key
+    return bytes([a ^ b for a, b in zip(key_share0, key_share1)])
 
 # Function to compute Keccak-256 hash
 def keccak256(data):

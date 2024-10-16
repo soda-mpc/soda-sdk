@@ -196,7 +196,7 @@ describe('Crypto Tests', () => {
         const expectedAddress = ethereumjsUtil.toChecksumAddress('0x' + expectedPublicKey.toString('hex'));
 
         const message = Buffer.concat([sender, addr, funcSig, ct]);
-        const hash =hashPersonalMessage(message);
+        const hash = hashPersonalMessage(message);
 
         // Recover the public key from the signature
         const publicKey = ethereumjsUtil.ecrecover(hash, vByte, rBytes, sBytes);
