@@ -240,7 +240,7 @@ for example:
 import { encrypt } from './crypto.mjs';
 ```
 
-Below is an example of RSA encryption scheme. The code can be found in the test.cjs file, lets break it down:
+Below is an example of RSA encryption scheme. The code can be found in the test.mjs file, lets break it down:
 
 ```bash
 const plaintext = Buffer.from('I love soda labs');
