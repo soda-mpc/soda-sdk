@@ -279,6 +279,7 @@ describe('Crypto Tests', () => {
 
         const recoveredAddress = ethers.verifyMessage(message, signature);
 
+        // Assert
         assert.strictEqual(recoveredAddress.toLowerCase(), senderAddress.toLowerCase());
     });
 

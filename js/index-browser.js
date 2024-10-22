@@ -13,5 +13,5 @@ export {
     decryptRSA,
     getFuncSig,
     encodeString,
-    encryptNumber
+    aesEcbEncrypt
 } from "./crypto.js"

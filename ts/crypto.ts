@@ -24,8 +24,9 @@ export function encrypt(key: Uint8Array, plaintext: Uint8Array):{ ciphertext: Bu
         throw new RangeError("Key size must be 128 bits.");
     }
 
+    // Create a new AES cipher using the provided key
     const r = forge.random.getBytesSync(BLOCK_SIZE);
-    const encryptedR = encryptNumber(r, key);
+    const encryptedR = aesEcbEncrypt(r, key);
     const plaintext_padded = Buffer.concat([Buffer.alloc(BLOCK_SIZE - plaintext.length), plaintext]);
 
     const ciphertext = Buffer.alloc(encryptedR.length);
@@ -47,19 +48,22 @@ export function encrypt(key: Uint8Array, plaintext: Uint8Array):{ ciphertext: Bu
  * @throws {RangeError} - Throws if any input size is incorrect.
  */
 export function decrypt(key: Uint8Array, r: Uint8Array, ciphertext: Uint8Array): Uint8Array {
+    // Ensure ciphertext size is 128 bits (16 bytes)
     if (ciphertext.length !== BLOCK_SIZE) {
         throw new RangeError("Ciphertext size must be 128 bits.");
     }
 
+    // Ensure key size is 128 bits (16 bytes)
     if (key.length !== BLOCK_SIZE) {
         throw new RangeError("Key size must be 128 bits.");
     }
 
+    // Ensure random value size is 128 bits (16 bytes)
     if (r.length !== BLOCK_SIZE) {
         throw new RangeError("Random size must be 128 bits.");
     }
 
-    const encryptedR = encryptNumber(r, key);
+    const encryptedR = aesEcbEncrypt(r, key);
     const plaintext = new Uint8Array(BLOCK_SIZE);
 
     for (let i = 0; i < encryptedR.length; i++) {
@@ -84,8 +88,10 @@ export function generateAesKey(): Buffer {
  * @returns {Buffer} - A Buffer containing a 32-byte private key.
  */
 export function generateECDSAPrivateKey(): Buffer {
+    // Generate a new random wallet
     const wallet = ethers.Wallet.createRandom();
     const privateKeyHex = wallet.privateKey;
+    // Return the private key as a Buffer without the '0x' prefix
     return Buffer.from(privateKeyHex.slice(2), 'hex');
 }
 
@@ -118,6 +124,7 @@ export function signIT(sender:Buffer, addr:Buffer, funcSig:Buffer, ct:Buffer, ke
         throw new RangeError(`Invalid key length: ${key.length} bytes, must be ${KEY_SIZE} bytes`);
     }
 
+    // Create the message to be signed by concatenating all inputs
     let message = Buffer.concat([sender, addr, funcSig, ct]);
     if (eip191) {
         return signEIP191(message, key);
@@ -136,6 +143,7 @@ export function sign(message: Buffer, key:Buffer):Buffer {
     const hash = ethers.keccak256(message);
     const signingKey = new ethers.SigningKey(key);
     const signature = signingKey.sign(hash);
+    // Concatenate r, s, and v bytes
     return Buffer.concat([
         ethers.getBytes(signature.r),
         ethers.getBytes(signature.s),
@@ -153,6 +161,7 @@ export function signEIP191(message: Buffer, key: Buffer): Buffer {
     const hash = ethers.hashMessage(message);
     const signingKey = new ethers.SigningKey(key);
     const signature = signingKey.sign(hash);
+    // Concatenate r, s, and v bytes
     return Buffer.concat([
         ethers.getBytes(signature.r),
         ethers.getBytes(signature.s),
@@ -268,10 +277,14 @@ export function prepareIT(
  * @returns {Object} - An object containing the private key and public key as Buffers.
  */
 export function generateRSAKeyPair():{privateKey:Buffer, publicKey:Buffer} {
+    // Generate a new RSA key pair with 2048 bits
     const rsaKeyPair = forge.pki.rsa.generateKeyPair({ bits: 2048 });
+    // Convert the private and public keys to DER format
     const privateKey = forge.asn1.toDer(forge.pki.privateKeyToAsn1(rsaKeyPair.privateKey)).data;
+    // Convert the public key to DER format
     const publicKey = forge.asn1.toDer(forge.pki.publicKeyToAsn1(rsaKeyPair.publicKey)).data;
 
+    // Return the private and public keys as Buffers
     return {
         privateKey: Buffer.from(encodeString(privateKey)),
         publicKey: Buffer.from(encodeString(publicKey))
@@ -351,7 +364,7 @@ export function encodeString(str: string): Uint8Array {
  * @returns {Uint8Array} - A Uint8Array containing the encrypted random value.
  * @throws {RangeError} - Throws if the key size is not 16 bytes.
  */
-export function encryptNumber(r: string | Uint8Array, key: Uint8Array) {
+export function aesEcbEncrypt(r: string | Uint8Array, key: Uint8Array) {
     // Ensure key size is 128 bits (16 bytes)
     if (key.length != BLOCK_SIZE) {
         throw new RangeError("Key size must be 128 bits.")
