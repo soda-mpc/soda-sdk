@@ -36,6 +36,11 @@ jobs:
         run: |
           npx mocha --require esm --grep "^(?!.*should decrypt a message using RSA scheme$)" test.mjs
 
+      - name: TypeScript tests
+        working-directory: ./ts
+        run: |
+          jest
+
       - name: Python tests
         working-directory: ./python/soda_python_sdk
         run: |

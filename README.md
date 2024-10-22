@@ -237,7 +237,7 @@ In order to use the functionalities of JavaScript SDK, first import the modules 
 for example:
 
 ```bash 
-import { encrypt } from './crypto.js';
+import { encrypt } from './crypto.mjs';
 ```
 
 Below is an example of RSA encryption scheme. The code can be found in the test.mjs file, lets break it down:

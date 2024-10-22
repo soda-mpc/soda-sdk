@@ -1,23 +1,29 @@
-import { assert } from 'chai';
 import {
+    ADDRESS_SIZE,
+    BLOCK_SIZE,
     decrypt, decryptRSA,
     encrypt, encryptRSA,
+    FUNC_SIG_SIZE,
     generateAesKey,
-    generateECDSAPrivateKey, generateRSAKeyPair,
-    getFuncSig,
-    prepareIT, prepareMessage,
-    signIT
-} from './crypto.mjs';
-
-import { writeAesKey, loadAesKey } from './utils.mjs';
-
-import { BLOCK_SIZE, ADDRESS_SIZE, FUNC_SIG_SIZE, HEX_BASE } from './crypto.mjs';
+    generateECDSAPrivateKey, generateRSAKeyPair, getFuncSig, HEX_BASE, prepareIT, prepareMessage, signIT
+} from "./crypto"
 import fs from 'fs';
 import crypto from 'crypto';
-import ethereumjsUtil, {hashPersonalMessage} from 'ethereumjs-util';
+import {loadAesKey, writeAesKey} from "./utills";
+import {
+    Address,
+    ecrecover,
+    hashPersonalMessage,
+    keccak256,
+    privateToPublic,
+    toBuffer,
+    toChecksumAddress
+} from "ethereumjs-util";
 import {ethers} from "ethers";
+import * as assert from "node:assert";
 
-function extractSignatureComponents(signatureBytes) {
+
+function extractSignatureComponents(signatureBytes: Buffer): { rBytes: Buffer, sBytes: Buffer, vByte: Buffer } {
     // Allocate buffers for r, s, and v
     let rBytes = Buffer.alloc(32);
     let sBytes = Buffer.alloc(32);
@@ -32,7 +38,7 @@ function extractSignatureComponents(signatureBytes) {
     return { rBytes, sBytes, vByte };
 }
 
-function uint8ArrayToBigInt(uint8Array) {
+function uint8ArrayToBigInt(uint8Array: Uint8Array): bigint {
     let value = BigInt(0);
     for (let i = 0; i < uint8Array.length; i++) {
         value = (value << 8n) | BigInt(uint8Array[i]);
@@ -78,11 +84,12 @@ describe('Crypto Tests', () => {
         assert.deepStrictEqual(loadedKey, key);
 
         // Delete the key file
-        fs.unlinkSync('key.txt', (err) => {
+        fs.unlink('key.txt', (err: NodeJS.ErrnoException | null) => {
             if (err) {
                 console.error('Error deleting file:', err);
-            } 
+            }
         });
+
     });
 
     // Test case for invalid plaintext size
@@ -92,8 +99,8 @@ describe('Crypto Tests', () => {
         const plaintextBuffer = Buffer.alloc(20); // Bigger than 128 bits
 
         // Act and Assert
-        assert.throws(() => encrypt(key, plaintextBuffer), RangeError);
-        
+         assert.throws(() => encrypt(key, plaintextBuffer), RangeError);
+
     });
 
     // Test case for invalid ciphertext size
@@ -145,7 +152,7 @@ describe('Crypto Tests', () => {
         const addr = crypto.randomBytes(ADDRESS_SIZE);
         const funcSig = crypto.randomBytes(FUNC_SIG_SIZE);
         let key = generateECDSAPrivateKey();
-        
+
         // Create a ciphertext
         const plaintextBuffer = Buffer.alloc(1);
         plaintextBuffer.writeUInt8(100);
@@ -162,25 +169,25 @@ describe('Crypto Tests', () => {
         // Convert v buffer back to integer
         let v = vByte.readUInt8();
 
-        // JS expects v to be 27 or 28. But in Ethereum, v is either 0 or 1. 
-        // In the sign function, 27 is subtracted from v in order to make it work with ethereum. 
+        // JS expects v to be 27 or 28. But in Ethereum, v is either 0 or 1.
+        // In the sign function, 27 is subtracted from v in order to make it work with ethereum.
         // Now 27 should be added back to v to make it work with JS veification.
         if (v !== 27 && v !== 28) {
             v += 27;
         }
 
         // Verify the signature
-        const expectedPublicKey = ethereumjsUtil.privateToPublic(key);
-        const expectedAddress = ethereumjsUtil.toChecksumAddress('0x' + expectedPublicKey.toString('hex'));
-        
+        const expectedPublicKey = privateToPublic(key);
+        const expectedAddress = toChecksumAddress('0x' + expectedPublicKey.toString('hex'));
+
         const message = Buffer.concat([sender, addr, funcSig, ct]);
-        const hash = ethereumjsUtil.keccak256(message);
-        
+        const hash = keccak256(message);
+
         // Recover the public key from the signature
-        const publicKey = ethereumjsUtil.ecrecover(hash, v, rBytes, sBytes);
+        const publicKey = ecrecover(hash, v, rBytes, sBytes);
         // Derive the Ethereum address from the recovered public key
-        const address = ethereumjsUtil.toChecksumAddress('0x' + publicKey.toString('hex'));
-        
+        const address = toChecksumAddress('0x' + publicKey.toString('hex'));
+
         // Compare the derived address with the expected signer's address
         const isVerified = address === expectedAddress;
 
@@ -211,16 +218,16 @@ describe('Crypto Tests', () => {
         const {rBytes, sBytes, vByte} = extractSignatureComponents(signatureBytes);
 
         // Verify the signature
-        const expectedPublicKey = ethereumjsUtil.privateToPublic(key);
-        const expectedAddress = ethereumjsUtil.toChecksumAddress('0x' + expectedPublicKey.toString('hex'));
+        const expectedPublicKey = privateToPublic(key);
+        const expectedAddress = toChecksumAddress('0x' + expectedPublicKey.toString('hex'));
 
         const message = Buffer.concat([sender, addr, funcSig, ct]);
         const hash = hashPersonalMessage(message);
 
         // Recover the public key from the signature
-        const publicKey = ethereumjsUtil.ecrecover(hash, vByte, rBytes, sBytes);
+        const publicKey = ecrecover(hash, vByte, rBytes, sBytes);
         // Derive the Ethereum address from the recovered public key
-        const address = ethereumjsUtil.toChecksumAddress('0x' + publicKey.toString('hex'));
+        const address = toChecksumAddress('0x' + publicKey.toString('hex'));
 
         // Compare the derived address with the expected signer's address
         const isVerified = address === expectedAddress;
@@ -289,19 +296,19 @@ describe('Crypto Tests', () => {
         // Simulate the generation of random bytes
         const plaintext = BigInt("100");
         const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');;
-        const sender = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex')));
-        const contract = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex')));
+        const sender = new Address(toBuffer(Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex')));
+        const contract = new Address(toBuffer(Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex')));
         const funcSig = 'test(bytes)';
         const signingKey = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
 
         // Act
         // Generate the signature
         const hash_func = getFuncSig(funcSig);
-        const {ctInt, signature} = prepareIT(plaintext, userKey, sender, contract, hash_func, signingKey);
+        const {ctInt, signature} = prepareIT(plaintext, userKey, sender.toBuffer(), contract.toBuffer(), hash_func, signingKey);
 
         const ctHex = ctInt.toString(HEX_BASE);
         // Create a Buffer to hold the bytes
-        const ctBuffer = Buffer.from(ctHex, 'hex'); 
+        const ctBuffer = Buffer.from(ctHex, 'hex');
 
         // Write Buffer to file to later check in Go
         fs.writeFileSync("test_jsIT.txt", ctHex + "\n" + signature.toString('hex'));
@@ -311,21 +318,24 @@ describe('Crypto Tests', () => {
 
         // Convert the plaintext to bytes
         const hexString = plaintext.toString(16);
-        const plaintextBytes = Buffer.from(hexString, 'hex'); 
+        const plaintextBytes = Buffer.from(hexString, 'hex');
         // Assert
-        assert.deepStrictEqual(plaintextBytes, decryptedBuffer.subarray(decryptedBuffer.length - plaintextBytes.length, decryptedBuffer.length));
+        const expectedBytes = decryptedBuffer.subarray(decryptedBuffer.length - plaintextBytes.length, decryptedBuffer.length)
+        assert.deepStrictEqual(plaintextBytes.toString('hex'), Buffer.from(expectedBytes).toString('hex'));
     });
+
 
     // Test case for test rsa encryption scheme
     it('should encrypt and decrypt a message using RSA scheme', () => {
         // Arrange
-        const plaintext = Buffer.from('hello world');
+        const plaintext ='hello world';
+        const plaintextBuffer = Buffer.from(plaintext);
 
         const { publicKey, privateKey } = generateRSAKeyPair();
 
         // Act
         const ciphertext = encryptRSA(publicKey, plaintext);
-        
+
         const hexString = privateKey.toString('hex') + "\n" + publicKey.toString('hex');
 
         // Write buffer to the file
@@ -337,20 +347,20 @@ describe('Crypto Tests', () => {
             }
         });
 
-        const decrypted = decryptRSA(privateKey, ciphertext);
+        const decrypted = decryptRSA(privateKey, Buffer.from(ciphertext).toString('hex'));
 
         // Assert
-        assert.deepStrictEqual(plaintext, decrypted);
+        assert.deepStrictEqual(plaintextBuffer, Buffer.from(decrypted));
     });
 
-    function readHexFromFile(filename) {
+    function readHexFromFile(filename:string) {
         return new Promise((resolve, reject) => {
             fs.readFile(filename, 'utf8', (err, data) => {
                 if (err) {
                     reject(err);
                     return;
                 }
-    
+
                 const lines = data.trim().split('\n');
                 if (lines.length >= 3) {
                     const hexData1 = lines[0].trim();
@@ -373,18 +383,19 @@ describe('Crypto Tests', () => {
         // Read private key and ciphertext
         // Reading from file simulates the communication between the evm (golang) and the user (python/js)
         readHexFromFile('test_jsRSAEncryption.txt')
-            .then(([hexData1, hexData2, hexData3]) => {
-                const privateKey = Buffer.from(hexData1, 'hex');
-                const ciphertext = Buffer.from(hexData3, 'hex');
+    .then((value) => {
+        const [hexData1, hexData2, hexData3] = value as [string, string, string];
+        const privateKey = Buffer.from(hexData1, 'hex');
+        const ciphertext = Buffer.from(hexData3, 'hex').toString('hex');
 
-                const decrypted = decryptRSA(privateKey, ciphertext);
+        const decrypted = decryptRSA(privateKey, hexData3);
 
-                // Assert
-                assert.deepStrictEqual(plaintext, decrypted);
-            })
-            .catch(error => {
-                console.error("Error reading file:", error);
-        });
+        // Assert
+        assert.deepStrictEqual(plaintext, decrypted);
+    })
+    .catch(error => {
+        console.error("Error reading file:", error);
+    });
         fs.unlinkSync('test_jsRSAEncryption.txt');
     });
 
@@ -395,13 +406,12 @@ describe('Crypto Tests', () => {
 
         // Act
         const hash = getFuncSig(functionSig);
-        
+
         const filename = 'test_jsFunctionKeccak.txt'; // Name of the file to write to
         // Write Buffer to file
         fs.writeFileSync(filename, hash.toString('hex'));
-    
-    });
 
+    });
 });
 
 

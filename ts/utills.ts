@@ -1,8 +1,8 @@
-import {BLOCK_SIZE} from "./crypto.js";
+import {BLOCK_SIZE} from "./crypto"
 import {ethers} from "ethers";
 import fs from "fs";
 
-export function loadAesKey(filePath) {
+export function loadAesKey(filePath: string): Buffer {
 
     // Read the hex-encoded contents of the file
     const hexKey = fs.readFileSync(filePath, 'utf8').trim();
@@ -18,7 +18,7 @@ export function loadAesKey(filePath) {
     return key;
 }
 
-export function writeAesKey(filePath, key) {
+export function writeAesKey(filePath:string, key: Buffer): void {
 
     // Ensure the key is the correct length
     if (key.length !== BLOCK_SIZE) {
