@@ -128,10 +128,21 @@ export declare function getFuncSig(functionSig: string): Buffer;
  */
 export declare function encodeString(str: string): Uint8Array;
 /**
+ * This function recovers a user's key by decrypting two encrypted key shares with the given private key,
+ * and then XORing the two key shares together.
+ *
+ * @param {Buffer} privateKey - The private key used to decrypt the key shares.
+ * @param {string} encryptedKeyShare0 - The first encrypted key share.
+ * @param {string} encryptedKeyShare1 - The second encrypted key share.
+ *
+ * @returns {Buffer} - The recovered user key.
+ */
+export declare function reconstructUserKey(privateKey: Buffer, encryptedKeyShare0: string, encryptedKeyShare1: string): Buffer;
+/**
  * Encrypts a random value 'r' using AES in ECB mode with the provided key.
  * @param {string} r - The random value to be encrypted (16 bytes).
  * @param {Buffer} key - The AES key (16 bytes).
  * @returns {Uint8Array} - A Uint8Array containing the encrypted random value.
  * @throws {RangeError} - Throws if the key size is not 16 bytes.
  */
-export declare function encryptNumber(r: string | Uint8Array, key: Uint8Array): Uint8Array;
+export declare function aesEcbEncrypt(r: string | Uint8Array, key: Uint8Array): Uint8Array;

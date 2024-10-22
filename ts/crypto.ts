@@ -358,6 +358,29 @@ export function encodeString(str: string): Uint8Array {
 }
 
 /**
+ * This function recovers a user's key by decrypting two encrypted key shares with the given private key,
+ * and then XORing the two key shares together.
+ *
+ * @param {Buffer} privateKey - The private key used to decrypt the key shares.
+ * @param {string} encryptedKeyShare0 - The first encrypted key share.
+ * @param {string} encryptedKeyShare1 - The second encrypted key share.
+ *
+ * @returns {Buffer} - The recovered user key.
+ */
+export function reconstructUserKey(privateKey:Buffer, encryptedKeyShare0:string, encryptedKeyShare1:string) {
+    const decryptedKeyShare0 = decryptRSA(privateKey, encryptedKeyShare0);
+    const decryptedKeyShare1 = decryptRSA(privateKey, encryptedKeyShare1);
+
+    const aesKey = Buffer.alloc(decryptedKeyShare0.length);
+    for (let i = 0; i < decryptedKeyShare0.length; i++) {
+        aesKey[i] = decryptedKeyShare0[i] ^ decryptedKeyShare1[i];
+    }
+
+    return aesKey;
+}
+
+
+/**
  * Encrypts a random value 'r' using AES in ECB mode with the provided key.
  * @param {string} r - The random value to be encrypted (16 bytes).
  * @param {Buffer} key - The AES key (16 bytes).

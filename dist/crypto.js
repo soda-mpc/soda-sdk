@@ -18,7 +18,8 @@ exports.encryptRSA = encryptRSA;
 exports.decryptRSA = decryptRSA;
 exports.getFuncSig = getFuncSig;
 exports.encodeString = encodeString;
-exports.encryptNumber = encryptNumber;
+exports.reconstructUserKey = reconstructUserKey;
+exports.aesEcbEncrypt = aesEcbEncrypt;
 const node_forge_1 = __importDefault(require("node-forge"));
 const ethers_1 = require("ethers");
 exports.BLOCK_SIZE = 16; // AES block size in bytes
@@ -41,8 +42,9 @@ function encrypt(key, plaintext) {
     if (key.length !== exports.BLOCK_SIZE) {
         throw new RangeError("Key size must be 128 bits.");
     }
+    // Create a new AES cipher using the provided key
     const r = node_forge_1.default.random.getBytesSync(exports.BLOCK_SIZE);
-    const encryptedR = encryptNumber(r, key);
+    const encryptedR = aesEcbEncrypt(r, key);
     const plaintext_padded = Buffer.concat([Buffer.alloc(exports.BLOCK_SIZE - plaintext.length), plaintext]);
     const ciphertext = Buffer.alloc(encryptedR.length);
     for (let i = 0; i < encryptedR.length; i++) {
@@ -60,16 +62,19 @@ function encrypt(key, plaintext) {
  * @throws {RangeError} - Throws if any input size is incorrect.
  */
 function decrypt(key, r, ciphertext) {
+    // Ensure ciphertext size is 128 bits (16 bytes)
     if (ciphertext.length !== exports.BLOCK_SIZE) {
         throw new RangeError("Ciphertext size must be 128 bits.");
     }
+    // Ensure key size is 128 bits (16 bytes)
     if (key.length !== exports.BLOCK_SIZE) {
         throw new RangeError("Key size must be 128 bits.");
     }
+    // Ensure random value size is 128 bits (16 bytes)
     if (r.length !== exports.BLOCK_SIZE) {
         throw new RangeError("Random size must be 128 bits.");
     }
-    const encryptedR = encryptNumber(r, key);
+    const encryptedR = aesEcbEncrypt(r, key);
     const plaintext = new Uint8Array(exports.BLOCK_SIZE);
     for (let i = 0; i < encryptedR.length; i++) {
         plaintext[i] = encryptedR[i] ^ ciphertext[i];
@@ -90,8 +95,10 @@ function generateAesKey() {
  * @returns {Buffer} - A Buffer containing a 32-byte private key.
  */
 function generateECDSAPrivateKey() {
+    // Generate a new random wallet
     const wallet = ethers_1.ethers.Wallet.createRandom();
     const privateKeyHex = wallet.privateKey;
+    // Return the private key as a Buffer without the '0x' prefix
     return Buffer.from(privateKeyHex.slice(2), 'hex');
 }
 /**
@@ -122,6 +129,7 @@ function signIT(sender, addr, funcSig, ct, key, eip191 = false) {
     if (key.length !== exports.KEY_SIZE) {
         throw new RangeError(`Invalid key length: ${key.length} bytes, must be ${exports.KEY_SIZE} bytes`);
     }
+    // Create the message to be signed by concatenating all inputs
     let message = Buffer.concat([sender, addr, funcSig, ct]);
     if (eip191) {
         return signEIP191(message, key);
@@ -140,6 +148,7 @@ function sign(message, key) {
     const hash = ethers_1.ethers.keccak256(message);
     const signingKey = new ethers_1.ethers.SigningKey(key);
     const signature = signingKey.sign(hash);
+    // Concatenate r, s, and v bytes
     return Buffer.concat([
         ethers_1.ethers.getBytes(signature.r),
         ethers_1.ethers.getBytes(signature.s),
@@ -156,6 +165,7 @@ function signEIP191(message, key) {
     const hash = ethers_1.ethers.hashMessage(message);
     const signingKey = new ethers_1.ethers.SigningKey(key);
     const signature = signingKey.sign(hash);
+    // Concatenate r, s, and v bytes
     return Buffer.concat([
         ethers_1.ethers.getBytes(signature.r),
         ethers_1.ethers.getBytes(signature.s),
@@ -235,9 +245,13 @@ function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey
  * @returns {Object} - An object containing the private key and public key as Buffers.
  */
 function generateRSAKeyPair() {
+    // Generate a new RSA key pair with 2048 bits
     const rsaKeyPair = node_forge_1.default.pki.rsa.generateKeyPair({ bits: 2048 });
+    // Convert the private and public keys to DER format
     const privateKey = node_forge_1.default.asn1.toDer(node_forge_1.default.pki.privateKeyToAsn1(rsaKeyPair.privateKey)).data;
+    // Convert the public key to DER format
     const publicKey = node_forge_1.default.asn1.toDer(node_forge_1.default.pki.publicKeyToAsn1(rsaKeyPair.publicKey)).data;
+    // Return the private and public keys as Buffers
     return {
         privateKey: Buffer.from(encodeString(privateKey)),
         publicKey: Buffer.from(encodeString(publicKey))
@@ -299,13 +313,32 @@ function encodeString(str) {
     return new Uint8Array([...str.split('').map((char) => parseInt(char.codePointAt(0)?.toString(exports.HEX_BASE), exports.HEX_BASE))]);
 }
 /**
+ * This function recovers a user's key by decrypting two encrypted key shares with the given private key,
+ * and then XORing the two key shares together.
+ *
+ * @param {Buffer} privateKey - The private key used to decrypt the key shares.
+ * @param {string} encryptedKeyShare0 - The first encrypted key share.
+ * @param {string} encryptedKeyShare1 - The second encrypted key share.
+ *
+ * @returns {Buffer} - The recovered user key.
+ */
+function reconstructUserKey(privateKey, encryptedKeyShare0, encryptedKeyShare1) {
+    const decryptedKeyShare0 = decryptRSA(privateKey, encryptedKeyShare0);
+    const decryptedKeyShare1 = decryptRSA(privateKey, encryptedKeyShare1);
+    const aesKey = Buffer.alloc(decryptedKeyShare0.length);
+    for (let i = 0; i < decryptedKeyShare0.length; i++) {
+        aesKey[i] = decryptedKeyShare0[i] ^ decryptedKeyShare1[i];
+    }
+    return aesKey;
+}
+/**
  * Encrypts a random value 'r' using AES in ECB mode with the provided key.
  * @param {string} r - The random value to be encrypted (16 bytes).
  * @param {Buffer} key - The AES key (16 bytes).
  * @returns {Uint8Array} - A Uint8Array containing the encrypted random value.
  * @throws {RangeError} - Throws if the key size is not 16 bytes.
  */
-function encryptNumber(r, key) {
+function aesEcbEncrypt(r, key) {
     // Ensure key size is 128 bits (16 bytes)
     if (key.length != exports.BLOCK_SIZE) {
         throw new RangeError("Key size must be 128 bits.");
