@@ -14,7 +14,12 @@ from .crypto import (
     decrypt_rsa,
     recover_user_key,
     keccak256,
-    get_func_sig
+    get_func_sig,
+    BLOCK_SIZE,
+    ADDRESS_SIZE,
+    FUNC_SIG_SIZE,
+    CT_SIZE,
+    KEY_SIZE
 )
 
 # Define what gets exposed when someone imports * from this module
@@ -33,5 +38,9 @@ __all__ = [
     'decrypt_rsa',
     'recover_user_key',
     'keccak256',
-    'get_func_sig'
+    'get_func_sig',
+    'ADDRESS_SIZE',
+    'FUNC_SIG_SIZE',
+    'CT_SIZE',
+    'KEY_SIZE'
 ]
