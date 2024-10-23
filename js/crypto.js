@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import ethereumjsUtil from 'ethereumjs-util';
-import { isValidAddress, hashPersonalMessage, toBuffer } from 'ethereumjs-util';
+import { hashPersonalMessage, toBuffer } from 'ethereumjs-util';
 import pkg from 'elliptic';
 const EC = pkg.ec;
 
@@ -242,6 +242,28 @@ export function decryptRSA(privateKey, ciphertext) {
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
         oaepHash: 'sha256'
     }, ciphertext);
+}
+
+/**
+ * This function recovers a user's key by decrypting two encrypted key shares with the given private key,
+ * and then XORing the two key shares together.
+ *
+ * @param {Buffer} privateKey - The private key used to decrypt the key shares.
+ * @param {Buffer} encryptedKeyShare0 - The first encrypted key share.
+ * @param {Buffer} encryptedKeyShare1 - The second encrypted key share.
+ *
+ * @returns {Buffer} - The recovered user key.
+ */
+export function reconstructUserKey(privateKey, encryptedKeyShare0, encryptedKeyShare1) {
+    const decryptedKeyShare0 = decryptRSA(privateKey, encryptedKeyShare0);
+    const decryptedKeyShare1 = decryptRSA(privateKey, encryptedKeyShare1);
+
+    const aesKey = Buffer.alloc(decryptedKeyShare0.length);
+    for (let i = 0; i < decryptedKeyShare0.length; i++) {
+        aesKey[i] = decryptedKeyShare0[i] ^ decryptedKeyShare1[i];
+    }
+
+    return aesKey;
 }
 
 export function getFuncSig(functionSig) {
