@@ -3,14 +3,15 @@ import fs from 'fs';
 import ethereumjsUtil from 'ethereumjs-util';
 import { hashPersonalMessage, toBuffer } from 'ethereumjs-util';
 import pkg from 'elliptic';
+import {ethers} from "ethers";
 const EC = pkg.ec;
 
 export const BLOCK_SIZE = 16; // AES block size in bytes
-export const addressSize = 20; // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
-export const funcSigSize = 4;
-export const ctSize = 32;
-export const keySize = 32;
-export const hexBase = 16;
+export const ADDRESS_SIZE = 20; // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
+export const FUNC_SIG_SIZE = 4;
+export const CT_SIZE = 32;
+export const KEY_SIZE = 32;
+export const HEX_BASE = 16;
 
 export function encrypt(key, plaintext) {
     
@@ -125,21 +126,21 @@ export function generateECDSAPrivateKey(){
 
 export function signIT(sender, addr, funcSig, ct, key, eip191=false) {
     // Ensure all input sizes are the correct length
-    if (sender.length !== addressSize) {
-        throw new RangeError(`Invalid sender address length: ${sender.length} bytes, must be ${addressSize} bytes`);
+    if (sender.length !== ADDRESS_SIZE) {
+        throw new RangeError(`Invalid sender address length: ${sender.length} bytes, must be ${ADDRESS_SIZE} bytes`);
     }
-    if (addr.length !== addressSize) {
-        throw new RangeError(`Invalid contract address length: ${addr.length} bytes, must be ${addressSize} bytes`);
+    if (addr.length !== ADDRESS_SIZE) {
+        throw new RangeError(`Invalid contract address length: ${addr.length} bytes, must be ${ADDRESS_SIZE} bytes`);
     }
-    if (funcSig.length !== funcSigSize) {
+    if (funcSig.length !== FUNC_SIG_SIZE) {
         throw new RangeError(`Invalid signature size: ${funcSig.length} bytes, must be ${funcSigSize} bytes`);
     }
-    if (ct.length !== ctSize) {
-        throw new RangeError(`Invalid ct length: ${ct.length} bytes, must be ${ctSize} bytes`);
+    if (ct.length !== CT_SIZE) {
+        throw new RangeError(`Invalid ct length: ${ct.length} bytes, must be ${CT_SIZE} bytes`);
     }
     // Ensure the key is the correct length
-    if (key.length !== keySize) {
-        throw new RangeError(`Invalid key length: ${key.length} bytes, must be ${keySize} bytes`);
+    if (key.length !== KEY_SIZE) {
+        throw new RangeError(`Invalid key length: ${key.length} bytes, must be ${KEY_SIZE} bytes`);
     }
 
     // Create the message to be signed by concatenating all inputs
@@ -178,6 +179,57 @@ export function signEIP191(message, key) {
     const signature =  ethereumjsUtil.ecsign(hash, key);
     // Convert r, s, and v components to bytes
     return Buffer.concat([Buffer.from(signature.r), Buffer.from(signature.s), Buffer.from([signature.v])]);
+}
+
+/**
+ * Prepares a message by encrypting the given plaintext and constructing the message. This message needs to be signed to create an IT.
+ * @param {bigint} plaintext - The plaintext value to be encrypted as a BigInt.
+ * @param {string} signerAddress - The address of the signer (Ethereum address).
+ * @param {string} aesKey - The AES key used for encryption (32 bytes as a hex string).
+ * @param {string} contractAddress - The address of the contract (Ethereum address).
+ * @param {string} functionSelector - The function selector (4 bytes as a hex string, e.g., '0x12345678').
+ * @returns {Object} - An object containing the encrypted integer and the message.
+ * @throws {TypeError} - Throws if any of the input parameters are of invalid types or have incorrect lengths.
+ */
+export function prepareMessage(plaintext, signerAddress, aesKey, contractAddress, functionSelector) {
+    // Validate signerAddress (Ethereum address)
+    if (!ethers.isAddress(signerAddress)) {
+        throw new TypeError("Invalid signer address");
+    }
+
+    // Validate aesKey (32 bytes as hex string)
+    if (typeof aesKey !== "string" || aesKey.length !== 32) {
+        throw new TypeError("Invalid AES key length. Expected 32 bytes.");
+    }
+
+    // Validate contractAddress (Ethereum address)
+    if (typeof contractAddress !== "string" || !ethers.isAddress(signerAddress)) {
+        throw new TypeError("Invalid contract address");
+    }
+
+    // Validate functionSelector (4 bytes as hex string)
+    if (typeof functionSelector !== "string" || functionSelector.length !== 10 || !functionSelector.startsWith('0x')) {
+        throw new TypeError("Invalid function selector");
+    }
+
+    // Convert the plaintext to bytes
+    const plaintextBytes = Buffer.alloc(8); // Allocate a buffer of size 8 bytes
+    plaintextBytes.writeBigUInt64BE(plaintext); // Write the uint64 value to the buffer as little-endian
+
+    // Encrypt the plaintext using AES key
+    const { ciphertext, r } = encrypt(Buffer.from(aesKey, 'hex'), plaintextBytes);
+    const ct = Buffer.concat([ciphertext, r]);
+
+    // Create the packed message
+    const message = ethers.solidityPacked(
+        ["address", "address", "bytes4", "uint256"],
+        [signerAddress, contractAddress, functionSelector, BigInt("0x" + ct.toString("hex"))],
+    );
+
+    // Convert the ciphertext to BigInt
+    const encryptedInt = BigInt("0x" + ct.toString("hex"));
+
+    return { encryptedInt, message };
 }
 
 export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191=false) {
@@ -303,7 +355,7 @@ export function getFuncSig(functionSig) {
 
 
 export function encodeString(str) {
-    return new Uint8Array([...str.split('').map((char) => parseInt(char.codePointAt(0)?.toString(hexBase), hexBase))])
+    return new Uint8Array([...str.split('').map((char) => parseInt(char.codePointAt(0)?.toString(HEX_BASE), HEX_BASE))])
 }
 
 
