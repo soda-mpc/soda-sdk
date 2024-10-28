@@ -36,6 +36,11 @@ jobs:
         run: |
           npx mocha --require esm --grep "^(?!.*should decrypt a message using RSA scheme$)" test.mjs
 
+      - name: TypeScript tests
+        working-directory: ./ts
+        run: |
+          npx jest
+
       - name: Python tests
         working-directory: ./python/soda_python_sdk
         run: |
@@ -47,14 +52,10 @@ jobs:
           go mod download
           go test -v -count=1 ./...
 
-      - name: TypeScript tests
-        working-directory: ./ts
-        run: |
-          npx jest
 
       # During the Go tests, an encryption is saved to a file. 
       # Subsequently, this encryption needs to be decrypted and verified in both the JavaScript and Python tests. 
-      # As part of this process, the JavaScript and Python decrypt tests are executed after the Go teststo ensure that the encryption is correctly decrypted.
+      # As part of this process, the JavaScript and Python decrypt tests are executed after the Go tests to ensure that the encryption is correctly decrypted.
       - name: JavaScript decrypt test
         working-directory: ./js
         run: |
