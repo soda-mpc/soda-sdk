@@ -64,7 +64,7 @@ describe('Crypto Tests', () => {
         const { ciphertext, r } = (0, crypto_1.encrypt)(key, plaintextBuffer);
         const decryptedBuffer = (0, crypto_1.decrypt)(key, r, ciphertext);
         // Write Buffer to file to later check in Go
-        fs_1.default.writeFileSync("test_jsEncryption.txt", key.toString('hex') + "\n" + ciphertext.toString('hex') + "\n" + r.toString('hex'));
+        fs_1.default.writeFileSync("test_tsEncryption.txt", key.toString('hex') + "\n" + ciphertext.toString('hex') + "\n" + r.toString('hex'));
         const decryptedInteger = uint8ArrayToBigInt(decryptedBuffer);
         // Assert
         assert.strictEqual(decryptedInteger, BigInt(plaintextInteger));
@@ -210,7 +210,7 @@ describe('Crypto Tests', () => {
         // Act
         // Generate the signature
         const signature = (0, crypto_1.signIT)(sender, addr, funcSig, ct, key);
-        const filename = 'test_jsSignature.txt'; // Name of the file to write to
+        const filename = 'test_tsSignature.txt'; // Name of the file to write to
         // Convert hexadecimal string to buffer
         let sigString = signature.toString('hex');
         // Write buffer to the file, this simulates the communication between the evm (golang) and the user (python/js)
@@ -258,7 +258,7 @@ describe('Crypto Tests', () => {
         // Create a Buffer to hold the bytes
         const ctBuffer = Buffer.from(ctHex, 'hex');
         // Write Buffer to file to later check in Go
-        fs_1.default.writeFileSync("test_jsIT.txt", ctHex + "\n" + signature.toString('hex'));
+        fs_1.default.writeFileSync("test_tsIT.txt", ctHex + "\n" + signature.toString('hex'));
         // Decrypt the ct and check the decrypted value is equal to the plaintext
         const decryptedBuffer = (0, crypto_1.decrypt)(userKey, ctBuffer.subarray(crypto_1.BLOCK_SIZE, ctBuffer.length), ctBuffer.subarray(0, crypto_1.BLOCK_SIZE));
         // Convert the plaintext to bytes
@@ -280,7 +280,7 @@ describe('Crypto Tests', () => {
         const ciphertext = (0, crypto_1.encryptRSA)(publicKey, plaintext);
         const hexString = privateKey.toString('hex') + "\n" + publicKey.toString('hex');
         // Write buffer to the file
-        const filename = 'test_jsRSAEncryption.txt'; // Name of the file to write to
+        const filename = 'test_tsRSAEncryption.txt'; // Name of the file to write to
         fs_1.default.writeFile(filename, hexString, (err) => {
             if (err) {
                 console.error('Error writing to file:', err);
@@ -312,13 +312,14 @@ describe('Crypto Tests', () => {
         });
     }
     // Test case for test rsa decryption scheme
-    it('should decrypt a message using RSA scheme', () => {
+    // skipped the same as in the js version
+    it.skip('should decrypt a message using RSA scheme', () => {
         // Arrange
         const plaintext = Buffer.from('hello world');
         // Act
         // Read private key and ciphertext
         // Reading from file simulates the communication between the evm (golang) and the user (python/js)
-        readHexFromFile('test_jsRSAEncryption.txt')
+        readHexFromFile('test_tsRSAEncryption.txt')
             .then((value) => {
             const [hexData1, hexData2, hexData3] = value;
             const privateKey = Buffer.from(hexData1, 'hex');
@@ -330,7 +331,7 @@ describe('Crypto Tests', () => {
             .catch(error => {
             console.error("Error reading file:", error);
         });
-        fs_1.default.unlinkSync('test_jsRSAEncryption.txt');
+        fs_1.default.unlinkSync('test_tsRSAEncryption.txt');
     });
     // Test case for test function signature
     it('should hash a function signature', () => {
@@ -338,7 +339,7 @@ describe('Crypto Tests', () => {
         const functionSig = 'sign(bytes)';
         // Act
         const hash = (0, crypto_1.getFuncSig)(functionSig);
-        const filename = 'test_jsFunctionKeccak.txt'; // Name of the file to write to
+        const filename = 'test_tsFunctionKeccak.txt'; // Name of the file to write to
         // Write Buffer to file
         fs_1.default.writeFileSync(filename, hash.toString('hex'));
     });

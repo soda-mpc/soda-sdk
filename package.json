@@ -1,6 +1,6 @@
 {
-  "name": "soda-js-sdk",
-  "version": "1.0.20",
+  "name": "soda-sdk",
+  "version": "0.0.1",
   "description": "This SDK provides functionalities for AES and RSA encryption schemes, ECDSA signature scheme and some functionalities used for working with sodalabs blockchain.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AlehSoda/test-soda-sdk.git"
+    "url": "git+https://github.com/soda-mpc/soda-sdk"
   },
   "dependencies": {
     "ethers": "^6.13.4",
@@ -37,6 +37,9 @@
   "license": "MIT",
   "keywords": [
     "sodalabs",
+    "mpc",
+    "gcEVM",
+    "garbled circuits",
     "sdk",
     "aes",
     "rsa",
