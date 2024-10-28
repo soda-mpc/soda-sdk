@@ -124,8 +124,9 @@ func checkEncryption(t *testing.T, filePath string) {
 
 func TestPythonJSEnsryption(t *testing.T) {
 
-	checkEncryption(t, "../../python/test_pythonEncryption.txt")
+	checkEncryption(t, "../../python/soda_python_sdk/test_pythonEncryption.txt")
 	checkEncryption(t, "../../js/test_jsEncryption.txt")
+	checkEncryption(t, "../../ts/test_tsEncryption.txt")
 }
 
 func TestLoadWriteAESKey(t *testing.T) {
@@ -266,8 +267,9 @@ func TestFixedMsgSignature(t *testing.T) {
 	require.NoError(t, err, "Sign should not return an error")
 
 	// Reading from file simulates the communication between the evm (golang) and the user (python/js)
-	readSigFromFileAndCompare(t, "../../python/test_pythonSignature.txt", signature)
+	readSigFromFileAndCompare(t, "../../python/soda_python_sdk/test_pythonSignature.txt", signature)
 	readSigFromFileAndCompare(t, "../../js/test_jsSignature.txt", signature)
+	readSigFromFileAndCompare(t, "../../ts/test_tsSignature.txt", signature)
 
 	// Verify the signature
 	verified := VerifyIT(sender, addr, funcSig, ct, signature)
@@ -296,15 +298,19 @@ func TestIT(t *testing.T) {
 	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), signature)
 
 	// Reading from file simulates the communication between the evm (golang) and the user (python/js)
-	pythonCt, pythonSignature, err := readTwoHexStringsFromFile("../../python/test_pythonIT.txt")
+	pythonCt, pythonSignature, err := readTwoHexStringsFromFile("../../python/soda_python_sdk/test_pythonIT.txt")
 	require.NoError(t, err, "Read file should not return an error")
 	checkIT(t, plaintextBytes, userKey, contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), pythonCt, pythonSignature)
 	err = os.Remove("../../python/test_pythonIT.txt")
 
 	jsCt, jsSignature, err := readTwoHexStringsFromFile("../../js/test_jsIT.txt")
+	tsCt, tsSignature, err := readTwoHexStringsFromFile("../../ts/test_tsIT.txt")
+
 	require.NoError(t, err, "Read file should not return an error")
 	checkIT(t, plaintextBytes, userKey, contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), jsCt, jsSignature)
+	checkIT(t, plaintextBytes, userKey, contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), tsCt, tsSignature)
 	err = os.Remove("../../js/test_jsIT.txt")
+	err = os.Remove("../../ts/test_tsIT.txt")
 }
 
 func checkIT(t *testing.T, plaintext, userKey, sender, addr, funcSig, ct, signature []byte) {
@@ -428,8 +434,9 @@ func encryptMessage(t *testing.T, keysFilePath string) {
 // After the encryption is appended to the same file, the python and javascript tests check the encrypted message against the expected value.
 // This test simulates the case that a user generates his own RSA keys in python or javascript tools and after that decrypts a message that was encrypted in the evm (which uses Go).
 func TestRSAEncryptionFixed(t *testing.T) {
-	encryptMessage(t, "../../python/test_pythonRSAEncryption.txt")
+	encryptMessage(t, "../../python/soda_python_sdk/test_pythonRSAEncryption.txt")
 	encryptMessage(t, "../../js/test_jsRSAEncryption.txt")
+	encryptMessage(t, "../../ts/test_tsRSAEncryption.txt")
 }
 
 func checkFunctionSignature(t *testing.T, filePath string, expected []byte) {
@@ -445,7 +452,7 @@ func TestGetFuncSig(t *testing.T) {
 	hash := GetFuncSig(functionSig)
 
 	// Check that the python hashed value matches the Golang hashed value
-	filePath := "../../python/test_pythonFunctionKeccak.txt"
+	filePath := "../../python/soda_python_sdk/test_pythonFunctionKeccak.txt"
 	checkFunctionSignature(t, filePath, hash)
 
 	// Check that the js hashed value matches the Golang hashed value

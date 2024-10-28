@@ -1,10 +1,9 @@
 import unittest
 import tempfile
 import os
-from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key
-from crypto import block_size, address_size, func_sig_size, key_size
+from crypto import BLOCK_SIZE, ADDRESS_SIZE, FUNC_SIG_SIZE
 from eth_keys import keys
 from web3 import Account
 from eth_account.messages import encode_defunct
@@ -76,7 +75,7 @@ class TestMpcHelper(unittest.TestCase):
         key = generate_aes_key()
 
         # Invalid plaintext size (more than block_size)
-        invalid_plaintext = bytes(block_size + 1)
+        invalid_plaintext = bytes(BLOCK_SIZE + 1)
 
         # Act and Assert
         # Expect an error to be thrown when decrypting
@@ -94,7 +93,7 @@ class TestMpcHelper(unittest.TestCase):
         # Act and Assert
         # Expect an error to be thrown when decrypting
         with self.assertRaises(ValueError):
-            decrypt(key, get_random_bytes(block_size), invalid_ciphertext)
+            decrypt(key, get_random_bytes(BLOCK_SIZE), invalid_ciphertext)
 
     def test_invalid_random_size(self):
         # Arrange
@@ -107,7 +106,7 @@ class TestMpcHelper(unittest.TestCase):
         # Act and Assert
         # Expect an error to be thrown when decrypting
         with self.assertRaises(ValueError):
-            decrypt(key, invalid_random, get_random_bytes(block_size))
+            decrypt(key, invalid_random, get_random_bytes(BLOCK_SIZE))
 
     def test_invalid_key_length(self):
         # Arrange
@@ -129,9 +128,9 @@ class TestMpcHelper(unittest.TestCase):
 
     def test_signature(self):
         # Arrange
-        sender = os.urandom(address_size)
-        addr = os.urandom(address_size)
-        func_sig = os.urandom(func_sig_size)
+        sender = os.urandom(ADDRESS_SIZE)
+        addr = os.urandom(ADDRESS_SIZE)
+        func_sig = os.urandom(FUNC_SIG_SIZE)
         key = generate_ECDSA_private_key()
 
         # Create plaintext with the value 100 as a big integer with less than 128 bits
@@ -159,9 +158,9 @@ class TestMpcHelper(unittest.TestCase):
 
     def test_signature_eip191(self):
         # Arrange
-        sender = os.urandom(address_size)
-        addr = os.urandom(address_size)
-        func_sig = os.urandom(func_sig_size)
+        sender = os.urandom(ADDRESS_SIZE)
+        addr = os.urandom(ADDRESS_SIZE)
+        func_sig = os.urandom(FUNC_SIG_SIZE)
         key = generate_ECDSA_private_key()
 
         # Create plaintext with the value 100 as a big integer with less than 128 bits
@@ -253,7 +252,7 @@ class TestMpcHelper(unittest.TestCase):
         # Assert
         self.assertEqual(verified, True)
 
-        decrypted = decrypt(userKey, ctBytes[block_size:], ctBytes[:block_size])
+        decrypted = decrypt(userKey, ctBytes[BLOCK_SIZE:], ctBytes[:BLOCK_SIZE])
         decrypted_integer = int.from_bytes(decrypted, 'big')
         self.assertEqual(plaintext, decrypted_integer)
 

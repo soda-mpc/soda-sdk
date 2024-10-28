@@ -13,33 +13,34 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from eth_account import Account
 from eth_account.messages import encode_defunct
 
-block_size = AES.block_size
-address_size = 20
-func_sig_size = 4
-ct_size = 32
-key_size = 32
+BLOCK_SIZE = AES.block_size
+ADDRESS_SIZE = 20
+FUNC_SIG_SIZE = 4
+CT_SIZE = 32
+KEY_SIZE = 32
+
 
 def encrypt(key, plaintext):
 
     # Ensure plaintext is smaller than 128 bits (16 bytes)
-    if len(plaintext) > block_size:
+    if len(plaintext) > BLOCK_SIZE:
         raise ValueError("Plaintext size must be 128 bits or smaller.")
 
     # Ensure key size is 128 bits (16 bytes)
-    if len(key) != block_size:
+    if len(key) != BLOCK_SIZE:
         raise ValueError("Key size must be 128 bits.")
 
     # Create a new AES cipher block using the provided key
     cipher = AES.new(key, AES.MODE_ECB)
 
     # Generate a random value 'r' of the same length as the block size
-    r = get_random_bytes(block_size)
+    r = get_random_bytes(BLOCK_SIZE)
 
     # Encrypt the random value 'r' using AES in ECB mode
     encrypted_r = cipher.encrypt(r)
 
     # Pad the plaintext with zeros if it's smaller than the block size
-    plaintext_padded = bytes(block_size - len(plaintext)) + plaintext
+    plaintext_padded = bytes(BLOCK_SIZE - len(plaintext)) + plaintext
 
     # XOR the encrypted random value 'r' with the plaintext to obtain the ciphertext
     ciphertext = bytes(x ^ y for x, y in zip(encrypted_r, plaintext_padded))
@@ -48,15 +49,15 @@ def encrypt(key, plaintext):
 
 def decrypt(key, r, ciphertext):
 
-    if len(ciphertext) != block_size:
+    if len(ciphertext) != BLOCK_SIZE:
         raise ValueError("Ciphertext size must be 128 bits.")
 
     # Ensure key size is 128 bits (16 bytes)
-    if len(key) != block_size:
+    if len(key) != BLOCK_SIZE:
         raise ValueError("Key size must be 128 bits.")
 
     # Ensure random size is 128 bits (16 bytes)
-    if len(r) != block_size:
+    if len(r) != BLOCK_SIZE:
         raise ValueError("Random size must be 128 bits.")
 
     # Create a new AES cipher block using the provided key
@@ -79,15 +80,15 @@ def load_aes_key(file_path):
     key = binascii.unhexlify(hex_key)
 
     # Ensure the key is the correct length
-    if len(key) != block_size:
-        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {block_size} bytes")
+    if len(key) != BLOCK_SIZE:
+        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {BLOCK_SIZE} bytes")
 
     return key
 
 def write_aes_key(file_path, key):
     # Ensure the key is the correct length
-    if len(key) != block_size:
-        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {block_size} bytes")
+    if len(key) != BLOCK_SIZE:
+        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {BLOCK_SIZE} bytes")
 
     # Encode the key to hex string
     hex_key = binascii.hexlify(key).decode()
@@ -98,7 +99,7 @@ def write_aes_key(file_path, key):
 
 def generate_aes_key():
     # Generate a random 128-bit AES key
-    key = get_random_bytes(block_size)
+    key = get_random_bytes(BLOCK_SIZE)
 
     return key
 
@@ -114,16 +115,16 @@ def generate_ECDSA_private_key():
 
 def validate_input_lengths(sender, addr, func_sig, ct, key):
     """Validate the lengths of inputs."""
-    if len(sender) != address_size:
-        raise ValueError(f"Invalid sender address length: {len(sender)} bytes, must be {address_size} bytes")
-    if len(addr) != address_size:
-        raise ValueError(f"Invalid contract address length: {len(addr)} bytes, must be {address_size} bytes")
-    if len(func_sig) != func_sig_size:
-        raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {func_sig_size} bytes")
-    if len(ct) != ct_size:
-        raise ValueError(f"Invalid ct length: {len(ct)} bytes, must be {ct_size} bytes")
-    if len(key) != key_size:
-        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {key_size} bytes")
+    if len(sender) != ADDRESS_SIZE:
+        raise ValueError(f"Invalid sender address length: {len(sender)} bytes, must be {ADDRESS_SIZE} bytes")
+    if len(addr) != ADDRESS_SIZE:
+        raise ValueError(f"Invalid contract address length: {len(addr)} bytes, must be {ADDRESS_SIZE} bytes")
+    if len(func_sig) != FUNC_SIG_SIZE:
+        raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {FUNC_SIG_SIZE} bytes")
+    if len(ct) != CT_SIZE:
+        raise ValueError(f"Invalid ct length: {len(ct)} bytes, must be {CT_SIZE} bytes")
+    if len(key) != KEY_SIZE:
+        raise ValueError(f"Invalid key length: {len(key)} bytes, must be {KEY_SIZE} bytes")
 
 
 def signIT(sender, addr, func_sig, ct, key, eip191=False):

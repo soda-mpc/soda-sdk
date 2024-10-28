@@ -25,11 +25,7 @@ jobs:
     
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install pycryptodome
-          pip install eth-keys
-          pip install cryptography
-          pip install web3
+          pip install -r requirements.txt
 
       - name: Set up Node.js
         working-directory: ./js
@@ -40,8 +36,13 @@ jobs:
         run: |
           npx mocha --require esm --grep "^(?!.*should decrypt a message using RSA scheme$)" test.mjs
 
+      - name: TypeScript tests
+        working-directory: ./ts
+        run: |
+          npx jest
+
       - name: Python tests
-        working-directory: ./python
+        working-directory: ./python/soda_python_sdk
         run: |
           python3 -m unittest -v test.py -k "TestMpcHelper"
 
@@ -50,17 +51,18 @@ jobs:
         run: |
           go mod download
           go test -v -count=1 ./...
-          
+
+
       # During the Go tests, an encryption is saved to a file. 
       # Subsequently, this encryption needs to be decrypted and verified in both the JavaScript and Python tests. 
-      # As part of this process, the JavaScript and Python decrypt tests are executed after the Go teststo ensure that the encryption is correctly decrypted.
+      # As part of this process, the JavaScript and Python decrypt tests are executed after the Go tests to ensure that the encryption is correctly decrypted.
       - name: JavaScript decrypt test
         working-directory: ./js
         run: |
           npx mocha --require esm --grep "should decrypt a message using RSA scheme" test.mjs
 
       - name: Python decrypt test
-        working-directory: ./python
+        working-directory: ./python/soda_python_sdk
         run: |
           python3 -m unittest -v test.py -k "TestDecrypt"
 
