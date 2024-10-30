@@ -5,10 +5,9 @@ This SDK provides functionalities for AES and RSA encryption schemes, ECDSA sign
 ## Table of Contents
 
 - [Available functionalitioes](#available-functionalities)
+- [Prerequisites](#prerequisites)
 - [Installation](#installation)
-- [Python](#python)
-    - [Prerequisites](#prerequisites-1)
-    - [Usage](#usage-1)
+- [Usage](#usage)
 - [Running tests](#running-tests)
 
 
@@ -74,26 +73,17 @@ The SDK support provide the following functionalities:
 
         This function get the function signature as a string and returned the keccak-256 value on the signature
 
-## Installation
-
-Clone the repository:
-
-```bash
-git clone https://github.com/soda-mpc/soda-sdk.git
-```
-
-
-## Python 
 
 ### Prerequisites
 
 Python should be installed on your system.
 
-Additionally, install the required libraries using the following commands:
+### Installation
 
-```bash 
+```bash
 pip install soda-sdk
 ```
+
 
 ### Usage
 
