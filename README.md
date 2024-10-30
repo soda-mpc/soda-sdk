@@ -19,7 +19,6 @@ The SDK also provides a CLI in Golang that provides functionalities for AES encr
 - [JavaScript](#javascript)
     - [Prerequisites](#prerequisites-2)
     - [Usage](#usage-2)
-- [Running tests](#running-tests)
 - [Golang CLI](#golang-cli-tool-for-a-random-aes-encryption-and-decryption)
     - [Usage](#usage-3)
     - [Options](#options)
@@ -31,9 +30,7 @@ The SDK support provide the following functionalities:
 
 * AES encryption scheme:
 
-    * Generate AES key  
-    * Write AES key
-    * Load AES key
+    * Generate AES key
     * Encrypt
     * Decrypt
 
