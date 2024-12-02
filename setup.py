@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-
 # Read requirements from the requirements.txt file
 with open('requirements.txt') as f:
     install_requires = f.read().strip().split('\n')
@@ -17,8 +16,7 @@ setup(
     url='https://github.com/soda-mpc/soda-sdk',
     license='MIT',
     classifiers=[
-        'Programming Language :: Python :: 3',
-        'License :: MIT License'
+        'Programming Language :: Python :: 3'
     ],
     python_requires='>=3.6',
     install_requires=install_requires,
