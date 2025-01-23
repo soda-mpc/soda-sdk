@@ -161,11 +161,13 @@ export function signEIP191(message: Buffer, key: Buffer): Buffer {
     const hash = ethers.hashMessage(message);
     const signingKey = new ethers.SigningKey(key);
     const signature = signingKey.sign(hash);
+    const vBytes = new Uint8Array([signature.v]);
+
     // Concatenate r, s, and v bytes
     return Buffer.concat([
         ethers.getBytes(signature.r),
         ethers.getBytes(signature.s),
-        ethers.getBytes(`0x0${signature.v - 27}`)
+        vBytes
     ]);
 }
 
