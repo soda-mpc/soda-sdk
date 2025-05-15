@@ -130,7 +130,6 @@ class TestMpcHelper(unittest.TestCase):
         # Arrange
         sender = os.urandom(ADDRESS_SIZE)
         addr = os.urandom(ADDRESS_SIZE)
-        func_sig = os.urandom(FUNC_SIG_SIZE)
         key = generate_ECDSA_private_key()
 
         # Create plaintext with the value 100 as a big integer with less than 128 bits
@@ -143,10 +142,10 @@ class TestMpcHelper(unittest.TestCase):
 
         # Act
         # Call the sign function
-        signature_bytes = signIT(sender, addr, func_sig, ct, key)
+        signature_bytes = signIT(sender, addr, ct, key)
         
         # Create the message to be 
-        message = sender + addr + func_sig + ct
+        message = sender + addr + ct
 
         pk = keys.PrivateKey(key)
         signature = keys.Signature(signature_bytes)
@@ -160,7 +159,6 @@ class TestMpcHelper(unittest.TestCase):
         # Arrange
         sender = os.urandom(ADDRESS_SIZE)
         addr = os.urandom(ADDRESS_SIZE)
-        func_sig = os.urandom(FUNC_SIG_SIZE)
         key = generate_ECDSA_private_key()
 
         # Create plaintext with the value 100 as a big integer with less than 128 bits
@@ -173,10 +171,10 @@ class TestMpcHelper(unittest.TestCase):
 
         # Act
         # Call the sign function
-        signature_bytes = signIT(sender, addr, func_sig, ct, key, eip191=True)
+        signature_bytes = signIT(sender, addr, ct, key, eip191=True)
 
         # Create the message to be
-        message = sender + addr + func_sig + ct
+        message = sender + addr + ct
         encoded_message = encode_defunct(primitive=message)
         recovered_address = Account.recover_message(encoded_message, signature=signature_bytes)
 
@@ -189,19 +187,18 @@ class TestMpcHelper(unittest.TestCase):
         # Arrange
         sender = bytes.fromhex("d67fe7792f18fbd663e29818334a050240887c28")
         addr = bytes.fromhex("69413851f025306dbe12c48ff2225016fc5bbe1b")
-        func_sig = bytes.fromhex("dc85563d")
         ct = bytes.fromhex("f8765e191e03bf341c1422e0899d092674fc73beb624845199cd6e14b7895882")
         key = bytes.fromhex("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
 
         # Act
         # Call the sign function
-        signature_bytes = signIT(sender, addr, func_sig, ct, key)
+        signature_bytes = signIT(sender, addr, ct, key)
         # Write hexadecimal string to a file, this simulates the communication between the evm (golang) and the user (python/js)
         with open("test_pythonSignature.txt", "w") as f:
             f.write(signature_bytes.hex())
         
         # Create the message to be 
-        message = sender + addr + func_sig + ct
+        message = sender + addr + ct
 
         pk = keys.PrivateKey(key)
         signature = keys.Signature(signature_bytes)
@@ -220,12 +217,11 @@ class TestMpcHelper(unittest.TestCase):
         sender.address = "0xd67fe7792f18fbd663e29818334a050240887c28"
         contract = Account()
         contract.address = "0x69413851f025306dbe12c48ff2225016fc5bbe1b"
-        func_sig = "test(bytes)"
         signingKey = bytes.fromhex("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
 
         # Act
         # Call the sign function
-        ct, signature = prepare_IT(plaintext, userKey, sender, contract, func_sig, signingKey)
+        ct, signature = prepare_IT(plaintext, userKey, sender, contract, signingKey)
         # Write hexadecimal string to a file, this simulates the communication between the evm (golang) and the user (python/js)
         with open("test_pythonIT.txt", "w") as f:
             f.write(ct.to_bytes((ct.bit_length() + 7) // 8, 'big').hex())
@@ -235,14 +231,11 @@ class TestMpcHelper(unittest.TestCase):
         sender_address_bytes = bytes.fromhex(sender.address[2:])
         contract_address_bytes = bytes.fromhex(contract.address[2:])
 
-        # create the function signature
-        func_hash = get_func_sig(func_sig)
-
         # Convert the integer to a byte slice with size aligned to 8.
         ctBytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
 
          # Create the message to be signed
-        message = sender_address_bytes + contract_address_bytes + func_hash + ctBytes
+        message = sender_address_bytes + contract_address_bytes + ctBytes
 
         pk = keys.PrivateKey(signingKey)
         signature = keys.Signature(signature)
