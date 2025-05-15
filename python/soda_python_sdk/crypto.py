@@ -1,9 +1,7 @@
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from Crypto.Hash import keccak
-import os
 import binascii
-import struct
 from eth_keys import keys
 from Crypto.PublicKey import ECC
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -113,27 +111,25 @@ def generate_ECDSA_private_key():
     return private_key.d.to_bytes(private_key.d.size_in_bytes(), byteorder='big')
 
 
-def validate_input_lengths(sender, addr, func_sig, ct, key):
+def validate_input_lengths(sender, addr, ct, key):
     """Validate the lengths of inputs."""
     if len(sender) != ADDRESS_SIZE:
         raise ValueError(f"Invalid sender address length: {len(sender)} bytes, must be {ADDRESS_SIZE} bytes")
     if len(addr) != ADDRESS_SIZE:
         raise ValueError(f"Invalid contract address length: {len(addr)} bytes, must be {ADDRESS_SIZE} bytes")
-    if len(func_sig) != FUNC_SIG_SIZE:
-        raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {FUNC_SIG_SIZE} bytes")
     if len(ct) != CT_SIZE:
         raise ValueError(f"Invalid ct length: {len(ct)} bytes, must be {CT_SIZE} bytes")
     if len(key) != KEY_SIZE:
         raise ValueError(f"Invalid key length: {len(key)} bytes, must be {KEY_SIZE} bytes")
 
 
-def signIT(sender, addr, func_sig, ct, key, eip191=False):
+def signIT(sender, addr, ct, key, eip191=False):
     """Sign the message using either standard signing or EIP-191 signing."""
     # Validate input lengths
-    validate_input_lengths(sender, addr, func_sig, ct, key)
+    validate_input_lengths(sender, addr, ct, key)
 
     # Create the message to be signed by appending all inputs
-    message = sender + addr + func_sig + ct
+    message = sender + addr + ct
 
     # Sign the message
     if eip191:
@@ -154,13 +150,8 @@ def sign_eip191(message, key):
     return signed_message.signature
 
 
-def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False):
-    # Create the function signature
-    func_hash = get_func_sig(func_sig)
+def prepare_IT(plaintext, user_aes_key, sender, contract, signing_key, eip191=False):
 
-    return inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_hash, signing_key, eip191)
-
-def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, signing_key, eip191):
     # Get addresses as bytes
     sender_address_bytes = bytes.fromhex(sender.address[2:])
     contract_address_bytes = bytes.fromhex(contract.address[2:])
@@ -173,13 +164,12 @@ def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, s
     ct = ciphertext + r
 
     # Sign the message
-    signature = signIT(sender_address_bytes, contract_address_bytes, func_sig_hash, ct, signing_key, eip191)
+    signature = signIT(sender_address_bytes, contract_address_bytes, ct, signing_key, eip191)
 
     # Convert the ct to an integer
     ctInt = int.from_bytes(ct, byteorder='big')
 
     return ctInt, signature
-
 
 def generate_rsa_keypair():
     # Generate RSA key pair

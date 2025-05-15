@@ -186,7 +186,6 @@ def test_prepareIT(self):
     sender.address = "0xd67fe7792f18fbd663e29818334a050240887c28"
     contract = Account()                                                # Contract account
     contract.address = "0x69413851f025306dbe12c48ff2225016fc5bbe1b"
-    func_sig = "test(bytes)"                                            # function signature as string
     signingKey = bytes.fromhex("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")  # ECDSA private key
 
     # Call prepare_IT function with the plaintext, AES key, sender and contract accounts, function signature and ECDSA private key
@@ -196,9 +195,8 @@ def test_prepareIT(self):
     # Verify the signature
     sender_address_bytes = bytes.fromhex(sender.address[2:])     # Get the bytes of the accounts addresses
     contract_address_bytes = bytes.fromhex(contract.address[2:])
-    func_hash = get_func_sig(func_sig)                           # Create the function signature
     # Create the signed message 
-    message = sender_address_bytes + contract_address_bytes + func_hash + ctBytes
+    message = sender_address_bytes + contract_address_bytes + ctBytes
     pk = keys.PrivateKey(signingKey)
     signature = keys.Signature(signature)
     # Verify the signature against the message hash and the public key
