@@ -7,7 +7,7 @@ print_blue() {
 
 print_blue "Running javascript tests..."
 cd js
-npx mocha --require esm --grep "^(?!.*should decrypt a message using RSA scheme$)" test.mjs
+npx mocha --fgrep "should decrypt a message using RSA scheme" --invert test.mjs
 cd ..
 
 print_blue "Running python tests..."
@@ -23,7 +23,7 @@ cd ..
 
 print_blue "Running javascript decrypt test..."
 cd js
-npx mocha --require esm --grep "should decrypt a message using RSA scheme" test.mjs
+npx mocha --grep "should decrypt a message using RSA scheme" test.mjs
 cd ..
 
 print_blue "Running python decrypt test..."

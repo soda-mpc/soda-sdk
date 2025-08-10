@@ -38,7 +38,7 @@ jobs:
       - name: JavaScript tests
         working-directory: ./js
         run: |
-          npx mocha --require esm --grep "^(?!.*should decrypt a message using RSA scheme$)" test.mjs
+          npx mocha --fgrep "should decrypt a message using RSA scheme" --invert test.mjs
 
       - name: Python tests
         working-directory: ./python

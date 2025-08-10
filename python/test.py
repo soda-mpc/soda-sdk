@@ -257,6 +257,28 @@ class TestMpcHelper(unittest.TestCase):
         decrypted_integer = int.from_bytes(decrypted, 'big')
         self.assertEqual(plaintext, decrypted_integer)
 
+    def test_prepareIT_256(self):
+        # Arrange
+        plaintext = 1809251394333065553493296640760748560207343510400633813116524750123642650623
+        userKey = bytes.fromhex("b3c3fe73c1bb91862b166a29fe1d63e9")
+        # Create an account object manually
+        sender = Account()
+        sender.address = "0xd67fe7792f18fbd663e29818334a050240887c28"
+        contract = Account()
+        contract.address = "0x69413851f025306dbe12c48ff2225016fc5bbe1b"
+        func_sig = "test(bytes)"
+        signingKey = bytes.fromhex("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
+
+        # Act
+        # Call the sign function
+        ct, _ = prepare_IT(plaintext, userKey, sender, contract, func_sig, signingKey)
+        # Convert the integer to a byte slice with size aligned to 8.
+        ctBytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
+
+        decrypted = decrypt(userKey, ctBytes[block_size:2*block_size], ctBytes[:block_size], ctBytes[3*block_size:], ctBytes[2*block_size:3*block_size])
+        decrypted_integer = int.from_bytes(decrypted, 'big')
+        self.assertEqual(plaintext, decrypted_integer)
+
     def test_rsa_encryption(self):
         # Arrange
         plaintext = b"hello world"
@@ -270,6 +292,8 @@ class TestMpcHelper(unittest.TestCase):
             f.write(private_key.hex())
             f.write("\n")
             f.write(public_key.hex())
+            f.write("\n")
+            f.write(ciphertext.hex())
 
         decrypted = decrypt_rsa(private_key, ciphertext)
 
