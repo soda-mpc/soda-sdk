@@ -1,5 +1,5 @@
 import { assert } from 'chai';
-import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, getFuncSig, prepareIT, generateECDSAPrivateKey } from './crypto.js';
+import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, getFuncSig, prepareIT, generateECDSAPrivateKey, prepareCompactIT } from './crypto.js';
 import { block_size, addressSize, funcSigSize, hexBase } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -269,6 +269,39 @@ describe('Crypto Tests', () => {
         const plaintextBytes = Buffer.from(hexString, 'hex'); 
         // Assert
         assert.deepStrictEqual(plaintextBytes, decryptedBuffer.subarray(decryptedBuffer.length - plaintextBytes.length, decryptedBuffer.length));
+    });
+
+    // Test case for verify signature
+    it('should prepare IT 256 bits using fixed data', () => {
+        // Arrange
+        // Simulate the generation of random bytes
+        const plaintext = BigInt("1809251394333065553493296640760748560207343510400633813116524750123642650623");
+        const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');;
+        const sender = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex')));
+        const contract = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex')));
+        const funcSig = 'test(bytes)';
+        const signingKey = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
+
+        // Act
+        // Generate the signature
+        const hash_func = getFuncSig(funcSig);
+        const {ctInt1, ctInt2, signature} = prepareCompactIT(plaintext, userKey, sender, contract, hash_func, signingKey);
+
+        const ctHex1 = ctInt1.toString(hexBase);
+        const ctHex2 = ctInt2.toString(hexBase);
+        // Create a Buffer to hold the bytes
+        const ctBuffer1 = Buffer.from(ctHex1, 'hex'); 
+        const ctBuffer2 = Buffer.from(ctHex2, 'hex'); 
+
+        // Decrypt the ct and check the decrypted value is equal to the plaintext
+        const decryptedBuffer = decrypt(userKey, ctBuffer1.subarray(block_size, ctBuffer1.length), ctBuffer1.subarray(0, block_size), ctBuffer2.subarray(block_size, ctBuffer2.length), ctBuffer2.subarray(0, block_size));
+
+        // Convert the plaintext to bytes
+        const hexString = plaintext.toString(16).padStart(64, '0');
+        const plaintextBytes = Buffer.from(hexString, 'hex'); 
+
+        // Assert
+        assert.deepStrictEqual(plaintextBytes, decryptedBuffer);
     });
 
     // Test case for test rsa encryption scheme

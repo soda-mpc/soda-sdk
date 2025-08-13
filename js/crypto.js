@@ -87,7 +87,7 @@ export function decrypt(key, r, ciphertext, r2=null, ciphertext2=null) {
     const encryptedR = cipher.update(r);
 
     // XOR the encrypted random value 'r' with the ciphertext to obtain the plaintext
-    const plaintext = Buffer.alloc(encryptedR.length);
+    let plaintext = Buffer.alloc(encryptedR.length);
     for (let i = 0; i < encryptedR.length; i++) {
         plaintext[i] = encryptedR[i] ^ ciphertext[i];
     }
@@ -224,6 +224,23 @@ function writeBigUInt256BE(buffer, value, offset = 0) {
     bytes.copy(buffer, offset);
 }
 
+export function prepareCompactIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191=false) {
+    const { ctInt, signature } = prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191);
+    if (ctInt.toString(2).length <= 128) { // case of 128 bits plaintext or less
+        return { ctInt, signature };
+    } else {                               // case of 256 bits plaintext or more
+        // Convert BigInt to Buffer 
+        const ctBuffer = Buffer.alloc(64); // Allocate a buffer of size 32 bytes
+        writeBigUInt256BE(ctBuffer, ctInt); // Write the uint256 value to the buffer as big-endian
+        const ct1 = ctBuffer.slice(0, 32);
+        const ct2 = ctBuffer.slice(32);
+        
+        const ctInt1 = BigInt('0x' + ct1.toString('hex'));
+        const ctInt2 = BigInt('0x' + ct2.toString('hex'));
+        return { ctInt1, ctInt2, signature };
+    }
+}
+
 export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191=false) {
 
     // Get the bytes of the sender, contract, and function signature
@@ -233,8 +250,6 @@ export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, sig
     // Convert the plaintext to bytes
     const plaintextBigInt = BigInt(plaintext);
     const bitSize = plaintextBigInt.toString(2).length;
-
-    console.log("plaintext bit size: ", bitSize);
 
     let ct;
 
@@ -248,10 +263,14 @@ export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, sig
     } else if (bitSize <= 256) {
         const plaintextBytes = Buffer.alloc(32); // Allocate a buffer of size 32 bytes
         writeBigUInt256BE(plaintextBytes, plaintextBigInt); // Write the uint256 value to the buffer as big-endian
-
+        
         // Encrypt each part of the plaintext using AES key
-        const { ciphertext1, r1 } = encrypt(userAesKey, plaintextBytes.slice(0, 16));
-        const { ciphertext2, r2 } = encrypt(userAesKey, plaintextBytes.slice(16));
+        const result1 = encrypt(userAesKey, plaintextBytes.slice(0, 16));
+        const result2 = encrypt(userAesKey, plaintextBytes.slice(16));
+        
+        // Now destructure
+        const { ciphertext: ciphertext1, r: r1 } = result1;
+        const { ciphertext: ciphertext2, r: r2 } = result2;
 
         ct = Buffer.concat([ciphertext1, r1, ciphertext2, r2]);
     } else if (bitSize > 256 ) {

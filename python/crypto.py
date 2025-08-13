@@ -176,6 +176,20 @@ def sign_eip191(message, key):
     signed_message = Account.sign_message(encode_defunct(primitive=message), key)
     return signed_message.signature
 
+def prepare_compact_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False):
+    ct, signature = prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191)
+    # Convert integer back to bytes to check length
+    ct_bytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
+    
+    if (len(ct_bytes) == 32):
+        return (ct, signature)
+    else:
+        ct1 = ct_bytes[:32]
+        ct2 = ct_bytes[32:]
+        # Convert the ct to an integer
+        ctInt1 = int.from_bytes(ct1, byteorder='big')
+        ctInt2 = int.from_bytes(ct2, byteorder='big')
+        return (ctInt1, ctInt2, signature)
 
 def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False):
     # Create the function signature
