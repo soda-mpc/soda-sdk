@@ -11,6 +11,8 @@ export const funcSigSize = 4;
 export const ctSize = 32;
 export const keySize = 32;
 export const hexBase = 16;
+export const maxPlaintextBitSize = 256;
+
 
 export function encrypt(key, plaintext) {
     
@@ -53,17 +55,17 @@ export function decrypt(key, r, ciphertext, r2=null, ciphertext2=null) {
 
     // Ensure key size is 128 bits (16 bytes)
     if (key.length != block_size) {
-        throw new RangeError("Key size must be 128 bits.");
+        throw new RangeError("Key size must be 128 bits, received " + key.length + " bytes.");
     }
 
     // Ensure random size is 128 bits (16 bytes)
     if (r.length != block_size) {
-        throw new RangeError("Random size must be 128 bits.");
+        throw new RangeError("Random size must be 128 bits, received " + r.length + " bytes.");
     }
 
     if (r2 !== null) {
         if (r2.length !== block_size) {
-            throw new RangeError("Random2 size must be 128 bits.");
+            throw new RangeError("Random2 size must be 128 bits, received " + r2.length + " bytes.");
         }
         if (ciphertext2 === null) {
             throw new RangeError("Ciphertext2 is required.");
@@ -72,7 +74,7 @@ export function decrypt(key, r, ciphertext, r2=null, ciphertext2=null) {
 
     if (ciphertext2 !== null) {
         if (ciphertext2.length !== block_size) {
-            throw new RangeError("Ciphertext2 size must be 128 bits.");
+            throw new RangeError("Ciphertext2 size must be 128 bits, received " + ciphertext2.length + " bytes.");
         }
 
         if (r2 === null) {
@@ -213,31 +215,29 @@ export function signEIP191(message, key) {
 }
 
 function writeBigUInt128BE(buffer, value, offset = 0) {
-    const hexString = value.toString(16).padStart(32, '0');
+    const hexString = value.toString(hexBase).padStart(ctSize, '0');
     const bytes = Buffer.from(hexString, 'hex');
     bytes.copy(buffer, offset);
 }
 
 function writeBigUInt256BE(buffer, value, offset = 0) {
-    const hexString = value.toString(16).padStart(64, '0');
+    const hexString = value.toString(hexBase).padStart(ctSize*2, '0');
     const bytes = Buffer.from(hexString, 'hex');
+    if (buffer.length > bytes.length) {
+        offset = buffer.length - bytes.length;
+    }
     bytes.copy(buffer, offset);
 }
 
 export function prepareCompactIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191=false) {
-    const { ctInt, signature } = prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191);
-    if (ctInt.toString(2).length <= 128) { // case of 128 bits plaintext or less
-        return { ctInt, signature };
-    } else {                               // case of 256 bits plaintext or more
-        // Convert BigInt to Buffer 
-        const ctBuffer = Buffer.alloc(64); // Allocate a buffer of size 32 bytes
-        writeBigUInt256BE(ctBuffer, ctInt); // Write the uint256 value to the buffer as big-endian
-        const ct1 = ctBuffer.slice(0, 32);
-        const ct2 = ctBuffer.slice(32);
-        
-        const ctInt1 = BigInt('0x' + ct1.toString('hex'));
-        const ctInt2 = BigInt('0x' + ct2.toString('hex'));
-        return { ctInt1, ctInt2, signature };
+    const { ct, signature } = prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191);
+    if (ct.length <= ctSize) {
+        return { c, signature };
+    } else { 
+        const ct1 = ct.slice(0, ctSize);
+        const ct2 = ct.slice(ctSize);
+
+        return { ct1, ct2, signature };
     }
 }
 
@@ -253,37 +253,34 @@ export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, sig
 
     let ct;
 
-    if (bitSize <= 128) {
-        const plaintextBytes = Buffer.alloc(16); // Allocate a buffer of size 16 bytes
+    if (bitSize <= maxPlaintextBitSize/2) {
+        const plaintextBytes = Buffer.alloc(block_size); // Allocate a buffer of size 16 bytes
         writeBigUInt128BE(plaintextBytes, plaintextBigInt); // Write the uint128 value to the buffer as big-endian
         // Encrypt the plaintext using AES key
         const {ciphertext, r} = encrypt(userAesKey, plaintextBytes);
 
         ct = Buffer.concat([ciphertext, r]);
-    } else if (bitSize <= 256) {
-        const plaintextBytes = Buffer.alloc(32); // Allocate a buffer of size 32 bytes
+    } else if (bitSize <= maxPlaintextBitSize) {
+        const plaintextBytes = Buffer.alloc(ctSize); // Allocate a buffer of size 32 bytes
         writeBigUInt256BE(plaintextBytes, plaintextBigInt); // Write the uint256 value to the buffer as big-endian
         
         // Encrypt each part of the plaintext using AES key
-        const result1 = encrypt(userAesKey, plaintextBytes.slice(0, 16));
-        const result2 = encrypt(userAesKey, plaintextBytes.slice(16));
+        const result1 = encrypt(userAesKey, plaintextBytes.slice(0, block_size));
+        const result2 = encrypt(userAesKey, plaintextBytes.slice(block_size));
         
         // Now destructure
         const { ciphertext: ciphertext1, r: r1 } = result1;
         const { ciphertext: ciphertext2, r: r2 } = result2;
 
         ct = Buffer.concat([ciphertext1, r1, ciphertext2, r2]);
-    } else if (bitSize > 256 ) {
+    } else if (bitSize > maxPlaintextBitSize) {
         throw new RangeError("Plaintext size must be 256 bits or smaller.");
     }
 
     // Sign the message
     const signature = signIT(senderBytes, contractBytes, hashFunc, ct, signingKey, eip191);
 
-    // Convert the ciphertext to BigInt
-    const ctInt = BigInt('0x' + ct.toString('hex'));
-
-    return { ctInt, signature };
+    return { ct, signature };
 }
 
 export function generateRSAKeyPair() {

@@ -84,11 +84,11 @@ def decrypt(key, r, ciphertext, r2=None, ciphertext2=None):
     plaintext = bytes(x ^ y for x, y in zip(encrypted_r, ciphertext))
 
     if r2 is not None and ciphertext2 is not None:
-        # Encrypt the random value 'r' using AES in ECB mode
-        encrypted_r = cipher.encrypt(r2)
+        # Encrypt the random value 'r2' using AES in ECB mode
+        encrypted_r2 = cipher.encrypt(r2)
 
-        # XOR the encrypted random value 'r' with the ciphertext to obtain the plaintext
-        plaintext2 = bytes(x ^ y for x, y in zip(encrypted_r, ciphertext2))
+        # XOR the encrypted random value 'r2' with the ciphertext2 to obtain the plaintext2
+        plaintext2 = bytes(x ^ y for x, y in zip(encrypted_r2, ciphertext2))
 
         plaintext = plaintext + plaintext2
 
@@ -145,7 +145,7 @@ def validate_input_lengths(sender, addr, func_sig, ct, key):
     if len(func_sig) != func_sig_size:
         raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {func_sig_size} bytes")
     if len(ct) != ct_size and len(ct) != 2*ct_size:
-        raise ValueError(f"Invalid ct length: {len(ct)} bytes, must be {ct_size} bytes in case of 128 bits plaintext or less, or {2*ct_size} bytes in case of 256 bits plaintext or less")
+        raise ValueError(f"Invalid ct length: {len(ct)} bytes, must be {ct_size} bytes in case of 128 bits plaintext or less, or {2*ct_size} bytes in case of plaintext between 128 and 256")
     if len(key) != key_size:
         raise ValueError(f"Invalid key length: {len(key)} bytes, must be {key_size} bytes")
 
@@ -181,12 +181,12 @@ def prepare_compact_IT(plaintext, user_aes_key, sender, contract, func_sig, sign
     # Convert integer back to bytes to check length
     ct_bytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
     
-    if (len(ct_bytes) == 32):
+    if (len(ct_bytes) == ct_size):
         return (ct, signature)
     else:
-        ct1 = ct_bytes[:32]
-        ct2 = ct_bytes[32:]
-        # Convert the ct to an integer
+        ct1 = ct_bytes[:ct_size]
+        ct2 = ct_bytes[ct_size:]
+        # Convert the ct into two integers
         ctInt1 = int.from_bytes(ct1, byteorder='big')
         ctInt2 = int.from_bytes(ct2, byteorder='big')
         return (ctInt1, ctInt2, signature)
@@ -205,18 +205,19 @@ def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, s
     # Convert the integer to a byte slice with size aligned to 8.
     plaintext_bytes = plaintext.to_bytes((plaintext.bit_length() + 7) // 8, 'big')
 
-    if len(plaintext_bytes) > 32:
+    if len(plaintext_bytes) > block_size*2:
         raise ValueError("Plaintext size must be 256 bits or smaller.")
 
-    if len(plaintext_bytes) <= 16:
+    if len(plaintext_bytes) <= block_size:
         # Encrypt the plaintext with the user's AES key
         ciphertext, r = encrypt(user_aes_key, plaintext_bytes)
         ct = ciphertext + r
     else:
+        padded_plaintext_bytes = bytes(block_size*2 - len(plaintext_bytes)) + plaintext_bytes
         # Encrypt the plaintext with the user's AES key
-        ciphertext1, r1 = encrypt(user_aes_key, plaintext_bytes[:16])
-        ciphertext2, r2 = encrypt(user_aes_key, plaintext_bytes[16:])
-        ct = ciphertext1 + r1 + ciphertext2 + r2
+        ciphertextHigh, rHigh = encrypt(user_aes_key, padded_plaintext_bytes[:block_size])
+        ciphertextLow, rLow = encrypt(user_aes_key, padded_plaintext_bytes[block_size:])
+        ct = ciphertextHigh + rHigh + ciphertextLow + rLow
 
     # Sign the message
     signature = signIT(sender_address_bytes, contract_address_bytes, func_sig_hash, ct, signing_key, eip191)

@@ -252,17 +252,15 @@ describe('Crypto Tests', () => {
         // Act
         // Generate the signature
         const hash_func = getFuncSig(funcSig);
-        const {ctInt, signature} = prepareIT(plaintext, userKey, sender, contract, hash_func, signingKey);
+        const {ct, signature} = prepareIT(plaintext, userKey, sender, contract, hash_func, signingKey);
 
-        const ctHex = ctInt.toString(hexBase);
-        // Create a Buffer to hold the bytes
-        const ctBuffer = Buffer.from(ctHex, 'hex'); 
-
+        const ctHex = ct.toString('hex');
+        
         // Write Buffer to file to later check in Go
         fs.writeFileSync("test_jsIT.txt", ctHex + "\n" + signature.toString('hex'));
 
         // Decrypt the ct and check the decrypted value is equal to the plaintext
-        const decryptedBuffer = decrypt(userKey, ctBuffer.subarray(block_size, ctBuffer.length), ctBuffer.subarray(0, block_size));
+        const decryptedBuffer = decrypt(userKey, ct.subarray(block_size, ct.length), ct.subarray(0, block_size));
 
         // Convert the plaintext to bytes
         const hexString = plaintext.toString(16);
@@ -275,7 +273,7 @@ describe('Crypto Tests', () => {
     it('should prepare IT 256 bits using fixed data', () => {
         // Arrange
         // Simulate the generation of random bytes
-        const plaintext = BigInt("1809251394333065553493296640760748560207343510400633813116524750123642650623");
+        const plaintext = BigInt("34028236692093846346337460743176821145600");
         const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');;
         const sender = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex')));
         const contract = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex')));
@@ -285,16 +283,13 @@ describe('Crypto Tests', () => {
         // Act
         // Generate the signature
         const hash_func = getFuncSig(funcSig);
-        const {ctInt1, ctInt2, signature} = prepareCompactIT(plaintext, userKey, sender, contract, hash_func, signingKey);
+        const {ct1, ct2, signature} = prepareCompactIT(plaintext, userKey, sender, contract, hash_func, signingKey);
 
-        const ctHex1 = ctInt1.toString(hexBase);
-        const ctHex2 = ctInt2.toString(hexBase);
-        // Create a Buffer to hold the bytes
-        const ctBuffer1 = Buffer.from(ctHex1, 'hex'); 
-        const ctBuffer2 = Buffer.from(ctHex2, 'hex'); 
-
+        const ctHex1 = ct1.toString('hex').padStart(64, '0');
+        const ctHex2 = ct2.toString('hex').padStart(64, '0');
+        
         // Decrypt the ct and check the decrypted value is equal to the plaintext
-        const decryptedBuffer = decrypt(userKey, ctBuffer1.subarray(block_size, ctBuffer1.length), ctBuffer1.subarray(0, block_size), ctBuffer2.subarray(block_size, ctBuffer2.length), ctBuffer2.subarray(0, block_size));
+        const decryptedBuffer = decrypt(userKey, ct1.subarray(block_size, ct1.length), ct1.subarray(0, block_size), ct2.subarray(block_size, ct2.length), ct2.subarray(0, block_size));
 
         // Convert the plaintext to bytes
         const hexString = plaintext.toString(16).padStart(64, '0');
