@@ -3,7 +3,7 @@ import tempfile
 import os
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
-from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key, prepare_compact_IT
+from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key, prepare_compact_IT_256
 from crypto import block_size, address_size, func_sig_size, key_size
 from eth_keys import keys
 from web3 import Account
@@ -271,10 +271,11 @@ class TestMpcHelper(unittest.TestCase):
 
         # Act
         # Call the sign function
-        (ct1, ct2, _) = prepare_compact_IT(plaintext, userKey, sender, contract, func_sig, signingKey)
+        (ct, _) = prepare_compact_IT_256(plaintext, userKey, sender, contract, func_sig, signingKey)
+        ctHigh, ctLow = ct
         # Convert the integer to a byte slice with size aligned to 8.
-        ct1Bytes = ct1.to_bytes((ct1.bit_length() + 7) // 8, 'big')
-        ct2Bytes = ct2.to_bytes((ct2.bit_length() + 7) // 8, 'big')
+        ct1Bytes = ctHigh.to_bytes((ctHigh.bit_length() + 7) // 8, 'big')
+        ct2Bytes = ctLow.to_bytes((ctLow.bit_length() + 7) // 8, 'big')
 
         decrypted = decrypt(userKey, ct1Bytes[block_size:2*block_size], ct1Bytes[:block_size], ct2Bytes[block_size:2*block_size], ct2Bytes[:block_size])
         decrypted_integer = int.from_bytes(decrypted, 'big')

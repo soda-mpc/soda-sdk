@@ -18,6 +18,7 @@ address_size = 20
 func_sig_size = 4
 ct_size = 32
 key_size = 32
+max_plaintext_bit_size = 256
 
 def encrypt(key, plaintext):
 
@@ -177,27 +178,33 @@ def sign_eip191(message, key):
     return signed_message.signature
 
 def prepare_compact_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False):
-    ct, signature = prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191)
+    if (plaintext.bit_length() > max_plaintext_bit_size/2):
+        raise ValueError("Plaintext size must be 128 bits or smaller. To prepare a 256 bit plaintext, use prepare_compact_IT256 instead.")
+    
+    ct, signature = prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191, False)
+    return (ct, signature)
+
+def prepare_compact_IT_256(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False):
+    if (plaintext.bit_length() > max_plaintext_bit_size):
+        raise ValueError("Plaintext size must be between 128 and 256 bits.")
+    
+    ct, signature = prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191, True)
     # Convert integer back to bytes to check length
     ct_bytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
-    
-    if (len(ct_bytes) == ct_size):
-        return (ct, signature)
-    else:
-        ct1 = ct_bytes[:ct_size]
-        ct2 = ct_bytes[ct_size:]
-        # Convert the ct into two integers
-        ctInt1 = int.from_bytes(ct1, byteorder='big')
-        ctInt2 = int.from_bytes(ct2, byteorder='big')
-        return (ctInt1, ctInt2, signature)
+    ctHigh = ct_bytes[:ct_size]
+    ctLow = ct_bytes[ct_size:]
+    # Convert the ct into two integers
+    ctIntHigh = int.from_bytes(ctHigh, byteorder='big')
+    ctIntLow = int.from_bytes(ctLow, byteorder='big')
+    return ((ctIntHigh, ctIntLow), signature)
 
-def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False):
+def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False, is256bit = False):
     # Create the function signature
     func_hash = get_func_sig(func_sig)
 
-    return inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_hash, signing_key, eip191)
+    return inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_hash, signing_key, eip191, is256bit)
 
-def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, signing_key, eip191):
+def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, signing_key, eip191, is256bit):
     # Get addresses as bytes
     sender_address_bytes = bytes.fromhex(sender.address[2:])
     contract_address_bytes = bytes.fromhex(contract.address[2:])
@@ -211,7 +218,13 @@ def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, s
     if len(plaintext_bytes) <= block_size:
         # Encrypt the plaintext with the user's AES key
         ciphertext, r = encrypt(user_aes_key, plaintext_bytes)
-        ct = ciphertext + r
+        if (is256bit):
+            zero = 0
+            zero_bytes = zero.to_bytes((zero.bit_length() + 7) // 8, 'big')
+            ciphertextHigh, rHigh = encrypt(user_aes_key, zero_bytes)
+            ct = ciphertextHigh + rHigh + ciphertext + r
+        else:
+            ct = ciphertext + r
     else:
         padded_plaintext_bytes = bytes(block_size*2 - len(plaintext_bytes)) + plaintext_bytes
         # Encrypt the plaintext with the user's AES key

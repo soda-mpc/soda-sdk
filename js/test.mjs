@@ -1,5 +1,5 @@
 import { assert } from 'chai';
-import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, getFuncSig, prepareIT, generateECDSAPrivateKey, prepareCompactIT } from './crypto.js';
+import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, getFuncSig, prepareIT, generateECDSAPrivateKey, prepareCompactIT256 } from './crypto.js';
 import { block_size, addressSize, funcSigSize, hexBase } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -283,13 +283,13 @@ describe('Crypto Tests', () => {
         // Act
         // Generate the signature
         const hash_func = getFuncSig(funcSig);
-        const {ct1, ct2, signature} = prepareCompactIT(plaintext, userKey, sender, contract, hash_func, signingKey);
-
-        const ctHex1 = ct1.toString('hex').padStart(64, '0');
-        const ctHex2 = ct2.toString('hex').padStart(64, '0');
+        const {ct, signature} = prepareCompactIT256(plaintext, userKey, sender, contract, hash_func, signingKey);
+        
+        const ctHex1 = ct.ctHigh.toString('hex').padStart(64, '0');
+        const ctHex2 = ct.ctLow.toString('hex').padStart(64, '0');
         
         // Decrypt the ct and check the decrypted value is equal to the plaintext
-        const decryptedBuffer = decrypt(userKey, ct1.subarray(block_size, ct1.length), ct1.subarray(0, block_size), ct2.subarray(block_size, ct2.length), ct2.subarray(0, block_size));
+        const decryptedBuffer = decrypt(userKey, ct.ctHigh.subarray(block_size, ct.ctHigh.length), ct.ctHigh.subarray(0, block_size), ct.ctLow.subarray(block_size, ct.ctLow.length), ct.ctLow.subarray(0, block_size));
 
         // Convert the plaintext to bytes
         const hexString = plaintext.toString(16).padStart(64, '0');
