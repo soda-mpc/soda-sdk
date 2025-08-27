@@ -235,7 +235,9 @@ export function prepareCompactIT(plaintext, userAesKey, sender, contract, hashFu
         throw new RangeError("Plaintext size must be 128 bits or smaller. To prepare a 256 bit plaintext, use prepareCompactIT256 instead.");
     }
     const { ct, signature } = prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191, false);
-    return { ct, signature };
+    // Convert Buffer to uint256 (BigInt) for Solidity compatibility
+    const ciphertextUint = BigInt('0x' + ct.toString('hex'));
+    return { ciphertext: ciphertextUint, signature };
 }
 
 export function prepareCompactIT256(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191=false) {
@@ -245,10 +247,14 @@ export function prepareCompactIT256(plaintext, userAesKey, sender, contract, has
     }
 
     const { ct, signature } = prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191, true);
-    const ctHigh = ct.slice(0, ctSize);
-    const ctLow = ct.slice(ctSize);
+    const ciphertextHigh = ct.slice(0, ctSize);
+    const ciphertextLow = ct.slice(ctSize);
 
-    return { ct: {ctHigh, ctLow}, signature };
+    // Convert Buffer to uint256 (BigInt) for Solidity compatibility
+    const ciphertextHighUint = BigInt('0x' + ciphertextHigh.toString('hex'));
+    const ciphertextLowUint = BigInt('0x' + ciphertextLow.toString('hex'));
+
+    return { ciphertext: {ciphertextHigh: ciphertextHighUint, ciphertextLow: ciphertextLowUint}, signature };
     
 }
 
@@ -273,7 +279,7 @@ export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, sig
             const zero = BigInt(0);
             const zeroBytes = Buffer.alloc(block_size);
             writeBigUInt128BE(zeroBytes, zero);
-            const {ciphertextHigh, rHigh} = encrypt(userAesKey, zeroBytes);
+            const {ciphertext: ciphertextHigh, r: rHigh} = encrypt(userAesKey, zeroBytes);
             ct = Buffer.concat([ciphertextHigh, rHigh, ciphertext, r]);
         } else {
             ct = Buffer.concat([ciphertext, r]);
