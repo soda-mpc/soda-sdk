@@ -18,6 +18,7 @@ address_size = 20
 func_sig_size = 4
 ct_size = 32
 key_size = 32
+max_plaintext_bit_size = 256
 
 def encrypt(key, plaintext):
 
@@ -46,7 +47,7 @@ def encrypt(key, plaintext):
 
     return ciphertext, r
 
-def decrypt(key, r, ciphertext):
+def decrypt(key, r, ciphertext, r2=None, ciphertext2=None):
 
     if len(ciphertext) != block_size:
         raise ValueError("Ciphertext size must be 128 bits.")
@@ -59,6 +60,21 @@ def decrypt(key, r, ciphertext):
     if len(r) != block_size:
         raise ValueError("Random size must be 128 bits.")
 
+    # If r2 is not None, then ciphertext2 is required and vice versa
+    # Ensure the sizes of r2 and ciphertext2 are correct
+    if r2 is not None:
+        if len(r2) != block_size:
+            raise ValueError("Random size must be 128 bits.")
+        if ciphertext2 is None:
+            raise ValueError("Ciphertext2 is required.")
+
+    if ciphertext2 is not None:
+        if len(ciphertext2) != block_size:
+            raise ValueError("Ciphertext size must be 128 bits.")
+        
+        if r2 is None:
+            raise ValueError("Random2 is required.")
+
     # Create a new AES cipher block using the provided key
     cipher = AES.new(key, AES.MODE_ECB)
 
@@ -67,6 +83,15 @@ def decrypt(key, r, ciphertext):
 
     # XOR the encrypted random value 'r' with the ciphertext to obtain the plaintext
     plaintext = bytes(x ^ y for x, y in zip(encrypted_r, ciphertext))
+
+    if r2 is not None and ciphertext2 is not None:
+        # Encrypt the random value 'r2' using AES in ECB mode
+        encrypted_r2 = cipher.encrypt(r2)
+
+        # XOR the encrypted random value 'r2' with the ciphertext2 to obtain the plaintext2
+        plaintext2 = bytes(x ^ y for x, y in zip(encrypted_r2, ciphertext2))
+
+        plaintext = plaintext + plaintext2
 
     return plaintext
 
@@ -120,8 +145,8 @@ def validate_input_lengths(sender, addr, func_sig, ct, key):
         raise ValueError(f"Invalid contract address length: {len(addr)} bytes, must be {address_size} bytes")
     if len(func_sig) != func_sig_size:
         raise ValueError(f"Invalid signature size: {len(func_sig)} bytes, must be {func_sig_size} bytes")
-    if len(ct) != ct_size:
-        raise ValueError(f"Invalid ct length: {len(ct)} bytes, must be {ct_size} bytes")
+    if len(ct) != ct_size and len(ct) != 2*ct_size:
+        raise ValueError(f"Invalid ct length: {len(ct)} bytes, must be {ct_size} bytes in case of 128 bits plaintext or less, or {2*ct_size} bytes in case of plaintext between 128 and 256")
     if len(key) != key_size:
         raise ValueError(f"Invalid key length: {len(key)} bytes, must be {key_size} bytes")
 
@@ -152,14 +177,35 @@ def sign_eip191(message, key):
     signed_message = Account.sign_message(encode_defunct(primitive=message), key)
     return signed_message.signature
 
-
 def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False):
+    if (plaintext.bit_length() > max_plaintext_bit_size/2):
+        raise ValueError("Plaintext size must be 128 bits or smaller. To prepare a 256 bit plaintext, use prepare_IT_256 instead.")
+
     # Create the function signature
     func_hash = get_func_sig(func_sig)
 
-    return inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_hash, signing_key, eip191)
+    return inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_hash, signing_key, eip191, False)
 
-def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, signing_key, eip191):
+def prepare_IT_256(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False):
+
+    if (plaintext.bit_length() > max_plaintext_bit_size):
+        raise ValueError("Plaintext size must be between 128 and 256 bits.")
+
+    # Create the function signature
+    func_hash = get_func_sig(func_sig)
+
+    ct, signature =  inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_hash, signing_key, eip191, True)
+
+    # Convert integer back to bytes to check length
+    ct_bytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
+    ctHigh = ct_bytes[:ct_size]
+    ctLow = ct_bytes[ct_size:]
+    # Convert the ct into two integers
+    ctIntHigh = int.from_bytes(ctHigh, byteorder='big')
+    ctIntLow = int.from_bytes(ctLow, byteorder='big')
+    return ((ctIntHigh, ctIntLow), signature)
+
+def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, signing_key, eip191, is256bit):
     # Get addresses as bytes
     sender_address_bytes = bytes.fromhex(sender.address[2:])
     contract_address_bytes = bytes.fromhex(contract.address[2:])
@@ -167,9 +213,25 @@ def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, s
     # Convert the integer to a byte slice with size aligned to 8.
     plaintext_bytes = plaintext.to_bytes((plaintext.bit_length() + 7) // 8, 'big')
 
-    # Encrypt the plaintext with the user's AES key
-    ciphertext, r = encrypt(user_aes_key, plaintext_bytes)
-    ct = ciphertext + r
+    if len(plaintext_bytes) > block_size*2:
+        raise ValueError("Plaintext size must be 256 bits or smaller.")
+
+    if len(plaintext_bytes) <= block_size:
+        # Encrypt the plaintext with the user's AES key
+        ciphertext, r = encrypt(user_aes_key, plaintext_bytes)
+        if (is256bit):
+            zero = 0
+            zero_bytes = zero.to_bytes((zero.bit_length() + 7) // 8, 'big')
+            ciphertextHigh, rHigh = encrypt(user_aes_key, zero_bytes)
+            ct = ciphertextHigh + rHigh + ciphertext + r
+        else:
+            ct = ciphertext + r
+    else:
+        padded_plaintext_bytes = bytes(block_size*2 - len(plaintext_bytes)) + plaintext_bytes
+        # Encrypt the plaintext with the user's AES key
+        ciphertextHigh, rHigh = encrypt(user_aes_key, padded_plaintext_bytes[:block_size])
+        ciphertextLow, rLow = encrypt(user_aes_key, padded_plaintext_bytes[block_size:])
+        ct = ciphertextHigh + rHigh + ciphertextLow + rLow
 
     # Sign the message
     signature = signIT(sender_address_bytes, contract_address_bytes, func_sig_hash, ct, signing_key, eip191)

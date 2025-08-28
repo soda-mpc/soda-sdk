@@ -1,6 +1,6 @@
 import { assert } from 'chai';
-import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, getFuncSig, prepareIT, generateECDSAPrivateKey } from './crypto.js';
-import { block_size, addressSize, funcSigSize, hexBase } from './crypto.js';
+import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, getFuncSig, prepareIT, generateECDSAPrivateKey, prepareIT256, writeBigUInt256BE } from './crypto.js';
+import { block_size, ctSize, addressSize, funcSigSize, hexBase } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
 import ethereumjsUtil, {hashPersonalMessage} from 'ethereumjs-util';
@@ -257,7 +257,7 @@ describe('Crypto Tests', () => {
         const ctHex = ctInt.toString(hexBase);
         // Create a Buffer to hold the bytes
         const ctBuffer = Buffer.from(ctHex, 'hex'); 
-
+        
         // Write Buffer to file to later check in Go
         fs.writeFileSync("test_jsIT.txt", ctHex + "\n" + signature.toString('hex'));
 
@@ -271,6 +271,37 @@ describe('Crypto Tests', () => {
         assert.deepStrictEqual(plaintextBytes, decryptedBuffer.subarray(decryptedBuffer.length - plaintextBytes.length, decryptedBuffer.length));
     });
 
+    // Test case for verify signature
+    it('should prepare IT 256 bits using fixed data', () => {
+        // Arrange
+        // Simulate the generation of random bytes
+        const plaintext = BigInt("34028236692093846346337460743176821145600");
+        const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');;
+        const sender = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex')));
+        const contract = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex')));
+        const funcSig = 'test(bytes)';
+        const signingKey = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
+
+        // Act
+        // Generate the signature
+        const hash_func = getFuncSig(funcSig);
+        const {ciphertext, signature} = prepareIT256(plaintext, userKey, sender, contract, hash_func, signingKey);
+
+        const ctHighBytes = Buffer.alloc(ctSize); // Allocate a buffer of size 32 bytes
+        writeBigUInt256BE(ctHighBytes, ciphertext.ciphertextHigh); // Write the uint256 value to the buffer as big-endian
+        const ctLowBytes = Buffer.alloc(ctSize); // Allocate a buffer of size 32 bytes
+        writeBigUInt256BE(ctLowBytes, ciphertext.ciphertextLow); // Write the uint256 value to the buffer as big-endian
+        // Decrypt the ct and check the decrypted value is equal to the plaintext
+        const decryptedBuffer = decrypt(userKey, ctHighBytes.subarray(block_size, ctHighBytes.length), ctHighBytes.subarray(0, block_size), ctLowBytes.subarray(block_size, ctLowBytes.length), ctLowBytes.subarray(0, block_size));
+
+        // Convert the plaintext to bytes
+        const hexString = plaintext.toString(16).padStart(64, '0');
+        const plaintextBytes = Buffer.from(hexString, 'hex'); 
+
+        // Assert
+        assert.deepStrictEqual(plaintextBytes, decryptedBuffer);
+    });
+
     // Test case for test rsa encryption scheme
     it('should encrypt and decrypt a message using RSA scheme', () => {
         // Arrange
@@ -281,7 +312,7 @@ describe('Crypto Tests', () => {
         // Act
         const ciphertext = encryptRSA(publicKey, plaintext);
         
-        const hexString = privateKey.toString('hex') + "\n" + publicKey.toString('hex');
+        const hexString = privateKey.toString('hex') + "\n" + publicKey.toString('hex') + "\n" + ciphertext.toString('hex');
 
         // Write buffer to the file
         const filename = 'test_jsRSAEncryption.txt'; // Name of the file to write to
