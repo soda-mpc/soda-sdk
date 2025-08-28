@@ -177,18 +177,25 @@ def sign_eip191(message, key):
     signed_message = Account.sign_message(encode_defunct(primitive=message), key)
     return signed_message.signature
 
-def prepare_compact_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False):
+def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False):
     if (plaintext.bit_length() > max_plaintext_bit_size/2):
-        raise ValueError("Plaintext size must be 128 bits or smaller. To prepare a 256 bit plaintext, use prepare_compact_IT256 instead.")
-    
-    ct, signature = prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191, False)
-    return (ct, signature)
+        raise ValueError("Plaintext size must be 128 bits or smaller. To prepare a 256 bit plaintext, use prepare_IT_256 instead.")
 
-def prepare_compact_IT_256(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False):
+    # Create the function signature
+    func_hash = get_func_sig(func_sig)
+
+    return inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_hash, signing_key, eip191, False)
+
+def prepare_IT_256(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False):
+
     if (plaintext.bit_length() > max_plaintext_bit_size):
         raise ValueError("Plaintext size must be between 128 and 256 bits.")
-    
-    ct, signature = prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191, True)
+
+    # Create the function signature
+    func_hash = get_func_sig(func_sig)
+
+    ct, signature =  inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_hash, signing_key, eip191, True)
+
     # Convert integer back to bytes to check length
     ct_bytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
     ctHigh = ct_bytes[:ct_size]
@@ -197,12 +204,6 @@ def prepare_compact_IT_256(plaintext, user_aes_key, sender, contract, func_sig, 
     ctIntHigh = int.from_bytes(ctHigh, byteorder='big')
     ctIntLow = int.from_bytes(ctLow, byteorder='big')
     return ((ctIntHigh, ctIntLow), signature)
-
-def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False, is256bit = False):
-    # Create the function signature
-    func_hash = get_func_sig(func_sig)
-
-    return inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_hash, signing_key, eip191, is256bit)
 
 def inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_sig_hash, signing_key, eip191, is256bit):
     # Get addresses as bytes
