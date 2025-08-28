@@ -220,7 +220,7 @@ function writeBigUInt128BE(buffer, value, offset = 0) {
     bytes.copy(buffer, offset);
 }
 
-function writeBigUInt256BE(buffer, value, offset = 0) {
+export function writeBigUInt256BE(buffer, value, offset = 0) {
     const hexString = value.toString(hexBase).padStart(ctSize*2, '0');
     const bytes = Buffer.from(hexString, 'hex');
     if (buffer.length > bytes.length) {

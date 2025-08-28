@@ -1,6 +1,6 @@
 import { assert } from 'chai';
-import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, getFuncSig, prepareIT, generateECDSAPrivateKey, prepareCompactIT256 } from './crypto.js';
-import { block_size, addressSize, funcSigSize, hexBase } from './crypto.js';
+import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, getFuncSig, prepareIT, generateECDSAPrivateKey, prepareCompactIT256, writeBigUInt256BE } from './crypto.js';
+import { block_size, ctSize, addressSize, funcSigSize, hexBase } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
 import ethereumjsUtil, {hashPersonalMessage} from 'ethereumjs-util';
@@ -283,13 +283,14 @@ describe('Crypto Tests', () => {
         // Act
         // Generate the signature
         const hash_func = getFuncSig(funcSig);
-        const {ct, signature} = prepareCompactIT256(plaintext, userKey, sender, contract, hash_func, signingKey);
-        
-        const ctHex1 = ct.ctHigh.toString('hex').padStart(64, '0');
-        const ctHex2 = ct.ctLow.toString('hex').padStart(64, '0');
-        
+        const {ciphertext, signature} = prepareCompactIT256(plaintext, userKey, sender, contract, hash_func, signingKey);
+
+        const ctHighBytes = Buffer.alloc(ctSize); // Allocate a buffer of size 32 bytes
+        writeBigUInt256BE(ctHighBytes, ciphertext.ciphertextHigh); // Write the uint256 value to the buffer as big-endian
+        const ctLowBytes = Buffer.alloc(ctSize); // Allocate a buffer of size 32 bytes
+        writeBigUInt256BE(ctLowBytes, ciphertext.ciphertextLow); // Write the uint256 value to the buffer as big-endian
         // Decrypt the ct and check the decrypted value is equal to the plaintext
-        const decryptedBuffer = decrypt(userKey, ct.ctHigh.subarray(block_size, ct.ctHigh.length), ct.ctHigh.subarray(0, block_size), ct.ctLow.subarray(block_size, ct.ctLow.length), ct.ctLow.subarray(0, block_size));
+        const decryptedBuffer = decrypt(userKey, ctHighBytes.subarray(block_size, ctHighBytes.length), ctHighBytes.subarray(0, block_size), ctLowBytes.subarray(block_size, ctLowBytes.length), ctLowBytes.subarray(0, block_size));
 
         // Convert the plaintext to bytes
         const hexString = plaintext.toString(16).padStart(64, '0');
