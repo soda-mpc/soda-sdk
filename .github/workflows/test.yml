@@ -39,7 +39,7 @@ jobs:
       - name: TypeScript tests
         working-directory: ./ts
         run: |
-          npx jest npx jest -t "should decrypt a message using RSA scheme"
+          npx jest -t "should decrypt a message using RSA scheme"
 
       - name: Python tests
         working-directory: ./python/soda_python_sdk
