@@ -19,7 +19,6 @@ import (
 
 const (
 	AddressSize     = 20 // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
-	FuncSigSize     = 4
 	CtSize          = 32
 	KeySize         = 32
 	Uint64BytesSize = 8
@@ -170,7 +169,6 @@ func GenerateECDSAPrivateKey() []byte {
 // Sign is a function that signes an hashed message using ECDSA. It takes in six parameters:
 // sender: The address of the sender. It should be a byte slice of length AddressSize.
 // addr: The contract address. It should be a byte slice of length AddressSize.
-// funcSig: The function signature. It should be a byte slice of length FuncSigSize.
 // ct: The ciphertext to be signed. It should be a byte slice of length CtSize.
 // key: The private key used for signing. It should be a byte slice of length KeySize.
 // It first checks if the lengths of these parameters are correct according to predefined constants.
@@ -180,16 +178,13 @@ func GenerateECDSAPrivateKey() []byte {
 // The function then creates an ECDSA private key from the provided key.
 // Finally, it signs the hashed message using the created private key.
 // If all steps are successful, it returns the signature and no error.
-func SignIT(sender, addr, funcSig, ct, key []byte) ([]byte, error) {
+func SignIT(sender, addr, ct, key []byte) ([]byte, error) {
 	// Ensure all input sizes are the correct length
 	if len(sender) != AddressSize {
 		return nil, fmt.Errorf("Invalid sender address length: %d bytes, must be %d bytes", len(sender), AddressSize)
 	}
 	if len(addr) != AddressSize {
 		return nil, fmt.Errorf("Invalid contract address length: %d bytes, must be %d bytes", len(addr), AddressSize)
-	}
-	if len(funcSig) != FuncSigSize {
-		return nil, fmt.Errorf("Invalid signature size: %d bytes, must be %d bytes", len(funcSig), FuncSigSize)
 	}
 	if len(ct) != CtSize {
 		return nil, fmt.Errorf("Invalid ct length: %d bytes, must be %d bytes", len(ct), CtSize)
@@ -201,7 +196,6 @@ func SignIT(sender, addr, funcSig, ct, key []byte) ([]byte, error) {
 
 	// Create the message to be signed by appending all inputs
 	message := append(sender, addr...)
-	message = append(message, funcSig...)
 	message = append(message, ct...)
 
 	return Sign(message, key)
@@ -229,11 +223,10 @@ func Sign(message, key []byte) ([]byte, error) {
 	return signature, nil
 }
 
-func VerifyIT(sender, addr, funcSig, ct, signature []byte) bool {
+func VerifyIT(sender, addr, ct, signature []byte) bool {
 
 	// Create the message to be signed by appending all inputs
 	message := append(sender, addr...)
-	message = append(message, funcSig...)
 	message = append(message, ct...)
 
 	return RecoverPKAndVerifySignature(message, signature)
@@ -257,18 +250,14 @@ func RecoverPKAndVerifySignature(message, signature []byte) bool {
 // userAesKey: Aes key used to encrypt the plaintext
 // sender: The address of the sender
 // addr: The address of the contract
-// funcSig: The signature of the calling function
 // signingKey: The private key used for signing
 // The function encrypt the plaintext using the userAesKey
 // and then signs on the concatination of sender, addr, funcSig, and the ciphertext.
 // It returns the ciphertext, signature, and an error if any occurred.
-func prepareIT(plaintext uint64, userAesKey []byte, sender, contract common.Address, funcSig string, signingKey []byte) (*big.Int, []byte, error) {
+func prepareIT(plaintext uint64, userAesKey []byte, sender, contract common.Address, signingKey []byte) (*big.Int, []byte, error) {
 	// Get the bytes of the addresses
 	senderBytes := sender.Bytes()
 	contractBytes := contract.Bytes()
-
-	// Create the function signature
-	funcHash := GetFuncSig(funcSig)
 
 	// Encrypt the plaintext
 	plaintextBytes := make([]byte, Uint64BytesSize) // Create a slice of 8 bytes for 64 bits to hold the plaintext bytes
@@ -280,7 +269,7 @@ func prepareIT(plaintext uint64, userAesKey []byte, sender, contract common.Addr
 	ct := append(ciphertext, r...)
 
 	// Sign the message
-	signature, err := SignIT(senderBytes, contractBytes, funcHash, ct, signingKey)
+	signature, err := SignIT(senderBytes, contractBytes, ct, signingKey)
 	if err != nil {
 		return nil, nil, err
 	}

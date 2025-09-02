@@ -8,7 +8,6 @@ const EC = pkg.ec;
 
 export const BLOCK_SIZE = 16; // AES block size in bytes
 export const ADDRESS_SIZE = 20; // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
-export const FUNC_SIG_SIZE = 4;
 export const CT_SIZE = 32;
 export const KEY_SIZE = 32;
 export const HEX_BASE = 16;
@@ -124,16 +123,13 @@ export function generateECDSAPrivateKey(){
 
 }
 
-export function signIT(sender, addr, funcSig, ct, key, eip191=false) {
+export function signIT(sender, addr, ct, key, eip191=false) {
     // Ensure all input sizes are the correct length
     if (sender.length !== ADDRESS_SIZE) {
         throw new RangeError(`Invalid sender address length: ${sender.length} bytes, must be ${ADDRESS_SIZE} bytes`);
     }
     if (addr.length !== ADDRESS_SIZE) {
         throw new RangeError(`Invalid contract address length: ${addr.length} bytes, must be ${ADDRESS_SIZE} bytes`);
-    }
-    if (funcSig.length !== FUNC_SIG_SIZE) {
-        throw new RangeError(`Invalid signature size: ${funcSig.length} bytes, must be ${funcSigSize} bytes`);
     }
     if (ct.length !== CT_SIZE) {
         throw new RangeError(`Invalid ct length: ${ct.length} bytes, must be ${CT_SIZE} bytes`);
@@ -144,7 +140,7 @@ export function signIT(sender, addr, funcSig, ct, key, eip191=false) {
     }
 
     // Create the message to be signed by concatenating all inputs
-    let message = Buffer.concat([sender, addr, funcSig, ct]);
+    let message = Buffer.concat([sender, addr, ct]);
 
     // Concatenate r, s, and v bytes
     if (eip191) {
@@ -187,11 +183,10 @@ export function signEIP191(message, key) {
  * @param {string} signerAddress - The address of the signer (Ethereum address).
  * @param {string} aesKey - The AES key used for encryption (32 bytes as a hex string).
  * @param {string} contractAddress - The address of the contract (Ethereum address).
- * @param {string} functionSelector - The function selector (4 bytes as a hex string, e.g., '0x12345678').
  * @returns {Object} - An object containing the encrypted integer and the message.
  * @throws {TypeError} - Throws if any of the input parameters are of invalid types or have incorrect lengths.
  */
-export function prepareMessage(plaintext, signerAddress, aesKey, contractAddress, functionSelector) {
+export function prepareMessage(plaintext, signerAddress, aesKey, contractAddress) {
     // Validate signerAddress (Ethereum address)
     if (!ethers.isAddress(signerAddress)) {
         throw new TypeError("Invalid signer address");
@@ -207,11 +202,6 @@ export function prepareMessage(plaintext, signerAddress, aesKey, contractAddress
         throw new TypeError("Invalid contract address");
     }
 
-    // Validate functionSelector (4 bytes as hex string)
-    if (typeof functionSelector !== "string" || functionSelector.length !== 10 || !functionSelector.startsWith('0x')) {
-        throw new TypeError("Invalid function selector");
-    }
-
     // Convert the plaintext to bytes
     const plaintextBytes = Buffer.alloc(8); // Allocate a buffer of size 8 bytes
     plaintextBytes.writeBigUInt64BE(plaintext); // Write the uint64 value to the buffer as little-endian
@@ -222,8 +212,8 @@ export function prepareMessage(plaintext, signerAddress, aesKey, contractAddress
 
     // Create the packed message
     const message = ethers.solidityPacked(
-        ["address", "address", "bytes4", "uint256"],
-        [signerAddress, contractAddress, functionSelector, BigInt("0x" + ct.toString("hex"))],
+        ["address", "address", "uint256"],
+        [signerAddress, contractAddress, BigInt("0x" + ct.toString("hex"))],
     );
 
     // Convert the ciphertext to BigInt
@@ -232,7 +222,7 @@ export function prepareMessage(plaintext, signerAddress, aesKey, contractAddress
     return { encryptedInt, message };
 }
 
-export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191=false) {
+export function prepareIT(plaintext, userAesKey, sender, contract, signingKey, eip191=false) {
 
     // Get the bytes of the sender, contract, and function signature
     const senderBytes = toBuffer(sender)
@@ -247,7 +237,7 @@ export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, sig
     let ct = Buffer.concat([ciphertext, r]);
 
     // Sign the message
-    const signature = signIT(senderBytes, contractBytes, hashFunc, ct, signingKey, eip191);
+    const signature = signIT(senderBytes, contractBytes, ct, signingKey, eip191);
 
     // Convert the ciphertext to BigInt
     const ctInt = BigInt('0x' + ct.toString('hex'));

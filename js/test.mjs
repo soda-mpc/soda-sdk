@@ -11,7 +11,7 @@ import {
 
 import { writeAesKey, loadAesKey } from './utils.mjs';
 
-import { BLOCK_SIZE, ADDRESS_SIZE, FUNC_SIG_SIZE, HEX_BASE } from './crypto.mjs';
+import { BLOCK_SIZE, ADDRESS_SIZE, HEX_BASE } from './crypto.mjs';
 import fs from 'fs';
 import crypto from 'crypto';
 import ethereumjsUtil, {hashPersonalMessage} from 'ethereumjs-util';
@@ -143,7 +143,6 @@ describe('Crypto Tests', () => {
         // Simulate the generation of random bytes
         const sender = crypto.randomBytes(ADDRESS_SIZE);
         const addr = crypto.randomBytes(ADDRESS_SIZE);
-        const funcSig = crypto.randomBytes(FUNC_SIG_SIZE);
         let key = generateECDSAPrivateKey();
         
         // Create a ciphertext
@@ -155,7 +154,7 @@ describe('Crypto Tests', () => {
 
         // Act
         // Generate the signature
-        const signatureBytes = signIT(sender, addr, funcSig, ct, key);
+        const signatureBytes = signIT(sender, addr, ct, key);
 
         const {rBytes, sBytes, vByte} = extractSignatureComponents(signatureBytes);
 
@@ -173,7 +172,7 @@ describe('Crypto Tests', () => {
         const expectedPublicKey = ethereumjsUtil.privateToPublic(key);
         const expectedAddress = ethereumjsUtil.toChecksumAddress('0x' + expectedPublicKey.toString('hex'));
         
-        const message = Buffer.concat([sender, addr, funcSig, ct]);
+        const message = Buffer.concat([sender, addr, ct]);
         const hash = ethereumjsUtil.keccak256(message);
         
         // Recover the public key from the signature
@@ -194,7 +193,6 @@ describe('Crypto Tests', () => {
         // Simulate the generation of random bytes
         const sender = crypto.randomBytes(ADDRESS_SIZE);
         const addr = crypto.randomBytes(ADDRESS_SIZE);
-        const funcSig = crypto.randomBytes(FUNC_SIG_SIZE);
         let key = generateECDSAPrivateKey();
 
         // Create a ciphertext
@@ -206,7 +204,7 @@ describe('Crypto Tests', () => {
 
         // Act
         // Generate the signature
-        const signatureBytes = signIT(sender, addr, funcSig, ct, key, true);
+        const signatureBytes = signIT(sender, addr, ct, key, true);
 
         const {rBytes, sBytes, vByte} = extractSignatureComponents(signatureBytes);
 
@@ -214,7 +212,7 @@ describe('Crypto Tests', () => {
         const expectedPublicKey = ethereumjsUtil.privateToPublic(key);
         const expectedAddress = ethereumjsUtil.toChecksumAddress('0x' + expectedPublicKey.toString('hex'));
 
-        const message = Buffer.concat([sender, addr, funcSig, ct]);
+        const message = Buffer.concat([sender, addr, ct]);
         const hash = hashPersonalMessage(message);
 
         // Recover the public key from the signature
@@ -235,13 +233,12 @@ describe('Crypto Tests', () => {
         // Simulate the generation of random bytes
         const sender = Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex');
         const addr = Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex');
-        const funcSig = Buffer.from('dc85563d', 'hex');
         const ct = Buffer.from('f8765e191e03bf341c1422e0899d092674fc73beb624845199cd6e14b7895882', 'hex');
         const key = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
 
         // Act
         // Generate the signature
-        const signature = signIT(sender, addr, funcSig, ct, key);
+        const signature = signIT(sender, addr, ct, key);
 
         const filename = 'test_jsSignature.txt'; // Name of the file to write to
 
@@ -264,15 +261,13 @@ describe('Crypto Tests', () => {
         const userKey = 'b3c3fe73c1bb91862b166a29fe1d63e9';
         const senderAddress ='0x8f01160c98e5cdfa625197849c85cf5fc1f76b1b';
         const contractAddress = '0x69413851f025306dbe12c48ff2225016fc5bbe1b';
-        const funcSig = 'test(bytes)';
         const signingKey = '0x3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e';
 
         // Act
         // Generate the signature
-        const functionSelector = getFuncSig(funcSig);
         const {
             message
-        } = prepareMessage(plaintext, senderAddress, userKey, contractAddress, '0x' + functionSelector.toString('hex'));
+        } = prepareMessage(plaintext, senderAddress, userKey, contractAddress);
 
         const wallet = new ethers.Wallet(signingKey);
         const signature = await wallet.signMessage(message);
@@ -292,13 +287,11 @@ describe('Crypto Tests', () => {
         const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');
         const sender = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex')));
         const contract = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex')));
-        const funcSig = 'test(bytes)';
         const signingKey = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
 
         // Act
         // Generate the signature
-        const hash_func = getFuncSig(funcSig);
-        const {ctInt, signature} = prepareIT(plaintext, userKey, sender, contract, hash_func, signingKey);
+        const {ctInt, signature} = prepareIT(plaintext, userKey, sender, contract, signingKey);
 
         const ctHex = ctInt.toString(HEX_BASE);
         // Create a Buffer to hold the bytes
@@ -366,7 +359,7 @@ describe('Crypto Tests', () => {
     }
 
     // Test case for test rsa decryption scheme
-    it.skip('should decrypt a message using RSA scheme', () => {
+    it('should decrypt a message using RSA scheme', () => {
         // Arrange
         const plaintext = Buffer.from('hello world');
 
@@ -382,11 +375,11 @@ describe('Crypto Tests', () => {
 
                 // Assert
                 assert.deepStrictEqual(plaintext, decrypted);
+                fs.unlinkSync('test_jsRSAEncryption.txt');
             })
             .catch(error => {
                 console.error("Error reading file:", error);
         });
-        fs.unlinkSync('test_jsRSAEncryption.txt');
     });
 
     // Test case for test function signature
