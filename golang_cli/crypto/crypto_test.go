@@ -355,7 +355,7 @@ func readTwoHexStringsFromFile(path string) ([]byte, []byte, error) {
 	hexStrings := bytes.Split(data, []byte("\n"))
 
 	// Convert the hex strings to bytes
-	if len(hexStrings) != 2 {
+	if len(hexStrings) < 2 {
 		return nil, nil, fmt.Errorf("Expected two hex strings in the file")
 	}
 
