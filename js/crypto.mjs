@@ -95,7 +95,7 @@ export function decrypt(key, r, ciphertext, r2=null, ciphertext2=null) {
         const encryptedR2 = encryptNumber(r2, key)
 
         // XOR the encrypted random value 'r' with the ciphertext to obtain the plaintext
-        const plaintext2 = Buffer.alloc(encryptedR2.length);
+        const plaintext2 = Buffer.alloc(BLOCK_SIZE);
         for (let i = 0; i < encryptedR2.length; i++) {
             plaintext2[i] = encryptedR2[i] ^ ciphertext2[i];
         }

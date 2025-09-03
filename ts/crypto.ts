@@ -98,7 +98,7 @@ export function decrypt(key: Uint8Array, r: Uint8Array, ciphertext: Uint8Array, 
         const encryptedR2 = aesEcbEncrypt(r2, key);
 
         // XOR the encrypted random value 'r' with the ciphertext to obtain the plaintext
-        const plaintext2 = new Uint8Array(encryptedR2.length);
+        const plaintext2 = new Uint8Array(BLOCK_SIZE);
         for (let i = 0; i < encryptedR2.length; i++) {
             plaintext2[i] = encryptedR2[i] ^ ciphertext2[i];
         }
@@ -302,7 +302,7 @@ export function prepareIT(
   signingKey:Buffer,
   eip191 = false
 ):{ctInt:bigint, signature:Buffer} {
-    // Get the bytes of the sender, contract, and function signature
+    // Get the bytes of the sender, contract
     // todo: check if sender and contract are already in bytes
     const senderBytes = sender;
     const contractBytes = contract;
@@ -342,10 +342,7 @@ export function prepareIT(
  */
 export function prepareIT256(plaintext:bigint, userAesKey:Buffer, sender:Buffer, contract:Buffer, signingKey:Buffer, eip191=false) {
 
-    // Get the bytes of the sender, contract, and function signature
-    const senderBytes = toBuffer(sender)
-    const contractBytes = toBuffer(contract)
-
+    // todo: check if sender and contract are already in bytes (as in regular prepareIT)
     // Convert the plaintext to bytes
     const plaintextBigInt = BigInt(plaintext);
     const bitSize = plaintextBigInt.toString(2).length;
@@ -387,7 +384,7 @@ export function prepareIT256(plaintext:bigint, userAesKey:Buffer, sender:Buffer,
     }
 
     // Sign the message
-    const signature = signIT(senderBytes, contractBytes, ct, signingKey, eip191);
+    const signature = signIT(sender, contract, ct, signingKey, eip191);
 
     const ciphertextHigh = ct.slice(0, CT_SIZE);
     const ciphertextLow = ct.slice(CT_SIZE);
