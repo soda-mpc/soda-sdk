@@ -175,11 +175,11 @@ func TestSignature(t *testing.T) {
 	// Arrange
 	sender := make([]byte, AddressSize)
 	_, err := rand.Read(sender)
+	require.NoError(t, err, "Failed to generate random key")
 	addr := make([]byte, AddressSize)
 	_, err = rand.Read(addr)
-
+	require.NoError(t, err, "Failed to generate random address")
 	key := GenerateECDSAPrivateKey()
-	require.NoError(t, err, "Failed to generate random key")
 
 	// Create plaintext with the value 100 as a big integer with less than 128 bits
 	plaintextValue := big.NewInt(100)
@@ -296,17 +296,21 @@ func TestIT(t *testing.T) {
 	// Reading from file simulates the communication between the evm (golang) and the user (python/js)
 	pythonCt, pythonSignature, err := readTwoHexStringsFromFile("../../python/soda_python_sdk/test_pythonIT.txt")
 	require.NoError(t, err, "Read file should not return an error")
-	checkIT(t, plaintextBytes, userKey, contract.Bytes(), ct.Bytes(), pythonCt, pythonSignature)
+	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), pythonCt, pythonSignature)
 	err = os.Remove("../../python/soda_python_sdk/test_pythonIT.txt")
+	require.NoError(t, err, "Delete file should not return an error")
 
 	jsCt, jsSignature, err := readTwoHexStringsFromFile("../../js/test_jsIT.txt")
-	tsCt, tsSignature, err := readTwoHexStringsFromFile("../../ts/test_tsIT.txt")
-
 	require.NoError(t, err, "Read file should not return an error")
-	checkIT(t, plaintextBytes, userKey, contract.Bytes(), ct.Bytes(), jsCt, jsSignature)
-	checkIT(t, plaintextBytes, userKey, contract.Bytes(), ct.Bytes(), tsCt, tsSignature)
+	tsCt, tsSignature, err := readTwoHexStringsFromFile("../../ts/test_tsIT.txt")
+	require.NoError(t, err, "Read file should not return an error")
+
+	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), jsCt, jsSignature)
+	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), tsCt, tsSignature)
 	err = os.Remove("../../js/test_jsIT.txt")
+	require.NoError(t, err, "Delete file should not return an error")
 	err = os.Remove("../../ts/test_tsIT.txt")
+	require.NoError(t, err, "Delete file should not return an error")
 }
 
 func checkIT(t *testing.T, plaintext, userKey, sender, addr, ct, signature []byte) {
@@ -355,7 +359,7 @@ func readTwoHexStringsFromFile(path string) ([]byte, []byte, error) {
 	hexStrings := bytes.Split(data, []byte("\n"))
 
 	// Convert the hex strings to bytes
-	if len(hexStrings) != 2 {
+	if len(hexStrings) < 2 {
 		return nil, nil, fmt.Errorf("Expected two hex strings in the file")
 	}
 
@@ -440,6 +444,7 @@ func checkFunctionSignature(t *testing.T, filePath string, expected []byte) {
 	require.NoError(t, err, "Read python value should not return an error")
 	assert.Equal(t, expected, val, "hashed values should match")
 	err = os.Remove(filePath)
+	require.NoError(t, err, "Delete file should not return an error")
 }
 
 func TestGetFuncSig(t *testing.T) {

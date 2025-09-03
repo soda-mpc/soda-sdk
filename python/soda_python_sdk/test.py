@@ -2,7 +2,7 @@ import unittest
 import tempfile
 import os
 from Crypto.Random import get_random_bytes
-from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key
+from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key, prepare_IT_256
 from crypto import BLOCK_SIZE, ADDRESS_SIZE, FUNC_SIG_SIZE
 from eth_keys import keys
 from web3 import Account
@@ -246,6 +246,29 @@ class TestMpcHelper(unittest.TestCase):
         self.assertEqual(verified, True)
 
         decrypted = decrypt(userKey, ctBytes[BLOCK_SIZE:], ctBytes[:BLOCK_SIZE])
+        decrypted_integer = int.from_bytes(decrypted, 'big')
+        self.assertEqual(plaintext, decrypted_integer)
+
+    def test_prepareIT_256(self):
+        # Arrange
+        plaintext = 1809251394333065553493296640760748560207343510400633813116524750123642650623
+        userKey = bytes.fromhex("b3c3fe73c1bb91862b166a29fe1d63e9")
+        # Create an account object manually
+        sender = Account()
+        sender.address = "0xd67fe7792f18fbd663e29818334a050240887c28"
+        contract = Account()
+        contract.address = "0x69413851f025306dbe12c48ff2225016fc5bbe1b"
+        signingKey = bytes.fromhex("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
+
+        # Act
+        # Call the sign function
+        (ct, _) = prepare_IT_256(plaintext, userKey, sender, contract, signingKey)
+        ctHigh, ctLow = ct
+        # Convert the integer to a byte slice with size aligned to 8.
+        ct1Bytes = ctHigh.to_bytes((ctHigh.bit_length() + 7) // 8, 'big')
+        ct2Bytes = ctLow.to_bytes((ctLow.bit_length() + 7) // 8, 'big')
+
+        decrypted = decrypt(userKey, ct1Bytes[BLOCK_SIZE:2*BLOCK_SIZE], ct1Bytes[:BLOCK_SIZE], ct2Bytes[BLOCK_SIZE:2*BLOCK_SIZE], ct2Bytes[:BLOCK_SIZE])
         decrypted_integer = int.from_bytes(decrypted, 'big')
         self.assertEqual(plaintext, decrypted_integer)
 
