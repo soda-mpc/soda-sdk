@@ -222,7 +222,7 @@ export function prepareMessage(
   message: string
 } {
     // Validate signerAddress (Ethereum address)
-    if (!ethers.isAddress(signerAddress)) {
+    if (typeof signerAddress !== "string" || !ethers.isAddress(signerAddress)) {
         throw new TypeError("Invalid signer address");
     }
 
@@ -232,7 +232,7 @@ export function prepareMessage(
     }
 
     // Validate contractAddress (Ethereum address)
-    if (typeof contractAddress !== "string" || !ethers.isAddress(signerAddress)) {
+    if (typeof contractAddress !== "string" || !ethers.isAddress(contractAddress)) {
         throw new TypeError("Invalid contract address");
     }
 

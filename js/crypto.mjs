@@ -221,7 +221,7 @@ export function signEIP191(message, key) {
  */
 export function prepareMessage(plaintext, signerAddress, aesKey, contractAddress) {
     // Validate signerAddress (Ethereum address)
-    if (!ethers.isAddress(signerAddress)) {
+    if (typeof signerAddress !== "string" || !ethers.isAddress(signerAddress)) {
         throw new TypeError("Invalid signer address");
     }
 
@@ -231,7 +231,7 @@ export function prepareMessage(plaintext, signerAddress, aesKey, contractAddress
     }
 
     // Validate contractAddress (Ethereum address)
-    if (typeof contractAddress !== "string" || !ethers.isAddress(signerAddress)) {
+    if (typeof contractAddress !== "string" || !ethers.isAddress(contractAddress)) {
         throw new TypeError("Invalid contract address");
     }
 
