@@ -39,7 +39,7 @@ jobs:
       - name: TypeScript tests
         working-directory: ./ts
         run: |
-          npx jest
+          npx jest --testNamePattern="^(?!.*should decrypt a message using RSA scheme).*$"
 
       - name: Python tests
         working-directory: ./python/soda_python_sdk
@@ -60,6 +60,11 @@ jobs:
         working-directory: ./js
         run: |
           npx mocha --grep "should decrypt a message using RSA scheme" test.mjs
+
+      - name: TypeScript decrypt test
+        working-directory: ./ts
+        run: |
+          npx jest -t "should decrypt a message using RSA scheme"
 
       - name: Python decrypt test
         working-directory: ./python/soda_python_sdk
