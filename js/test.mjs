@@ -296,8 +296,7 @@ describe('Crypto Tests', () => {
         const {ctInt, signature} = prepareIT(plaintext, userKey, sender, contract, signingKey);
 
         const ctHex = ctInt.toString(HEX_BASE);
-
-        console.log("signature:", ctHex);
+        
         // Create a Buffer to hold the bytes
         const ctBuffer = Buffer.from(ctHex, 'hex'); 
 
