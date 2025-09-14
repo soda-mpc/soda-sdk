@@ -5,7 +5,7 @@ import {
     encrypt, encryptRSA,
     FUNC_SIG_SIZE,
     generateAesKey,
-    generateECDSAPrivateKey, generateRSAKeyPair, getFuncSig, HEX_BASE, prepareIT, prepareMessage, signIT
+    generateECDSAPrivateKey, generateRSAKeyPair, getFuncSig, HEX_BASE, prepareIT, prepareMessage, signIT, prepareIT256, writeBigUInt256BE, CT_SIZE
 } from "./crypto"
 import fs from 'fs';
 import crypto from 'crypto';
@@ -326,6 +326,39 @@ describe('Crypto Tests', () => {
         assert.deepStrictEqual(plaintext, intResult);
     });
 
+    // Test case for verify signature
+    it('should prepare IT 256 bits using fixed data', () => {
+        // Arrange
+        // Simulate the generation of random bytes
+        const plaintext = BigInt("34028236692093846346337460743176821145600");
+        const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');;
+        const sender = new Address(toBuffer(Buffer.from('8f01160c98e5cdfa625197849c85cf5fc1f76b1b', 'hex')));
+        const contract = new Address(toBuffer(Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex')));
+        const funcSig = 'test(bytes)';
+        const signingKey = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
+
+        // Act
+        // Generate the signature
+        const hash_func = getFuncSig(funcSig);
+        const {ciphertext, signature} = prepareIT256(plaintext, userKey, sender.toBuffer(), contract.toBuffer(), hash_func, signingKey);
+
+        const ctHighBytes = Buffer.alloc(CT_SIZE); // Allocate a buffer of size 32 bytes
+        writeBigUInt256BE(ctHighBytes, ciphertext.ciphertextHigh); // Write the uint256 value to the buffer as big-endian
+        const ctLowBytes = Buffer.alloc(CT_SIZE); // Allocate a buffer of size 32 bytes
+        writeBigUInt256BE(ctLowBytes, ciphertext.ciphertextLow); // Write the uint256 value to the buffer as big-endian
+        // Decrypt the ct and check the decrypted value is equal to the plaintext
+        const decryptedBuffer = decrypt(userKey, ctHighBytes.subarray(BLOCK_SIZE, ctHighBytes.length), ctHighBytes.subarray(0, BLOCK_SIZE), ctLowBytes.subarray(BLOCK_SIZE, ctLowBytes.length), ctLowBytes.subarray(0, BLOCK_SIZE));
+
+        // Convert the plaintext to bytes
+        const hexString = plaintext.toString(16).padStart(64, '0');
+        const plaintextBytes = Buffer.from(hexString, 'hex'); 
+
+        // Assert
+        const expectedBytes = decryptedBuffer.subarray(decryptedBuffer.length - plaintextBytes.length, decryptedBuffer.length)
+        assert.deepStrictEqual(plaintextBytes.toString('hex'), Buffer.from(expectedBytes).toString('hex'));
+        const intResult = uint8ArrayToBigInt(decryptedBuffer);
+        assert.deepStrictEqual(plaintext, intResult);
+    });
 
     // Test case for test rsa encryption scheme
     it('should encrypt and decrypt a message using RSA scheme', () => {
