@@ -1,7 +1,9 @@
 package crypto
 
 import (
+	"bytes"
 	"crypto/aes"
+	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -157,14 +159,25 @@ func GenerateAESKey() ([]byte, error) {
 	return key, nil
 }
 
-func GenerateECDSAPrivateKey() []byte {
+func GenerateECDSAPrivateKeyAndAddress() ([]byte, []byte) {
 	// Generate a new private key
 	privateKey, err := ethcrypto.GenerateKey()
 	if err != nil {
 		fmt.Println("Error generating private key:", err)
 	}
+
+	// Get the public key
+	pubKey := privateKey.Public()                // returns crypto.PublicKey (interface)
+	pubKeyECDSA, ok := pubKey.(*ecdsa.PublicKey) // type assertion
+	if !ok {
+		fmt.Println("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+	}
+	address := ethcrypto.PubkeyToAddress(*pubKeyECDSA)
+
+	addressBytes := address.Bytes()
+
 	// Convert the private key to raw bytes
-	return ethcrypto.FromECDSA(privateKey)
+	return ethcrypto.FromECDSA(privateKey), addressBytes
 }
 
 // Sign is a function that signes an hashed message using ECDSA. It takes in six parameters:
@@ -236,16 +249,27 @@ func VerifyIT(sender, addr, funcSig, ct, signature []byte) bool {
 	message = append(message, funcSig...)
 	message = append(message, ct...)
 
-	return RecoverPKAndVerifySignature(message, signature)
+	return RecoverPKAndVerifySignature(sender, message, signature)
 }
 
-func RecoverPKAndVerifySignature(message, signature []byte) bool {
+func RecoverPKAndVerifySignature(userAddress, message, signature []byte) bool {
 	// Hash the concatenated message using Keccak-256
 	hash := ethcrypto.Keccak256(message)
 
 	pubkey, err := ethcrypto.Ecrecover(hash, signature)
 	if err != nil {
 		fmt.Println("Error parsing public key:", err)
+	}
+
+	// Use the public key to generate a Keccak-256 hash
+	pubKeyHash := ethcrypto.Keccak256(pubkey[1:]) // omit the 0x04 prefix byte
+
+	// The Ethereum address is the last 20 bytes of the Keccak-256 hash
+	if !bytes.Equal(pubKeyHash[12:], userAddress) {
+		fmt.Println("address in the signature is not the same as the given address")
+		fmt.Println("Address in the signature:", pubKeyHash[12:])
+		fmt.Println("Given address:", userAddress)
+		return false
 	}
 
 	return ethcrypto.VerifySignature(pubkey, hash, signature[:64])
