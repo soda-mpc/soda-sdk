@@ -11,8 +11,13 @@ npx mocha --fgrep "should decrypt a message using RSA scheme" --invert test.mjs
 cd ..
 
 print_blue "Running python tests..."
-cd python
+cd python/soda_python_sdk || exit
 python3 -m unittest -v test.py -k "TestMpcHelper"
+cd ../..
+
+print_blue "Running ts tests..."
+cd ts || exit
+npx jest --testNamePattern="^(?!.*should decrypt a message using RSA scheme).*$"
 cd ..
 
 print_blue "Running golang tests..."
@@ -26,7 +31,12 @@ cd js
 npx mocha --grep "should decrypt a message using RSA scheme" test.mjs
 cd ..
 
-print_blue "Running python decrypt test..."
-cd python
-python3 -m unittest -v test.py -k "TestDecrypt"
+print_blue "Running ts decrypt test..."
+cd ts
+npx jest -t "should decrypt a message using RSA scheme"
 cd ..
+
+print_blue "Running python decrypt test..."
+cd python/soda_python_sdk || exit
+python3 -m unittest -v test.py -k "TestDecrypt"
+cd ../..

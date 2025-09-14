@@ -17,7 +17,6 @@ The SDK provides all functionalities in three common widely used languages - Gol
 - [JavaScript](#javascript)
     - [Prerequisites](#prerequisites-2)
     - [Usage](#usage-2)
-- [Running tests](#running-tests)
 - [Golang CLI](#golang-cli-tool-for-a-random-aes-encryption-and-decryption)
     - [Usage](#usage-3)
     - [Options](#options)
@@ -29,9 +28,7 @@ The SDK support provide the following functionalities:
 
 * AES encryption scheme:
 
-    * Generate AES key  
-    * Write AES key
-    * Load AES key
+    * Generate AES key
     * Encrypt
     * Decrypt
 
@@ -235,7 +232,7 @@ In order to use the functionalities of JavaScript SDK, first import the modules 
 for example:
 
 ```bash 
-import { encrypt } from './crypto.js';
+import { encrypt } from './crypto.mjs';
 ```
 
 Below is an example of RSA encryption scheme. The code can be found in the test.mjs file, lets break it down:
