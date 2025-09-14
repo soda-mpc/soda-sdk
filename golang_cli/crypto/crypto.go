@@ -1,7 +1,9 @@
 package crypto
 
 import (
+	"bytes"
 	"crypto/aes"
+	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -50,7 +52,7 @@ func Encrypt(key, plaintext []byte) ([]byte, []byte, error) {
 	// Use crypto/rand for cryptographically secure random number generation
 	_, err = rand.Read(r)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to generate random value 'r': %v", err)
+		return nil, nil, fmt.Errorf("failed to generate random value 'r': %v", err)
 	}
 
 	// Create a temporary buffer to hold the encrypted random value 'r'
@@ -77,17 +79,17 @@ func Decrypt(key, r, ct []byte) ([]byte, error) {
 	// Create a new AES cipher block using the provided key
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create AES cipher block: %v", err)
+		return nil, fmt.Errorf("failed to create AES cipher block: %v", err)
 	}
 
 	// Check that the random value 'r' is exactly the block size
 	if len(r) != aes.BlockSize {
-		return nil, fmt.Errorf("Random value 'r' must be exactly %d bytes", aes.BlockSize)
+		return nil, fmt.Errorf("random value 'r' must be exactly %d bytes", aes.BlockSize)
 	}
 
 	// Check that the ciphertext 'ct' is a multiple of the block size
 	if len(ct)%aes.BlockSize != 0 {
-		return nil, fmt.Errorf("Ciphertext 'ct' must be a multiple of the block size")
+		return nil, fmt.Errorf("ciphertext 'ct' must be a multiple of the block size")
 	}
 
 	// Create a temporary buffer to hold the encrypted random value 'r'
@@ -110,18 +112,18 @@ func LoadAESKey(filePath string) ([]byte, error) {
 	// Read the hex-encoded contents of the file
 	hexKey, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read key file: %v", err)
+		return nil, fmt.Errorf("failed to read key file: %v", err)
 	}
 
 	// Decode the hex string to binary
 	key, err := hex.DecodeString(string(hexKey))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to decode hex key: %v", err)
+		return nil, fmt.Errorf("failed to decode hex key: %v", err)
 	}
 
 	// Ensure the key is the correct length
 	if len(key) != aes.BlockSize {
-		return nil, fmt.Errorf("Invalid key length: %d bytes, must be %d bytes", len(key), aes.BlockSize)
+		return nil, fmt.Errorf("invalid key length: %d bytes, must be %d bytes", len(key), aes.BlockSize)
 	}
 
 	return key, nil
@@ -131,7 +133,7 @@ func LoadAESKey(filePath string) ([]byte, error) {
 func WriteAESKey(filePath string, key []byte) error {
 	// Ensure the key is the correct length
 	if len(key) != aes.BlockSize {
-		return fmt.Errorf("Invalid key length: %d bytes, must be %d bytes", len(key), aes.BlockSize)
+		return fmt.Errorf("invalid key length: %d bytes, must be %d bytes", len(key), aes.BlockSize)
 	}
 
 	// Encode the key to hex string
@@ -139,7 +141,7 @@ func WriteAESKey(filePath string, key []byte) error {
 
 	// Write the hex-encoded key to the file
 	if err := os.WriteFile(filePath, []byte(hexKey), 0644); err != nil {
-		return fmt.Errorf("Failed to write key to file: %v", err)
+		return fmt.Errorf("failed to write key to file: %v", err)
 	}
 
 	return nil
@@ -150,20 +152,31 @@ func GenerateAESKey() ([]byte, error) {
 	// Generate a random 128-bit AES key
 	key := make([]byte, aes.BlockSize)
 	if _, err := rand.Read(key); err != nil {
-		return nil, fmt.Errorf("Failed to generate AES key: %v", err)
+		return nil, fmt.Errorf("failed to generate AES key: %v", err)
 	}
 
 	return key, nil
 }
 
-func GenerateECDSAPrivateKey() []byte {
+func GenerateECDSAPrivateKeyAndAddress() ([]byte, []byte) {
 	// Generate a new private key
 	privateKey, err := ethcrypto.GenerateKey()
 	if err != nil {
 		fmt.Println("Error generating private key:", err)
 	}
+
+	// Get the public key
+	pubKey := privateKey.Public()                // returns crypto.PublicKey (interface)
+	pubKeyECDSA, ok := pubKey.(*ecdsa.PublicKey) // type assertion
+	if !ok {
+		fmt.Println("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+	}
+	address := ethcrypto.PubkeyToAddress(*pubKeyECDSA)
+
+	addressBytes := address.Bytes()
+
 	// Convert the private key to raw bytes
-	return ethcrypto.FromECDSA(privateKey)
+	return ethcrypto.FromECDSA(privateKey), addressBytes
 }
 
 // Sign is a function that signes an hashed message using ECDSA. It takes in six parameters:
@@ -181,17 +194,17 @@ func GenerateECDSAPrivateKey() []byte {
 func SignIT(sender, addr, ct, key []byte) ([]byte, error) {
 	// Ensure all input sizes are the correct length
 	if len(sender) != AddressSize {
-		return nil, fmt.Errorf("Invalid sender address length: %d bytes, must be %d bytes", len(sender), AddressSize)
+		return nil, fmt.Errorf("invalid sender address length: %d bytes, must be %d bytes", len(sender), AddressSize)
 	}
 	if len(addr) != AddressSize {
-		return nil, fmt.Errorf("Invalid contract address length: %d bytes, must be %d bytes", len(addr), AddressSize)
+		return nil, fmt.Errorf("invalid contract address length: %d bytes, must be %d bytes", len(addr), AddressSize)
 	}
 	if len(ct) != CtSize {
-		return nil, fmt.Errorf("Invalid ct length: %d bytes, must be %d bytes", len(ct), CtSize)
+		return nil, fmt.Errorf("invalid ct length: %d bytes, must be %d bytes", len(ct), CtSize)
 	}
 	// Ensure the key is the correct length
 	if len(key) != KeySize {
-		return nil, fmt.Errorf("Invalid key length: %d bytes, must be %d bytes", len(key), KeySize)
+		return nil, fmt.Errorf("invalid key length: %d bytes, must be %d bytes", len(key), KeySize)
 	}
 
 	// Create the message to be signed by appending all inputs
@@ -208,7 +221,7 @@ func Sign(message, key []byte) ([]byte, error) {
 	// Create an ECDSA private key from raw bytes
 	privateKey, err := ethcrypto.ToECDSA(key)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create ECDSA private key: %v", err)
+		return nil, fmt.Errorf("failed to create ECDSA private key: %v", err)
 	}
 
 	// Hash the concatenated message using Keccak-256
@@ -217,7 +230,7 @@ func Sign(message, key []byte) ([]byte, error) {
 	// Sign the message
 	signature, err := ethcrypto.Sign(hash, privateKey)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to sign message: %v", err)
+		return nil, fmt.Errorf("failed to sign message: %v", err)
 	}
 
 	return signature, nil
@@ -229,16 +242,27 @@ func VerifyIT(sender, addr, ct, signature []byte) bool {
 	message := append(sender, addr...)
 	message = append(message, ct...)
 
-	return RecoverPKAndVerifySignature(message, signature)
+	return RecoverPKAndVerifySignature(sender, message, signature)
 }
 
-func RecoverPKAndVerifySignature(message, signature []byte) bool {
+func RecoverPKAndVerifySignature(userAddress, message, signature []byte) bool {
 	// Hash the concatenated message using Keccak-256
 	hash := ethcrypto.Keccak256(message)
 
 	pubkey, err := ethcrypto.Ecrecover(hash, signature)
 	if err != nil {
 		fmt.Println("Error parsing public key:", err)
+	}
+
+	// Use the public key to generate a Keccak-256 hash
+	pubKeyHash := ethcrypto.Keccak256(pubkey[1:]) // omit the 0x04 prefix byte
+
+	// The Ethereum address is the last 20 bytes of the Keccak-256 hash
+	if !bytes.Equal(pubKeyHash[12:], userAddress) {
+		fmt.Println("address in the signature is not the same as the given address")
+		fmt.Println("Address in the signature:", pubKeyHash[12:])
+		fmt.Println("Given address:", userAddress)
+		return false
 	}
 
 	return ethcrypto.VerifySignature(pubkey, hash, signature[:64])
