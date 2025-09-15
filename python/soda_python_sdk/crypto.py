@@ -189,7 +189,7 @@ def prepare_IT(plaintext, user_aes_key, sender, contract, func_sig, signing_key,
 def prepare_IT_256(plaintext, user_aes_key, sender, contract, func_sig, signing_key, eip191=False):
 
     if (plaintext.bit_length() > MAX_PLAINTEXT_BIT_SIZE):
-        raise ValueError("Plaintext size must be between 128 and 256 bits.")
+        raise ValueError("Plaintext size must be 256 bits or smaller.")
 
     # Create the function signature
     func_hash = get_func_sig(func_sig)
@@ -197,7 +197,7 @@ def prepare_IT_256(plaintext, user_aes_key, sender, contract, func_sig, signing_
     ct, signature =  inner_prepare_IT(plaintext, user_aes_key, sender, contract, func_hash, signing_key, eip191, True)
 
     # Convert integer back to bytes to check length
-    ct_bytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
+    ct_bytes = ct.to_bytes(CT_SIZE * 2, 'big')
     ctHigh = ct_bytes[:CT_SIZE]
     ctLow = ct_bytes[CT_SIZE:]
     # Convert the ct into two integers
