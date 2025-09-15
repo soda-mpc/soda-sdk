@@ -300,16 +300,21 @@ func TestIT(t *testing.T) {
 	pythonCt, pythonSignature, err := readTwoHexStringsFromFile("../../python/soda_python_sdk/test_pythonIT.txt")
 	require.NoError(t, err, "Read file should not return an error")
 	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), GetFuncSig(funcSig), pythonCt, pythonSignature)
-	err = os.Remove("../../python/test_pythonIT.txt")
+	err = os.Remove("../../python/soda_python_sdk/test_pythonIT.txt")
+	require.NoError(t, err, "Delete file should not return an error")
 
 	jsCt, jsSignature, err := readTwoHexStringsFromFile("../../js/test_jsIT.txt")
+	require.NoError(t, err, "Read file should not return an error")
 	tsCt, tsSignature, err := readTwoHexStringsFromFile("../../ts/test_tsIT.txt")
+	require.NoError(t, err, "Read file should not return an error")
 
 	require.NoError(t, err, "Read file should not return an error")
 	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), GetFuncSig(funcSig), jsCt, jsSignature)
 	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), GetFuncSig(funcSig), tsCt, tsSignature)
 	err = os.Remove("../../js/test_jsIT.txt")
+	require.NoError(t, err, "Delete file should not return an error")
 	err = os.Remove("../../ts/test_tsIT.txt")
+	require.NoError(t, err, "Delete file should not return an error")
 }
 
 func checkIT(t *testing.T, plaintext, userKey, sender, addr, funcSig, ct, signature []byte) {
@@ -443,6 +448,7 @@ func checkFunctionSignature(t *testing.T, filePath string, expected []byte) {
 	require.NoError(t, err, "Read python value should not return an error")
 	assert.Equal(t, expected, val, "hashed values should match")
 	err = os.Remove(filePath)
+	require.NoError(t, err, "Delete file should not return an error")
 }
 
 func TestGetFuncSig(t *testing.T) {
@@ -456,6 +462,9 @@ func TestGetFuncSig(t *testing.T) {
 
 	// Check that the js hashed value matches the Golang hashed value
 	filePath = "../../js/test_jsFunctionKeccak.txt"
+	checkFunctionSignature(t, filePath, hash)
+
+	filePath = "../../ts/test_tsFunctionKeccak.txt"
 	checkFunctionSignature(t, filePath, hash)
 
 }

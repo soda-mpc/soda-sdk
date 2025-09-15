@@ -414,11 +414,11 @@ describe('Crypto Tests', () => {
 
                 // Assert
                 assert.deepStrictEqual(plaintext, decrypted);
+                fs.unlinkSync('test_jsRSAEncryption.txt');
             })
             .catch(error => {
                 console.error("Error reading file:", error);
         });
-        fs.unlinkSync('test_jsRSAEncryption.txt');
     });
 
     // Test case for test function signature
