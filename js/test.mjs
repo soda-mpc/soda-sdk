@@ -301,9 +301,9 @@ describe('Crypto Tests', () => {
         const hash_func = getFuncSig(funcSig);
         const {ctInt, signature} = prepareIT(plaintext, userKey, sender, contract, hash_func, signingKey);
 
-        const ctHex = ctInt.toString(HEX_BASE);
+        const ctHex = ctInt.toString(HEX_BASE).padStart(CT_SIZE * 2, '0');
         // Create a Buffer to hold the bytes
-        const ctBuffer = Buffer.from(ctHex, 'hex').padStart(CT_SIZE, '0'); 
+        const ctBuffer = Buffer.from(ctHex, 'hex'); 
         
         // Write Buffer to file to later check in Go
         fs.writeFileSync("test_jsIT.txt", ctHex + "\n" + signature.toString('hex'));
