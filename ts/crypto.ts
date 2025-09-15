@@ -315,7 +315,7 @@ export function prepareIT(
     }
 
     const plaintextBytes = Buffer.alloc(BLOCK_SIZE); // Allocate a buffer of size 16 bytes
-    writeBigUInt128BE(plaintextBytes, plaintextBigInt); // Write the uint128 value to the buffer as big-endiandian
+    writeBigUInt128BE(plaintextBytes, plaintextBigInt); // Write the uint128 value to the buffer as big-endian
 
     // Encrypt the plaintext using AES key
     const { ciphertext, r } = encrypt(userAesKey, plaintextBytes);

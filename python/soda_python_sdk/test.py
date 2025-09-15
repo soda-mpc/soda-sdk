@@ -185,9 +185,9 @@ class TestMpcHelper(unittest.TestCase):
 
     def test_fixedMSG_Signature(self):
         # Arrange
-        sender = bytes.fromhex("d67fe7792f18fbd663e29818334a050240887c28")
+        sender = bytes.fromhex("8f01160c98e5cdfa625197849c85cf5fc1f76b1b")
         addr = bytes.fromhex("69413851f025306dbe12c48ff2225016fc5bbe1b")
-        ct = bytes.fromhex("f8765e191e03bf341c1422e0899d092674fc73beb624845199cd6e14b7895882")
+        ct = bytes.fromhex("81ff8a56f19f4ffd576e57a01f3c0f256de80517a4e4385470d1c33fe7804fe7")
         key = bytes.fromhex("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
 
         # Act
@@ -214,7 +214,7 @@ class TestMpcHelper(unittest.TestCase):
         userKey = bytes.fromhex("b3c3fe73c1bb91862b166a29fe1d63e9")
         # Create an account object manually
         sender = Account()
-        sender.address = "0xd67fe7792f18fbd663e29818334a050240887c28"
+        sender.address = "0x8f01160c98e5cdfa625197849c85cf5fc1f76b1b"
         contract = Account()
         contract.address = "0x69413851f025306dbe12c48ff2225016fc5bbe1b"
         signingKey = bytes.fromhex("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
@@ -255,7 +255,7 @@ class TestMpcHelper(unittest.TestCase):
         userKey = bytes.fromhex("b3c3fe73c1bb91862b166a29fe1d63e9")
         # Create an account object manually
         sender = Account()
-        sender.address = "0xd67fe7792f18fbd663e29818334a050240887c28"
+        sender.address = "0x8f01160c98e5cdfa625197849c85cf5fc1f76b1b"
         contract = Account()
         contract.address = "0x69413851f025306dbe12c48ff2225016fc5bbe1b"
         signingKey = bytes.fromhex("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
