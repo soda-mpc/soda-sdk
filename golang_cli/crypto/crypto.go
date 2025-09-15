@@ -259,6 +259,7 @@ func RecoverPKAndVerifySignature(userAddress, message, signature []byte) bool {
 	pubkey, err := ethcrypto.Ecrecover(hash, signature)
 	if err != nil {
 		fmt.Println("Error parsing public key:", err)
+		return false
 	}
 
 	// Use the public key to generate a Keccak-256 hash
