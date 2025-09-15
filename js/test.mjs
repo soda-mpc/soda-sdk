@@ -303,7 +303,7 @@ describe('Crypto Tests', () => {
 
         const ctHex = ctInt.toString(HEX_BASE);
         // Create a Buffer to hold the bytes
-        const ctBuffer = Buffer.from(ctHex, 'hex'); 
+        const ctBuffer = Buffer.from(ctHex, 'hex').padStart(CT_SIZE, '0'); 
         
         // Write Buffer to file to later check in Go
         fs.writeFileSync("test_jsIT.txt", ctHex + "\n" + signature.toString('hex'));
