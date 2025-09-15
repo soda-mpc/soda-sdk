@@ -5,7 +5,7 @@ import {
     encrypt, encryptRSA,
     FUNC_SIG_SIZE,
     generateAesKey,
-    generateECDSAPrivateKey, generateRSAKeyPair, getFuncSig, HEX_BASE, prepareIT, prepareMessage, signIT
+    generateECDSAPrivateKey, generateRSAKeyPair, getFuncSig, HEX_BASE, prepareIT, prepareMessage, signIT, prepareIT256, writeBigUInt256BE, CT_SIZE
 } from "./crypto"
 import fs from 'fs';
 import crypto from 'crypto';
@@ -240,10 +240,10 @@ describe('Crypto Tests', () => {
     it('should sign a fixed message and write the signature to a file', () => {
         // Arrange
         // Simulate the generation of random bytes
-        const sender = Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex');
+        const sender = Buffer.from('8f01160c98e5cdfa625197849c85cf5fc1f76b1b', 'hex');
         const addr = Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex');
         const funcSig = Buffer.from('dc85563d', 'hex');
-        const ct = Buffer.from('f8765e191e03bf341c1422e0899d092674fc73beb624845199cd6e14b7895882', 'hex');
+        const ct = Buffer.from('81ff8a56f19f4ffd576e57a01f3c0f256de80517a4e4385470d1c33fe7804fe7', 'hex');
         const key = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
 
         // Act
@@ -296,7 +296,7 @@ describe('Crypto Tests', () => {
         // Simulate the generation of random bytes
         const plaintext = BigInt("100");
         const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');;
-        const sender = new Address(toBuffer(Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex')));
+        const sender = new Address(toBuffer(Buffer.from('8f01160c98e5cdfa625197849c85cf5fc1f76b1b', 'hex')));
         const contract = new Address(toBuffer(Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex')));
         const funcSig = 'test(bytes)';
         const signingKey = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
@@ -326,6 +326,39 @@ describe('Crypto Tests', () => {
         assert.deepStrictEqual(plaintext, intResult);
     });
 
+    // Test case for verify signature
+    it('should prepare IT 256 bits using fixed data', () => {
+        // Arrange
+        // Simulate the generation of random bytes
+        const plaintext = BigInt("34028236692093846346337460743176821145600");
+        const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');;
+        const sender = new Address(toBuffer(Buffer.from('8f01160c98e5cdfa625197849c85cf5fc1f76b1b', 'hex')));
+        const contract = new Address(toBuffer(Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex')));
+        const funcSig = 'test(bytes)';
+        const signingKey = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
+
+        // Act
+        // Generate the signature
+        const hash_func = getFuncSig(funcSig);
+        const {ciphertext, signature} = prepareIT256(plaintext, userKey, sender.toBuffer(), contract.toBuffer(), hash_func, signingKey);
+
+        const ctHighBytes = Buffer.alloc(CT_SIZE); // Allocate a buffer of size 32 bytes
+        writeBigUInt256BE(ctHighBytes, ciphertext.ciphertextHigh); // Write the uint256 value to the buffer as big-endian
+        const ctLowBytes = Buffer.alloc(CT_SIZE); // Allocate a buffer of size 32 bytes
+        writeBigUInt256BE(ctLowBytes, ciphertext.ciphertextLow); // Write the uint256 value to the buffer as big-endian
+        // Decrypt the ct and check the decrypted value is equal to the plaintext
+        const decryptedBuffer = decrypt(userKey, ctHighBytes.subarray(BLOCK_SIZE, ctHighBytes.length), ctHighBytes.subarray(0, BLOCK_SIZE), ctLowBytes.subarray(BLOCK_SIZE, ctLowBytes.length), ctLowBytes.subarray(0, BLOCK_SIZE));
+
+        // Convert the plaintext to bytes
+        const hexString = plaintext.toString(16).padStart(64, '0');
+        const plaintextBytes = Buffer.from(hexString, 'hex'); 
+
+        // Assert
+        const expectedBytes = decryptedBuffer.subarray(decryptedBuffer.length - plaintextBytes.length, decryptedBuffer.length)
+        assert.deepStrictEqual(plaintextBytes.toString('hex'), Buffer.from(expectedBytes).toString('hex'));
+        const intResult = uint8ArrayToBigInt(decryptedBuffer);
+        assert.deepStrictEqual(plaintext, intResult);
+    });
 
     // Test case for test rsa encryption scheme
     it('should encrypt and decrypt a message using RSA scheme', () => {
@@ -377,29 +410,30 @@ describe('Crypto Tests', () => {
     }
 
     // Test case for test rsa decryption scheme
-    // skipped the same as in the js version
-    it.skip('should decrypt a message using RSA scheme', () => {
+    it('should decrypt a message using RSA scheme', async () => {
         // Arrange
         const plaintext = Buffer.from('hello world');
 
         // Act
         // Read private key and ciphertext
         // Reading from file simulates the communication between the evm (golang) and the user (python/js)
-        readHexFromFile('test_tsRSAEncryption.txt')
-    .then((value) => {
-        const [hexData1, hexData2, hexData3] = value as [string, string, string];
-        const privateKey = Buffer.from(hexData1, 'hex');
-        const ciphertext = Buffer.from(hexData3, 'hex').toString('hex');
+        try {
+            const value = await readHexFromFile('test_tsRSAEncryption.txt');
+            const [hexData1, hexData2, hexData3] = value as [string, string, string];
+            const privateKey = Buffer.from(hexData1, 'hex');
+            const ciphertext = Buffer.from(hexData3, 'hex').toString('hex');
 
-        const decrypted = decryptRSA(privateKey, hexData3);
+            const decrypted = decryptRSA(privateKey, ciphertext);
 
-        // Assert
-        assert.deepStrictEqual(plaintext, decrypted);
-    })
-    .catch(error => {
-        console.error("Error reading file:", error);
-    });
-        fs.unlinkSync('test_tsRSAEncryption.txt');
+            const decryptedBuffer = Buffer.from(decrypted);
+
+            // Assert
+            assert.deepStrictEqual(plaintext, decryptedBuffer);
+            fs.unlinkSync('test_tsRSAEncryption.txt');
+        } catch (error) {
+            console.error("Error reading file:", error);
+            throw error;
+        }
     });
 
     // Test case for test function signature

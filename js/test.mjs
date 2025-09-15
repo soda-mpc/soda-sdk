@@ -234,10 +234,10 @@ describe('Crypto Tests', () => {
     it('should sign a fixed message and write the signature to a file', () => {
         // Arrange
         // Simulate the generation of random bytes
-        const sender = Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex');
+        const sender = Buffer.from('8f01160c98e5cdfa625197849c85cf5fc1f76b1b', 'hex');
         const addr = Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex');
         const funcSig = Buffer.from('dc85563d', 'hex');
-        const ct = Buffer.from('f8765e191e03bf341c1422e0899d092674fc73beb624845199cd6e14b7895882', 'hex');
+        const ct = Buffer.from('81ff8a56f19f4ffd576e57a01f3c0f256de80517a4e4385470d1c33fe7804fe7', 'hex');
         const key = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
 
         // Act
@@ -291,7 +291,7 @@ describe('Crypto Tests', () => {
         // Simulate the generation of random bytes
         const plaintext = BigInt("100");
         const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');
-        const sender = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex')));
+        const sender = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('8f01160c98e5cdfa625197849c85cf5fc1f76b1b', 'hex')));
         const contract = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex')));
         const funcSig = 'test(bytes)';
         const signingKey = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
@@ -301,7 +301,7 @@ describe('Crypto Tests', () => {
         const hash_func = getFuncSig(funcSig);
         const {ctInt, signature} = prepareIT(plaintext, userKey, sender, contract, hash_func, signingKey);
 
-        const ctHex = ctInt.toString(HEX_BASE);
+        const ctHex = ctInt.toString(HEX_BASE).padStart(CT_SIZE * 2, '0');
         // Create a Buffer to hold the bytes
         const ctBuffer = Buffer.from(ctHex, 'hex'); 
         
@@ -324,7 +324,7 @@ describe('Crypto Tests', () => {
         // Simulate the generation of random bytes
         const plaintext = BigInt("34028236692093846346337460743176821145600");
         const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');;
-        const sender = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('d67fe7792f18fbd663e29818334a050240887c28', 'hex')));
+        const sender = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('8f01160c98e5cdfa625197849c85cf5fc1f76b1b', 'hex')));
         const contract = new ethereumjsUtil.Address(ethereumjsUtil.toBuffer(Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex')));
         const funcSig = 'test(bytes)';
         const signingKey = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
@@ -359,7 +359,7 @@ describe('Crypto Tests', () => {
         // Act
         const ciphertext = encryptRSA(publicKey, plaintext);
         
-        const hexString = privateKey.toString('hex') + "\n" + publicKey.toString('hex') + "\n" + ciphertext.toString('hex');
+        const hexString = privateKey.toString('hex') + "\n" + publicKey.toString('hex');
 
         // Write buffer to the file
         const filename = 'test_jsRSAEncryption.txt'; // Name of the file to write to
@@ -398,7 +398,7 @@ describe('Crypto Tests', () => {
     }
 
     // Test case for test rsa decryption scheme
-    it.skip('should decrypt a message using RSA scheme', () => {
+    it('should decrypt a message using RSA scheme', () => {
         // Arrange
         const plaintext = Buffer.from('hello world');
 
@@ -414,11 +414,11 @@ describe('Crypto Tests', () => {
 
                 // Assert
                 assert.deepStrictEqual(plaintext, decrypted);
+                fs.unlinkSync('test_jsRSAEncryption.txt');
             })
             .catch(error => {
                 console.error("Error reading file:", error);
         });
-        fs.unlinkSync('test_jsRSAEncryption.txt');
     });
 
     // Test case for test function signature

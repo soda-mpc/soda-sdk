@@ -173,15 +173,14 @@ func TestGenerateAndWriteAESKey(t *testing.T) {
 
 func TestSignature(t *testing.T) {
 	// Arrange
-	sender := make([]byte, AddressSize)
-	_, err := rand.Read(sender)
 	addr := make([]byte, AddressSize)
-	_, err = rand.Read(addr)
+	_, err := rand.Read(addr)
+	require.NoError(t, err, "Failed to generate address")
 	funcSig := make([]byte, FuncSigSize)
 	_, err = rand.Read(funcSig)
+	require.NoError(t, err, "Failed to generate function signature")
 
-	key := GenerateECDSAPrivateKey()
-	require.NoError(t, err, "Failed to generate random key")
+	key, sender := GenerateECDSAPrivateKeyAndAddress()
 
 	// Create plaintext with the value 100 as a big integer with less than 128 bits
 	plaintextValue := big.NewInt(100)
@@ -255,10 +254,10 @@ func readSigFromFileAndCompare(t *testing.T, filePath string, signature []byte) 
 func TestFixedMsgSignature(t *testing.T) {
 	// Arrange
 	// Create plaintext with the value 100 as a big integer with less than 128 bits
-	sender, _ := hex.DecodeString("d67fe7792f18fbd663e29818334a050240887c28")
+	sender, _ := hex.DecodeString("8f01160c98e5cdfa625197849c85cf5fc1f76b1b")
 	addr, _ := hex.DecodeString("69413851f025306dbe12c48ff2225016fc5bbe1b")
 	funcSig, _ := hex.DecodeString("dc85563d")
-	ct, _ := hex.DecodeString("f8765e191e03bf341c1422e0899d092674fc73beb624845199cd6e14b7895882")
+	ct, _ := hex.DecodeString("81ff8a56f19f4ffd576e57a01f3c0f256de80517a4e4385470d1c33fe7804fe7")
 	key, _ := hex.DecodeString("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
 
 	// Act and assert
@@ -281,7 +280,7 @@ func TestIT(t *testing.T) {
 	// Arrange
 	// Create plaintext with the value 100 as a big integer with less than 128 bits
 	plaintext := uint64(100)
-	sender := common.HexToAddress("d67fe7792f18fbd663e29818334a050240887c28")
+	sender := common.HexToAddress("8f01160c98e5cdfa625197849c85cf5fc1f76b1b")
 	contract := common.HexToAddress("69413851f025306dbe12c48ff2225016fc5bbe1b")
 	funcSig := "test(bytes)"
 	userKey, _ := hex.DecodeString("b3c3fe73c1bb91862b166a29fe1d63e9")
@@ -300,17 +299,22 @@ func TestIT(t *testing.T) {
 	// Reading from file simulates the communication between the evm (golang) and the user (python/js)
 	pythonCt, pythonSignature, err := readTwoHexStringsFromFile("../../python/soda_python_sdk/test_pythonIT.txt")
 	require.NoError(t, err, "Read file should not return an error")
-	checkIT(t, plaintextBytes, userKey, contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), pythonCt, pythonSignature)
-	err = os.Remove("../../python/test_pythonIT.txt")
+	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), GetFuncSig(funcSig), pythonCt, pythonSignature)
+	err = os.Remove("../../python/soda_python_sdk/test_pythonIT.txt")
+	require.NoError(t, err, "Delete file should not return an error")
 
 	jsCt, jsSignature, err := readTwoHexStringsFromFile("../../js/test_jsIT.txt")
+	require.NoError(t, err, "Read file should not return an error")
 	tsCt, tsSignature, err := readTwoHexStringsFromFile("../../ts/test_tsIT.txt")
+	require.NoError(t, err, "Read file should not return an error")
 
 	require.NoError(t, err, "Read file should not return an error")
-	checkIT(t, plaintextBytes, userKey, contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), jsCt, jsSignature)
-	checkIT(t, plaintextBytes, userKey, contract.Bytes(), GetFuncSig(funcSig), ct.Bytes(), tsCt, tsSignature)
+	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), GetFuncSig(funcSig), jsCt, jsSignature)
+	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), GetFuncSig(funcSig), tsCt, tsSignature)
 	err = os.Remove("../../js/test_jsIT.txt")
+	require.NoError(t, err, "Delete file should not return an error")
 	err = os.Remove("../../ts/test_tsIT.txt")
+	require.NoError(t, err, "Delete file should not return an error")
 }
 
 func checkIT(t *testing.T, plaintext, userKey, sender, addr, funcSig, ct, signature []byte) {
@@ -444,6 +448,7 @@ func checkFunctionSignature(t *testing.T, filePath string, expected []byte) {
 	require.NoError(t, err, "Read python value should not return an error")
 	assert.Equal(t, expected, val, "hashed values should match")
 	err = os.Remove(filePath)
+	require.NoError(t, err, "Delete file should not return an error")
 }
 
 func TestGetFuncSig(t *testing.T) {
@@ -457,6 +462,9 @@ func TestGetFuncSig(t *testing.T) {
 
 	// Check that the js hashed value matches the Golang hashed value
 	filePath = "../../js/test_jsFunctionKeccak.txt"
+	checkFunctionSignature(t, filePath, hash)
+
+	filePath = "../../ts/test_tsFunctionKeccak.txt"
 	checkFunctionSignature(t, filePath, hash)
 
 }
