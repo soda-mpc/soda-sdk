@@ -1,9 +1,7 @@
 # Soda-sdk
 
-This SDK provides functionalities for AES and RSA encryption schemes, ECDSA signature scheme and some functionalties used for working with sodalabs interface.
-The SDK provide the all functionalities in three common widely used languages - Golang, Python and JavaScript.
-
-The SDK also provides a CLI in Golang that provides functionalities for AES encryption scheme.
+This SDK provides functionalities for AES and RSA encryption schemes, ECDSA signature scheme and some functionalties used for working with the gcEVM interfaces.
+The SDK provides all functionalities in three common widely used languages - Golang, Python and JavaScript.
 
 ## Table of Contents
 

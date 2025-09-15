@@ -2,9 +2,9 @@ name: Test
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "testnet" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master", "testnet" ]
 
 jobs:
   build:
@@ -34,12 +34,12 @@ jobs:
       - name: JavaScript tests
         working-directory: ./js
         run: |
-          npx mocha --require esm --grep "^(?!.*should decrypt a message using RSA scheme$)" test.mjs
+          npx mocha --fgrep "should decrypt a message using RSA scheme" --invert test.mjs
 
       - name: TypeScript tests
         working-directory: ./ts
         run: |
-          npx jest
+          npx jest --testNamePattern="^(?!.*should decrypt a message using RSA scheme).*$"
 
       - name: Python tests
         working-directory: ./python/soda_python_sdk
@@ -59,7 +59,12 @@ jobs:
       - name: JavaScript decrypt test
         working-directory: ./js
         run: |
-          npx mocha --require esm --grep "should decrypt a message using RSA scheme" test.mjs
+          npx mocha --grep "should decrypt a message using RSA scheme" test.mjs
+
+      - name: TypeScript decrypt test
+        working-directory: ./ts
+        run: |
+          npx jest -t "should decrypt a message using RSA scheme"
 
       - name: Python decrypt test
         working-directory: ./python/soda_python_sdk

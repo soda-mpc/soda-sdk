@@ -12,6 +12,7 @@ export const FUNC_SIG_SIZE = 4;
 export const CT_SIZE = 32;
 export const KEY_SIZE = 32;
 export const HEX_BASE = 16;
+export const MAX_PLAINTEXT_BIT_SIZE = 256;
 
 export function encrypt(key, plaintext) {
     
@@ -45,7 +46,7 @@ export function encrypt(key, plaintext) {
     return { ciphertext, r: Buffer.from(uint8ArrayR) };
 }
 
-export function decrypt(key, r, ciphertext) {
+export function decrypt(key, r, ciphertext, r2=null, ciphertext2=null) {
 
     if (ciphertext.length !== BLOCK_SIZE) {
         throw new RangeError("Ciphertext size must be 128 bits.");
@@ -61,14 +62,46 @@ export function decrypt(key, r, ciphertext) {
         throw new RangeError("Random size must be 128 bits.");
     }
 
+    if (r2 !== null) {
+        if (r2.length !== BLOCK_SIZE) {
+            throw new RangeError("Random2 size must be 128 bits, received " + r2.length + " bytes.");
+        }
+        if (ciphertext2 === null) {
+            throw new RangeError("Ciphertext2 is required.");
+        }
+    }
+
+    if (ciphertext2 !== null) {
+        if (ciphertext2.length !== BLOCK_SIZE) {
+            throw new RangeError("Ciphertext2 size must be 128 bits, received " + ciphertext2.length + " bytes.");
+        }
+
+        if (r2 === null) {
+            throw new RangeError("Random2 is required.");
+        }
+    }
+
    // Get the encrypted random value 'r'
     const encryptedR = encryptNumber(r, key)
 
     // XOR the encrypted random value 'r' with the ciphertext to obtain the plaintext
-    const plaintext = new Uint8Array(BLOCK_SIZE)
+    let plaintext = new Uint8Array(BLOCK_SIZE)
 
     for (let i = 0; i < encryptedR.length; i++) {
         plaintext[i] = encryptedR[i] ^ ciphertext[i]
+    }
+
+    if (r2 !== null && ciphertext2 !== null) {
+        // Encrypt the random value 'r2' using AES in ECB mode
+        const encryptedR2 = encryptNumber(r2, key)
+
+        // XOR the encrypted random value 'r' with the ciphertext to obtain the plaintext
+        const plaintext2 = Buffer.alloc(encryptedR2.length);
+        for (let i = 0; i < encryptedR2.length; i++) {
+            plaintext2[i] = encryptedR2[i] ^ ciphertext2[i];
+        }
+
+        plaintext = Buffer.concat([plaintext, plaintext2]);
     }
 
     return plaintext
@@ -133,10 +166,10 @@ export function signIT(sender, addr, funcSig, ct, key, eip191=false) {
         throw new RangeError(`Invalid contract address length: ${addr.length} bytes, must be ${ADDRESS_SIZE} bytes`);
     }
     if (funcSig.length !== FUNC_SIG_SIZE) {
-        throw new RangeError(`Invalid signature size: ${funcSig.length} bytes, must be ${funcSigSize} bytes`);
+        throw new RangeError(`Invalid signature size: ${funcSig.length} bytes, must be ${FUNC_SIG_SIZE} bytes`);
     }
-    if (ct.length !== CT_SIZE) {
-        throw new RangeError(`Invalid ct length: ${ct.length} bytes, must be ${CT_SIZE} bytes`);
+    if (ct.length !== CT_SIZE && ct.length !== 2*CT_SIZE) {
+        throw new RangeError(`Invalid ct length: ${ct.length} bytes, must be ${CT_SIZE} bytes in case of 128 bits plaintext or less, or ${2*CT_SIZE} bytes in case of 256 bits plaintext or less`);
     }
     // Ensure the key is the correct length
     if (key.length !== KEY_SIZE) {
@@ -179,6 +212,21 @@ export function signEIP191(message, key) {
     const signature =  ethereumjsUtil.ecsign(hash, key);
     // Convert r, s, and v components to bytes
     return Buffer.concat([Buffer.from(signature.r), Buffer.from(signature.s), Buffer.from([signature.v])]);
+}
+
+function writeBigUInt128BE(buffer, value, offset = 0) {
+    const hexString = value.toString(HEX_BASE).padStart(CT_SIZE, '0');
+    const bytes = Buffer.from(hexString, 'hex');
+    bytes.copy(buffer, offset);
+}
+
+export function writeBigUInt256BE(buffer, value, offset = 0) {
+    const hexString = value.toString(HEX_BASE).padStart(CT_SIZE*2, '0');
+    const bytes = Buffer.from(hexString, 'hex');
+    if (buffer.length > bytes.length) {
+        offset = buffer.length - bytes.length;
+    }
+    bytes.copy(buffer, offset);
 }
 
 /**
@@ -239,13 +287,18 @@ export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, sig
     const contractBytes = toBuffer(contract)
 
     // Convert the plaintext to bytes
-    const plaintextBytes = Buffer.alloc(8); // Allocate a buffer of size 8 bytes
-    plaintextBytes.writeBigUInt64BE(BigInt(plaintext)); // Write the uint64 value to the buffer as little-endian
+    const plaintextBigInt = BigInt(plaintext);
+    const bitSize = plaintextBigInt.toString(2).length;
+    if (bitSize > MAX_PLAINTEXT_BIT_SIZE/2) {
+        throw new RangeError("Plaintext size must be 128 bits or smaller. To prepare a 256 bit plaintext, use prepareIT256 instead.");
+    }
 
+    const plaintextBytes = Buffer.alloc(BLOCK_SIZE); // Allocate a buffer of size 16 bytes
+    writeBigUInt128BE(plaintextBytes, plaintextBigInt); // Write the uint128 value to the buffer as big-endian
     // Encrypt the plaintext using AES key
-    const { ciphertext, r } = encrypt(userAesKey, plaintextBytes);
+    const {ciphertext, r} = encrypt(userAesKey, plaintextBytes);
     let ct = Buffer.concat([ciphertext, r]);
-
+    
     // Sign the message
     const signature = signIT(senderBytes, contractBytes, hashFunc, ct, signingKey, eip191);
 
@@ -254,6 +307,64 @@ export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, sig
 
     return { ctInt, signature };
 }
+
+export function prepareIT256(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191=false, is256bit=false) {
+
+    // Get the bytes of the sender, contract, and function signature
+    const senderBytes = toBuffer(sender)
+    const contractBytes = toBuffer(contract)
+    
+    // Convert the plaintext to bytes
+    const plaintextBigInt = BigInt(plaintext);
+    const bitSize = plaintextBigInt.toString(2).length;
+    if (bitSize > MAX_PLAINTEXT_BIT_SIZE) {
+        throw new RangeError("Plaintext size must be 256 bits or smaller.");
+    }
+
+    let ct;
+
+    // In case of 128 bits plaintext, encrypt it as the low part of the ct, and then encrypt the high part of the ct with zeros
+    if (bitSize <= MAX_PLAINTEXT_BIT_SIZE/2) {
+        const plaintextBytes = Buffer.alloc(BLOCK_SIZE); // Allocate a buffer of size 16 bytes
+        writeBigUInt128BE(plaintextBytes, plaintextBigInt); // Write the uint128 value to the buffer as big-endian
+        // Encrypt the plaintext using AES key
+        const {ciphertext, r} = encrypt(userAesKey, plaintextBytes);
+
+        // Encrypt the high part of the ct with zeros
+        const zero = BigInt(0);
+        const zeroBytes = Buffer.alloc(BLOCK_SIZE);
+        writeBigUInt128BE(zeroBytes, zero);
+        const {ciphertext: ciphertextHigh, r: rHigh} = encrypt(userAesKey, zeroBytes);
+        ct = Buffer.concat([ciphertextHigh, rHigh, ciphertext, r]);
+        
+    } else { // bitSize > 128 and bitSize <= 256
+        const plaintextBytes = Buffer.alloc(CT_SIZE); // Allocate a buffer of size 32 bytes
+        writeBigUInt256BE(plaintextBytes, plaintextBigInt); // Write the uint256 value to the buffer as big-endian
+        
+        // Encrypt each part of the plaintext using AES key
+        const resultHigh = encrypt(userAesKey, plaintextBytes.slice(0, BLOCK_SIZE));
+        const resultLow = encrypt(userAesKey, plaintextBytes.slice(BLOCK_SIZE));
+        
+        // Now destructure
+        const { ciphertext: ciphertextHigh, r: rHigh } = resultHigh;
+        const { ciphertext: ciphertextLow, r: rLow } = resultLow;
+
+        ct = Buffer.concat([ciphertextHigh, rHigh, ciphertextLow, rLow]);
+    } 
+
+    // Sign the message
+    const signature = signIT(senderBytes, contractBytes, hashFunc, ct, signingKey, eip191);
+
+    const ciphertextHigh = ct.slice(0, CT_SIZE);
+    const ciphertextLow = ct.slice(CT_SIZE);
+
+    // Convert Buffer to uint256 (BigInt) for Solidity compatibility
+    const ciphertextHighUint = BigInt('0x' + ciphertextHigh.toString('hex'));
+    const ciphertextLowUint = BigInt('0x' + ciphertextLow.toString('hex'));
+
+    return { ciphertext: {ciphertextHigh: ciphertextHighUint, ciphertextLow: ciphertextLowUint}, signature };
+}
+
 
 export function generateRSAKeyPair(){
     // Generate a new RSA key pair
