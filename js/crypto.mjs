@@ -318,7 +318,7 @@ export function prepareIT256(plaintext, userAesKey, sender, contract, hashFunc, 
     const plaintextBigInt = BigInt(plaintext);
     const bitSize = plaintextBigInt.toString(2).length;
     if (bitSize > MAX_PLAINTEXT_BIT_SIZE) {
-        throw new RangeError("Plaintext size must be between 128 and 256 bits.");
+        throw new RangeError("Plaintext size must be 256 bits or smaller.");
     }
 
     let ct;
@@ -337,7 +337,7 @@ export function prepareIT256(plaintext, userAesKey, sender, contract, hashFunc, 
         const {ciphertext: ciphertextHigh, r: rHigh} = encrypt(userAesKey, zeroBytes);
         ct = Buffer.concat([ciphertextHigh, rHigh, ciphertext, r]);
         
-    } else if (bitSize <= MAX_PLAINTEXT_BIT_SIZE) {
+    } else { // bitSize > 128 and bitSize <= 256
         const plaintextBytes = Buffer.alloc(CT_SIZE); // Allocate a buffer of size 32 bytes
         writeBigUInt256BE(plaintextBytes, plaintextBigInt); // Write the uint256 value to the buffer as big-endian
         
@@ -350,9 +350,7 @@ export function prepareIT256(plaintext, userAesKey, sender, contract, hashFunc, 
         const { ciphertext: ciphertextLow, r: rLow } = resultLow;
 
         ct = Buffer.concat([ciphertextHigh, rHigh, ciphertextLow, rLow]);
-    } else if (bitSize > MAX_PLAINTEXT_BIT_SIZE) {
-        throw new RangeError("Plaintext size must be 256 bits or smaller.");
-    }
+    } 
 
     // Sign the message
     const signature = signIT(senderBytes, contractBytes, hashFunc, ct, signingKey, eip191);
