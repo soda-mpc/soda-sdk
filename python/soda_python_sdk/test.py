@@ -273,8 +273,8 @@ class TestMpcHelper(unittest.TestCase):
         (ct, _) = prepare_IT_256(plaintext, userKey, sender, contract, func_sig, signingKey)
         ctHigh, ctLow = ct
         # Convert the integer to a byte slice with size aligned to 8.
-        ct1Bytes = ctHigh.to_bytes((ctHigh.bit_length() + 7) // 8, 'big')
-        ct2Bytes = ctLow.to_bytes((ctLow.bit_length() + 7) // 8, 'big')
+        ct1Bytes = ctHigh.to_bytes(2*BLOCK_SIZE, 'big')
+        ct2Bytes = ctLow.to_bytes(2*BLOCK_SIZE, 'big')
 
         decrypted = decrypt(userKey, ct1Bytes[BLOCK_SIZE:2*BLOCK_SIZE], ct1Bytes[:BLOCK_SIZE], ct2Bytes[BLOCK_SIZE:2*BLOCK_SIZE], ct2Bytes[:BLOCK_SIZE])
         decrypted_integer = int.from_bytes(decrypted, 'big')
