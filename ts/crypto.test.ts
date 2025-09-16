@@ -5,8 +5,7 @@ import {
     encrypt, encryptRSA,
     FUNC_SIG_SIZE,
     generateAesKey,
-    generateECDSAPrivateKey, generateRSAKeyPair, getFuncSig, HEX_BASE, prepareIT, prepareMessage, signIT, prepareIT256, writeBigUInt256BE,
-    CT_SIZE
+    generateECDSAPrivateKey, generateRSAKeyPair, getFuncSig, HEX_BASE, prepareIT, prepareMessage, signIT, prepareIT256, writeBigUInt256BE, CT_SIZE
 } from "./crypto"
 import fs from 'fs';
 import crypto from 'crypto';

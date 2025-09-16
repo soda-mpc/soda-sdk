@@ -11,7 +11,7 @@ export const ADDRESS_SIZE = 20; // 160-bit is the output of the Keccak-256 algor
 export const CT_SIZE = 32;
 export const KEY_SIZE = 32;
 export const HEX_BASE = 16;
-export const maxPlaintextBitSize = 256;
+export const MAX_PLAINTEXT_BIT_SIZE = 256;
 
 export function encrypt(key, plaintext) {
     
@@ -91,11 +91,11 @@ export function decrypt(key, r, ciphertext, r2=null, ciphertext2=null) {
     }
 
     if (r2 !== null && ciphertext2 !== null) {
-        // Encrypt the random value 'r' using AES in ECB mode
+        // Encrypt the random value 'r2' using AES in ECB mode
         const encryptedR2 = encryptNumber(r2, key)
 
-        // XOR the encrypted random value 'r' with the ciphertext to obtain the plaintext
-        const plaintext2 = Buffer.alloc(BLOCK_SIZE);
+        // XOR the encrypted random value 'r2' with the ciphertext to obtain the plaintext
+        const plaintext2 = Buffer.alloc(encryptedR2.length);
         for (let i = 0; i < encryptedR2.length; i++) {
             plaintext2[i] = encryptedR2[i] ^ ciphertext2[i];
         }
@@ -276,19 +276,19 @@ export function prepareIT(plaintext, userAesKey, sender, contract, signingKey, e
     const senderBytes = toBuffer(sender)
     const contractBytes = toBuffer(contract)
 
+    // Convert the plaintext to bytes
     const plaintextBigInt = BigInt(plaintext);
     const bitSize = plaintextBigInt.toString(2).length;
-    if (bitSize > maxPlaintextBitSize/2) {
+    if (bitSize > MAX_PLAINTEXT_BIT_SIZE/2) {
         throw new RangeError("Plaintext size must be 128 bits or smaller. To prepare a 256 bit plaintext, use prepareIT256 instead.");
     }
 
     const plaintextBytes = Buffer.alloc(BLOCK_SIZE); // Allocate a buffer of size 16 bytes
     writeBigUInt128BE(plaintextBytes, plaintextBigInt); // Write the uint128 value to the buffer as big-endian
-
     // Encrypt the plaintext using AES key
-    const { ciphertext, r } = encrypt(userAesKey, plaintextBytes);
+    const {ciphertext, r} = encrypt(userAesKey, plaintextBytes);
     let ct = Buffer.concat([ciphertext, r]);
-
+    
     // Sign the message
     const signature = signIT(senderBytes, contractBytes, ct, signingKey, eip191);
 
@@ -303,18 +303,18 @@ export function prepareIT256(plaintext, userAesKey, sender, contract, signingKey
     // Get the bytes of the sender, contract, and function signature
     const senderBytes = toBuffer(sender)
     const contractBytes = toBuffer(contract)
-
+    
     // Convert the plaintext to bytes
     const plaintextBigInt = BigInt(plaintext);
     const bitSize = plaintextBigInt.toString(2).length;
-    if (bitSize > maxPlaintextBitSize) {
-        throw new RangeError("Plaintext size must be between 128 and 256 bits.");
+    if (bitSize > MAX_PLAINTEXT_BIT_SIZE) {
+        throw new RangeError("Plaintext size must be 256 bits or smaller.");
     }
 
     let ct;
 
     // In case of 128 bits plaintext, encrypt it as the low part of the ct, and then encrypt the high part of the ct with zeros
-    if (bitSize <= maxPlaintextBitSize/2) {
+    if (bitSize <= MAX_PLAINTEXT_BIT_SIZE/2) {
         const plaintextBytes = Buffer.alloc(BLOCK_SIZE); // Allocate a buffer of size 16 bytes
         writeBigUInt128BE(plaintextBytes, plaintextBigInt); // Write the uint128 value to the buffer as big-endian
         // Encrypt the plaintext using AES key
@@ -326,23 +326,21 @@ export function prepareIT256(plaintext, userAesKey, sender, contract, signingKey
         writeBigUInt128BE(zeroBytes, zero);
         const {ciphertext: ciphertextHigh, r: rHigh} = encrypt(userAesKey, zeroBytes);
         ct = Buffer.concat([ciphertextHigh, rHigh, ciphertext, r]);
-
-    } else if (bitSize <= maxPlaintextBitSize) {
+        
+    } else { // bitSize > 128 and bitSize <= 256
         const plaintextBytes = Buffer.alloc(CT_SIZE); // Allocate a buffer of size 32 bytes
         writeBigUInt256BE(plaintextBytes, plaintextBigInt); // Write the uint256 value to the buffer as big-endian
-
+        
         // Encrypt each part of the plaintext using AES key
         const resultHigh = encrypt(userAesKey, plaintextBytes.slice(0, BLOCK_SIZE));
         const resultLow = encrypt(userAesKey, plaintextBytes.slice(BLOCK_SIZE));
-
+        
         // Now destructure
         const { ciphertext: ciphertextHigh, r: rHigh } = resultHigh;
         const { ciphertext: ciphertextLow, r: rLow } = resultLow;
 
         ct = Buffer.concat([ciphertextHigh, rHigh, ciphertextLow, rLow]);
-    } else if (bitSize > maxPlaintextBitSize) {
-        throw new RangeError("Plaintext size must be 256 bits or smaller.");
-    }
+    } 
 
     // Sign the message
     const signature = signIT(senderBytes, contractBytes, ct, signingKey, eip191);

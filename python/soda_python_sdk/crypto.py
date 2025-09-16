@@ -58,7 +58,7 @@ def decrypt(key, r, ciphertext, r2=None, ciphertext2=None):
     if len(r) != BLOCK_SIZE:
         raise ValueError("Random size must be 128 bits.")
 
-     # If r2 is not None, then ciphertext2 is required and vice versa
+    # If r2 is not None, then ciphertext2 is required and vice versa
     # Ensure the sizes of r2 and ciphertext2 are correct
     if r2 is not None:
         if len(r2) != BLOCK_SIZE:
@@ -69,7 +69,7 @@ def decrypt(key, r, ciphertext, r2=None, ciphertext2=None):
     if ciphertext2 is not None:
         if len(ciphertext2) != BLOCK_SIZE:
             raise ValueError("Ciphertext size must be 128 bits.")
-
+        
         if r2 is None:
             raise ValueError("Random2 is required.")
 
@@ -184,13 +184,13 @@ def prepare_IT(plaintext, user_aes_key, sender, contract, signing_key, eip191=Fa
 def prepare_IT_256(plaintext, user_aes_key, sender, contract, signing_key, eip191=False):
 
     if (plaintext.bit_length() > MAX_PLAINTEXT_BIT_SIZE):
-        raise ValueError("Plaintext size must be between 128 and 256 bits.")
+        raise ValueError("Plaintext size must be 256 bits or smaller.")
 
     # Create the function signature
     ct, signature =  inner_prepare_IT(plaintext, user_aes_key, sender, contract, signing_key, eip191, True)
 
     # Convert integer back to bytes to check length
-    ct_bytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
+    ct_bytes = ct.to_bytes(CT_SIZE * 2, 'big')
     ctHigh = ct_bytes[:CT_SIZE]
     ctLow = ct_bytes[CT_SIZE:]
     # Convert the ct into two integers
