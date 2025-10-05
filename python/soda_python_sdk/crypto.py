@@ -8,6 +8,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
+
+from cryptography.hazmat.primitives.asymmetric import ec
 from eth_account import Account
 from eth_account.messages import encode_defunct
 
@@ -17,6 +19,8 @@ FUNC_SIG_SIZE = 4
 CT_SIZE = 32
 KEY_SIZE = 32
 MAX_PLAINTEXT_BIT_SIZE = 256
+SIGNATURE_SIZE = 65
+EC_PUBLIC_KEY_SIZE = 65
 
 def encrypt(key, plaintext):
 
@@ -233,6 +237,42 @@ def inner_prepare_IT(plaintext, user_aes_key, sender, contract, signing_key, eip
     ctInt = int.from_bytes(ct, byteorder='big')
 
     return ctInt, signature
+
+def read_public_key_from_pem(pem_public_key_path):
+    """Return 64-byte uncompressed EC public key (X||Y) from a PEM public key."""
+    with open(pem_public_key_path, "rb") as f:
+        data = f.read()
+
+    pubkey = serialization.load_pem_public_key(data)
+
+    # Optional: ensure it's an EC key (e.g., secp256k1)
+    if not isinstance(pubkey, ec.EllipticCurvePublicKey):
+        raise ValueError("PEM does not contain an EC public key")
+
+    # Get uncompressed point (65 bytes: 0x04 + X(32) + Y(32) for secp256k1)
+    uncompressed65 = pubkey.public_bytes(
+        encoding=serialization.Encoding.X962,
+        format=serialization.PublicFormat.UncompressedPoint,
+    )
+
+    if len(uncompressed65) != EC_PUBLIC_KEY_SIZE or uncompressed65[0] != 0x04:
+        raise ValueError(f"Unexpected uncompressed key format/length: {len(uncompressed65)}")
+
+    return uncompressed65[1:]  # 64 bytes: X||Y
+
+def verify_signature(public_key, handle_bytes, output, signature):
+    message = handle_bytes + output
+    print(f"Verifying signature: {signature.hex()}")
+    
+    if len(signature) != SIGNATURE_SIZE:
+        raise ValueError(f"Invalid signature length: {len(signature)} bytes, must be {SIGNATURE_SIZE} bytes")
+
+    # Hash the message
+    message_hash = keccak256(message)
+
+    pk = keys.PublicKey(public_key)
+    signature = keys.Signature(signature)
+    return signature.verify_msg_hash(message_hash, pk)
 
 def generate_rsa_keypair():
     # Generate RSA key pair
