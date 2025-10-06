@@ -8,7 +8,6 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
-
 from cryptography.hazmat.primitives.asymmetric import ec
 from eth_account import Account
 from eth_account.messages import encode_defunct
@@ -245,7 +244,7 @@ def read_public_key_from_pem(pem_public_key_path):
 
     pubkey = serialization.load_pem_public_key(data)
 
-    # Optional: ensure it's an EC key (e.g., secp256k1)
+    # Ensure it's an EC key (e.g., secp256k1)
     if not isinstance(pubkey, ec.EllipticCurvePublicKey):
         raise ValueError("PEM does not contain an EC public key")
 
@@ -261,8 +260,10 @@ def read_public_key_from_pem(pem_public_key_path):
     return uncompressed65[1:]  # 64 bytes: X||Y
 
 def verify_signature(public_key, handle_bytes, output, signature):
+    """Verify the signature of the message."""
+
+    # Create the message to be signed
     message = handle_bytes + output
-    print(f"Verifying signature: {signature.hex()}")
     
     if len(signature) != SIGNATURE_SIZE:
         raise ValueError(f"Invalid signature length: {len(signature)} bytes, must be {SIGNATURE_SIZE} bytes")
@@ -270,6 +271,7 @@ def verify_signature(public_key, handle_bytes, output, signature):
     # Hash the message
     message_hash = keccak256(message)
 
+    # Verify the signature
     pk = keys.PublicKey(public_key)
     signature = keys.Signature(signature)
     return signature.verify_msg_hash(message_hash, pk)
