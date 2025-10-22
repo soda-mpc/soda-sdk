@@ -247,6 +247,9 @@ def read_public_key_from_pem(pem_public_key_path):
     # Ensure it's an EC key (e.g., secp256k1)
     if not isinstance(pubkey, ec.EllipticCurvePublicKey):
         raise ValueError("PEM does not contain an EC public key")
+    curve = getattr(pubkey, "curve", None)  
+    if curve is None or getattr(curve, "name", "").lower() != "secp256k1":  
+        raise ValueError(f"Unsupported EC curve: {getattr(curve, 'name', None)}; expected secp256k1") 
 
     # Get uncompressed point (65 bytes: 0x04 + X(32) + Y(32) for secp256k1)
     uncompressed65 = pubkey.public_bytes(
@@ -262,6 +265,11 @@ def read_public_key_from_pem(pem_public_key_path):
 def verify_signature(public_key, handle_bytes, output, signature):
     """Verify the signature of the message."""
 
+    if not isinstance(handle_bytes, (bytes, bytearray)) or not isinstance(output, (bytes, bytearray)):  
+        raise TypeError("handle_bytes and output must be bytes")  
+    if len(handle_bytes) == 0 or len(output) == 0:  
+        raise ValueError("handle_bytes and output must be non-empty")  
+
     # Create the message to be signed
     message = handle_bytes + output
     
@@ -271,10 +279,16 @@ def verify_signature(public_key, handle_bytes, output, signature):
     # Hash the message
     message_hash = keccak256(message)
 
+    # Validate public key format: expect 64-byte X||Y  
+    if not isinstance(public_key, (bytes, bytearray)):  
+        raise TypeError("public_key must be bytes")  
+    if len(public_key) != EC_PUBLIC_KEY_SIZE - 1:  
+        raise ValueError(f"Invalid public key length: {len(public_key)} bytes, must be 64 (X||Y)")  
+
     # Verify the signature
     pk = keys.PublicKey(public_key)
-    signature = keys.Signature(signature)
-    return signature.verify_msg_hash(message_hash, pk)
+    sig = keys.Signature(signature)
+    return sig.verify_msg_hash(message_hash, pk)
 
 def generate_rsa_keypair():
     # Generate RSA key pair
