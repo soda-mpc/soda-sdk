@@ -229,13 +229,13 @@ export function prepareMessage(
         throw new TypeError("Invalid signer address");
     }
 
-    // Validate aesKey (32 bytes as hex string)
+    // Validate aesKey (16 bytes as hex string = 32 characters)
     if (typeof aesKey !== "string" || aesKey.length !== 32) {
-        throw new TypeError("Invalid AES key length. Expected 32 bytes.");
+        throw new TypeError("Invalid AES key length. Expected 32 hex characters (16 bytes).");
     }
 
     // Validate contractAddress (Ethereum address)
-    if (typeof contractAddress !== "string" || !ethers.isAddress(signerAddress)) {
+    if (typeof contractAddress !== "string" || !ethers.isAddress(contractAddress)) {
         throw new TypeError("Invalid contract address");
     }
 
@@ -245,8 +245,8 @@ export function prepareMessage(
     }
 
     // Convert the plaintext to bytes
-    const plaintextBytes = Buffer.alloc(8); // Allocate a buffer of size 8 bytes
-    plaintextBytes.writeBigUInt64BE(plaintext); // Write the uint64 value to the buffer as little-endian
+    const plaintextBytes = Buffer.alloc(BLOCK_SIZE); // Allocate a buffer of size 16 bytes
+    writeBigUInt128BE(plaintextBytes, plaintext); // Write the uint128 value to the buffer as big-endian
 
     // Encrypt the plaintext using AES key
     const { ciphertext, r } = encrypt(Buffer.from(aesKey, 'hex'), plaintextBytes);
@@ -459,7 +459,7 @@ export function encryptRSA(publicKeyUint8Array:Uint8Array, plaintext:string):Uin
  */
 export function decryptRSA(privateKey: Uint8Array, ciphertext: string): Uint8Array {
     // Convert privateKey from Uint8Array to PEM format
-    const privateKeyPEM = forge.pki.privateKeyToPem(forge.pki.privateKeyFromAsn1(forge.asn1.fromDer(forge.util.createBuffer(privateKey))));
+    const privateKeyPEM = forge.pki.privateKeyToPem(forge.pki.privateKeyFromAsn1(forge.asn1.fromDer(forge.util.createBuffer(Buffer.from(privateKey)))));
 
     // Decrypt using RSA-OAEP
     const rsaPrivateKey = forge.pki.privateKeyFromPem(privateKeyPEM);
@@ -527,11 +527,11 @@ export function aesEcbEncrypt(r: string | Uint8Array, key: Uint8Array) {
     }
 
     // Create a new AES cipher using the provided key
-    const cipher = forge.cipher.createCipher('AES-ECB', forge.util.createBuffer(key))
+    const cipher = forge.cipher.createCipher('AES-ECB', forge.util.createBuffer(Buffer.from(key)))
 
     // Encrypt the random value 'r' using AES in ECB mode
     cipher.start()
-    cipher.update(forge.util.createBuffer(r))
+    cipher.update(forge.util.createBuffer(typeof r === 'string' ? r : Buffer.from(r)))
     cipher.finish()
 
     // Get the encrypted random value 'r' as a Buffer and ensure it's exactly 16 bytes

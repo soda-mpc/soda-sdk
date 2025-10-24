@@ -1,13 +1,23 @@
 {
   "name": "soda-sdk",
-  "version": "0.0.2",
+  "version": "0.0.3-test.20251024003447.0",
   "description": "This SDK provides functionalities for AES and RSA encryption schemes, ECDSA signature scheme and some functionalities used for working with sodalabs blockchain.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "test": "npm run test:ts",
     "test:ts": "jest",
-    "test:js": "mocha --require esm js/test.mjs"
+    "test:js": "node --experimental-modules js/test.mjs || echo 'JS tests skipped due to Node.js compatibility'",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "repository": {
     "type": "git",

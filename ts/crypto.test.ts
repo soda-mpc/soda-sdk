@@ -371,7 +371,7 @@ describe('Crypto Tests', () => {
         // Act
         const ciphertext = encryptRSA(publicKey, plaintext);
 
-        const hexString = privateKey.toString('hex') + "\n" + publicKey.toString('hex');
+        const hexString = privateKey.toString('hex') + "\n" + publicKey.toString('hex') + "\n" + Buffer.from(ciphertext).toString('hex');
 
         // Write buffer to the file
         const filename = 'test_tsRSAEncryption.txt'; // Name of the file to write to
