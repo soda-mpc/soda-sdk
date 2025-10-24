@@ -69,7 +69,10 @@ jobs:
       - name: Python decrypt test
         working-directory: ./python/soda_python_sdk
         run: |
-          python3 -m unittest -v test.py -k "TestDecrypt"
+          # Run the RSA encryption test first to create the required file
+          python3 -m unittest -v test.py -k "test_rsa_encryption"
+          # Then run the decryption test
+          python3 -m unittest -v test.py -k "test_rsa_decryption"
 
       - name: Check Exit Codes
         run: |
