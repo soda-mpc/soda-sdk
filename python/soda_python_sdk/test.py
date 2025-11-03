@@ -2,8 +2,8 @@ import unittest
 import tempfile
 import os
 from Crypto.Random import get_random_bytes
-from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key, prepare_IT_256
-from crypto import BLOCK_SIZE, ADDRESS_SIZE, FUNC_SIG_SIZE
+from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key, prepare_IT_256, verify_signature
+from crypto import BLOCK_SIZE, ADDRESS_SIZE
 from eth_keys import keys
 from web3 import Account
 from eth_account.messages import encode_defunct
@@ -143,14 +143,9 @@ class TestMpcHelper(unittest.TestCase):
         # Act
         # Call the sign function
         signature_bytes = signIT(sender, addr, ct, key)
-        
-        # Create the message to be 
-        message = sender + addr + ct
 
-        pk = keys.PrivateKey(key)
-        signature = keys.Signature(signature_bytes)
-        # Verify the signature against the message hash and the public key
-        verified = signature.verify_msg(message, pk.public_key)
+        public_key = keys.PrivateKey(key).public_key.to_bytes()
+        verified = verify_signature(public_key, sender + addr, ct, signature_bytes)
        
         # Assert
         self.assertEqual(verified, True)
