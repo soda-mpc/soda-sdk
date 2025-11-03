@@ -492,6 +492,15 @@ export function verifySignature(publicKey, handleBytes, output, signature) {
     return recoveredPublicKey.equals(publicKeyBuf);
 }
 
+/**
+ * Extracts the signature components from the signature bytes.
+ * This function does not validate the signature bytes, it only extracts the components. 
+ * The function expects the signature bytes to be in the correct format (r||s||v).
+ * @param {Buffer|Uint8Array} signatureBytes - The signature bytes to extract the components from.
+ * @returns {Object} - An object containing the r, s, and v components.
+ * @throws {TypeError} - Throws if the signature bytes are of invalid types.
+ * @throws {RangeError} - Throws if the signature bytes are empty or have incorrect lengths.
+ */
 export function extractSignatureComponents(signatureBytes) {
     const rSize = (SIGNATURE_SIZE - 1) / 2;
     const sSize = rSize;
