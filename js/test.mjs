@@ -6,8 +6,8 @@ import {
     generateECDSAPrivateKey, generateRSAKeyPair,
     getFuncSig,
     prepareIT, prepareIT256, prepareMessage,
-    signIT, 
-    writeBigUInt256BE
+    signIT, verifySignature,
+    writeBigUInt256BE, extractSignatureComponents
 } from './crypto.mjs';
 
 import { writeAesKey, loadAesKey } from './utils.mjs';
@@ -17,21 +17,6 @@ import fs from 'fs';
 import crypto from 'crypto';
 import ethereumjsUtil, {hashPersonalMessage} from 'ethereumjs-util';
 import {ethers} from "ethers";
-
-function extractSignatureComponents(signatureBytes) {
-    // Allocate buffers for r, s, and v
-    let rBytes = Buffer.alloc(32);
-    let sBytes = Buffer.alloc(32);
-    let vByte = Buffer.alloc(1);
-
-    // Copy the corresponding bytes from the signature
-    signatureBytes.copy(rBytes, 0, 0, 32);
-    signatureBytes.copy(sBytes, 0, 32, 64);
-    signatureBytes.copy(vByte, 0, 64);
-
-    // Return the components as an object
-    return { rBytes, sBytes, vByte };
-}
 
 function uint8ArrayToBigInt(uint8Array) {
     let value = BigInt(0);
@@ -157,35 +142,12 @@ describe('Crypto Tests', () => {
         // Generate the signature
         const signatureBytes = signIT(sender, addr, ct, key);
 
-        const {rBytes, sBytes, vByte} = extractSignatureComponents(signatureBytes);
-
-        // Convert v buffer back to integer
-        let v = vByte.readUInt8();
-
-        // JS expects v to be 27 or 28. But in Ethereum, v is either 0 or 1. 
-        // In the sign function, 27 is subtracted from v in order to make it work with ethereum. 
-        // Now 27 should be added back to v to make it work with JS veification.
-        if (v !== 27 && v !== 28) {
-            v += 27;
-        }
-
-        // Verify the signature
-        const expectedPublicKey = ethereumjsUtil.privateToPublic(key);
-        const expectedAddress = ethereumjsUtil.toChecksumAddress('0x' + expectedPublicKey.toString('hex'));
-        
-        const message = Buffer.concat([sender, addr, ct]);
-        const hash = ethereumjsUtil.keccak256(message);
-        
-        // Recover the public key from the signature
-        const publicKey = ethereumjsUtil.ecrecover(hash, v, rBytes, sBytes);
-        // Derive the Ethereum address from the recovered public key
-        const address = ethereumjsUtil.toChecksumAddress('0x' + publicKey.toString('hex'));
-        
-        // Compare the derived address with the expected signer's address
-        const isVerified = address === expectedAddress;
+        const publicKey = ethereumjsUtil.privateToPublic(key);
+        const message = Buffer.concat([sender, addr]);
+        const verified = verifySignature(publicKey, message, ct, signatureBytes);
 
         // Assert
-        assert.strictEqual(isVerified, true);
+        assert.strictEqual(verified, true);
     });
 
     // Test case for verify signature

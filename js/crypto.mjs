@@ -1,5 +1,6 @@
 import forge from 'node-forge'
 import fs from 'fs';
+import crypto from 'crypto';
 import ethereumjsUtil from 'ethereumjs-util';
 import { hashPersonalMessage, toBuffer } from 'ethereumjs-util';
 import pkg from 'elliptic';
@@ -12,6 +13,8 @@ export const CT_SIZE = 32;
 export const KEY_SIZE = 32;
 export const HEX_BASE = 16;
 export const MAX_PLAINTEXT_BIT_SIZE = 256;
+export const SIGNATURE_SIZE = 65; // r (32 bytes) + s (32 bytes) + v (1 byte)
+export const EC_PUBLIC_KEY_SIZE = 65; // Uncompressed public key (0x04 + X + Y)
 
 export function encrypt(key, plaintext) {
     
@@ -354,6 +357,158 @@ export function prepareIT256(plaintext, userAesKey, sender, contract, signingKey
 
     return { ciphertext: {ciphertextHigh: ciphertextHighUint, ciphertextLow: ciphertextLowUint}, signature };
 }
+
+export function readPublicKeyFromPem(pemPublicKeyPath) {
+    // Read the PEM file
+    const pemPublicKey = fs.readFileSync(pemPublicKeyPath, 'utf8');
+
+    // Use Node.js crypto to create a KeyObject from PEM
+    // This handles PEM parsing automatically
+    const keyObject = crypto.createPublicKey(pemPublicKey);
+    
+    // Get the key type and parameters
+    const keyType = keyObject.asymmetricKeyType;
+    if (keyType !== 'ec') {
+        throw new Error(`Invalid key type: expected 'ec', got '${keyType}'`);
+    }
+    
+    // Export the public key in DER format
+    const derBytes = keyObject.export({ format: 'der', type: 'spki' });
+    
+    // Parse ASN.1 DER structure to extract the EC point
+    // SubjectPublicKeyInfo: SEQUENCE { AlgorithmIdentifier, BIT STRING { point } }
+    const asn1 = forge.asn1.fromDer(derBytes.toString('binary'));
+    
+    // Check if we have a SEQUENCE
+    if (!asn1) {
+        throw new Error('Invalid PEM format: failed to parse DER');
+    }
+    
+    // Check type - forge uses both 'tag' and 'type' properties
+    const isSequence = (asn1.type === forge.asn1.Type.SEQUENCE) || 
+                       (asn1.tag === forge.asn1.Type.SEQUENCE);
+    if (!isSequence) {
+        throw new Error(`Invalid PEM format: expected SEQUENCE, got type=${asn1.type}, tag=${asn1.tag}`);
+    }
+    
+    // The value should be an array of ASN.1 structures
+    const children = asn1.value;
+    if (!children || !Array.isArray(children) || children.length < 2) {
+        throw new Error('Invalid PEM format: missing public key data');
+    }
+    
+    // Second child is the BIT STRING containing the EC point
+    const bitString = children[1];
+    const isBitString = (bitString.type === forge.asn1.Type.BIT_STRING) ||
+                        (bitString.tag === forge.asn1.Type.BIT_STRING);
+    if (!bitString || !isBitString) {
+        throw new Error(`Invalid PEM format: expected BIT STRING, got type=${bitString?.type}, tag=${bitString?.tag}`);
+    }
+    
+    // BIT STRING: first byte is unused bits count, rest is the actual data
+    // The value is a string in binary format
+    const bitStringData = bitString.value;
+    if (typeof bitStringData !== 'string') {
+        throw new Error('Invalid BIT STRING format: expected string value');
+    }
+    
+    const bitStringBytes = Buffer.from(bitStringData, 'binary');
+    
+    // Skip unused bits indicator (first byte, usually 0)
+    const publicKeyPoint = bitStringBytes.subarray(1);
+    
+    // For secp256k1, uncompressed format is 0x04 || X(32 bytes) || Y(32 bytes) = 65 bytes
+    if (publicKeyPoint.length !== EC_PUBLIC_KEY_SIZE || publicKeyPoint[0] !== 0x04) {
+        throw new Error(`Invalid EC public key format: expected ${EC_PUBLIC_KEY_SIZE} bytes with 0x04 prefix, got ${publicKeyPoint.length} bytes`);
+    }
+    
+    // Return X||Y (skip the 0x04 prefix) - 64 bytes total
+    return publicKeyPoint.subarray(1);
+}
+
+/**
+ * Verify the signature of the message.
+ * @param {Buffer|Uint8Array} publicKey - The public key in X||Y format (64 bytes).
+ * @param {Buffer|Uint8Array} handleBytes - The handle bytes to be verified.
+ * @param {Buffer|Uint8Array} output - The output bytes to be verified.
+ * @param {Buffer|Uint8Array} signature - The signature in r||s||v format (65 bytes).
+ * @returns {boolean} - Returns true if the signature is valid, false otherwise.
+ * @throws {TypeError} - Throws if any of the input parameters are of invalid types.
+ * @throws {RangeError} - Throws if any of the input parameters are empty or have incorrect lengths.
+ */
+export function verifySignature(publicKey, handleBytes, output, signature) {
+    // Validate input types
+    if (!(handleBytes instanceof Buffer) && !(handleBytes instanceof Uint8Array)) {
+        throw new TypeError("handle_bytes must be Buffer or Uint8Array");
+    }
+    if (!(output instanceof Buffer) && !(output instanceof Uint8Array)) {
+        throw new TypeError("output must be Buffer or Uint8Array");
+    }
+    
+    // Validate non-empty
+    if (handleBytes.length === 0 || output.length === 0) {
+        throw new RangeError("handle_bytes and output must be non-empty");
+    }
+
+    // Validate signature length
+    if (!(signature instanceof Buffer) && !(signature instanceof Uint8Array)) {
+        throw new TypeError("signature must be Buffer or Uint8Array");
+    }
+    if (signature.length !== SIGNATURE_SIZE) {
+        throw new RangeError(`Invalid signature length: ${signature.length} bytes, must be ${SIGNATURE_SIZE} bytes`);
+    }
+
+    // Validate public key format: expect 64-byte X||Y
+    if (!(publicKey instanceof Buffer) && !(publicKey instanceof Uint8Array)) {
+        throw new TypeError("public_key must be Buffer or Uint8Array");
+    }
+    if (publicKey.length !== EC_PUBLIC_KEY_SIZE - 1) {
+        throw new RangeError(`Invalid public key length: ${publicKey.length} bytes, must be 64 (X||Y)`);
+    }
+
+    // Create the message to be signed
+    const handleBuf = Buffer.from(handleBytes);
+    const outputBuf = Buffer.from(output);
+    const message = Buffer.concat([handleBuf, outputBuf]);
+    
+    // Hash the message
+    const messageHash = ethereumjsUtil.keccak256(message);
+
+    // Convert public key to Buffer if needed
+    const publicKeyBuf = Buffer.from(publicKey);
+    
+    // Convert signature components (r, s, v)
+    const { rBytes, sBytes, vByte } = extractSignatureComponents(Buffer.from(signature));
+
+    // Convert v from 0-1 to 27-28 for ecrecover
+    // vByte is a Buffer, so we need to access the first byte
+    const vValue = vByte[0];
+    const v = vValue === 0 || vValue === 1 ? vValue + 27 : vValue;
+
+    // Recover the public key from the signature
+    const recoveredPublicKey = ethereumjsUtil.ecrecover(messageHash, v, rBytes, sBytes);
+    
+    // Compare the recovered public key with the provided public key
+    return recoveredPublicKey.equals(publicKeyBuf);
+}
+
+export function extractSignatureComponents(signatureBytes) {
+    const rSize = (SIGNATURE_SIZE - 1) / 2;
+    const sSize = rSize;
+    // Allocate buffers for r, s, and v
+    let rBytes = Buffer.alloc(rSize);
+    let sBytes = Buffer.alloc(sSize);
+    let vByte = Buffer.alloc(1);
+
+    // Copy the corresponding bytes from the signature
+    signatureBytes.copy(rBytes, 0, 0, rSize);
+    signatureBytes.copy(sBytes, 0, rSize, rSize + sSize);
+    signatureBytes.copy(vByte, 0, rSize + sSize);
+
+    // Return the components as an object
+    return { rBytes, sBytes, vByte };
+}
+
 
 export function generateRSAKeyPair(){
     // Generate a new RSA key pair
