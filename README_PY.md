@@ -1,10 +1,10 @@
 # Soda-sdk
 
-This SDK provides functionalities for AES and RSA encryption schemes, ECDSA signature scheme and some functionalties used for working with sodalabs interface.
+This SDK provides functionalities for AES and RSA encryption schemes, ECDSA signature scheme and some functionalities used for working with sodalabs interface.
 
 ## Table of Contents
 
-- [Available functionalitioes](#available-functionalities)
+- [Available functionalities](#available-functionalities)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -13,7 +13,7 @@ This SDK provides functionalities for AES and RSA encryption schemes, ECDSA sign
 
 ## Available functionalities
 
-The SDK support provide the following functionalities:
+The SDK supports the following functionalities:
 
 * AES encryption scheme:
 
@@ -81,22 +81,23 @@ Python should be installed on your system.
 ### Installation
 
 ```bash
-pip install soda-sdk
+pip install gcevm-sdk
 ```
 
 
 ### Usage
 
-In order to use the functionalities of python SDK, first import the modules from 'crypto' file.
-for example:
+In order to use the functionalities of python SDK, first import the required modules. For example:
 
-```bash 
-from crypto import prepare_IT, decrypt
+```python
+from soda_python_sdk import prepare_IT, decrypt, get_func_sig, BLOCK_SIZE
+from web3 import Account
+from eth_keys import keys
 ```
 
-Below is an example function from the python test file that demonstrate using some of the SDK functionality. Lets break it down:
+Below is an example function that demonstrates using some of the SDK functionality. Let's break it down:
 
-```bash
+```python
 def test_prepareIT(self):
     # Create inputs for prepare_IT function
     plaintext = 100                                                     # plaintext 
@@ -116,19 +117,21 @@ def test_prepareIT(self):
     sender_address_bytes = bytes.fromhex(sender.address[2:])     # Get the bytes of the accounts addresses
     contract_address_bytes = bytes.fromhex(contract.address[2:])
     func_hash = get_func_sig(func_sig)                           # Create the function signature
+    
+    # Convert the integer to a byte slice with size aligned to 8
+    ctBytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
+    
     # Create the signed message 
     message = sender_address_bytes + contract_address_bytes + func_hash + ctBytes
     pk = keys.PrivateKey(signingKey)
-    signature = keys.Signature(signature)
+    signature_obj = keys.Signature(signature)
     # Verify the signature against the message hash and the public key
-    verified = signature.verify_msg(message, pk.public_key)
+    verified = signature_obj.verify_msg(message, pk.public_key)
     self.assertEqual(verified, True)
 
     # Decrypt the ciphertext using the AES key and check the decrypted value against the original plaintext
-    ctBytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
-    
     # ctBytes is divided into two components: random and encrypted data. The decrypt function processes each component separately. 
-    decrypted = decrypt(userKey, ctBytes[block_size:], ctBytes[:block_size])
+    decrypted = decrypt(userKey, ctBytes[BLOCK_SIZE:], ctBytes[:BLOCK_SIZE])
     decrypted_integer = int.from_bytes(decrypted, 'big')
     self.assertEqual(plaintext, decrypted_integer)
 ```

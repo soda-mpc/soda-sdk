@@ -1,0 +1,5 @@
+include README.md
+include README_PY.md
+include requirements.txt
+include LICENSE
+recursive-include python/soda_python_sdk *.py
