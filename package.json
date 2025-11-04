@@ -1,6 +1,6 @@
 {
-  "name": "soda-sdk",
-  "version": "0.0.3-test.20251024003447.0",
+  "name": "gcevm-sdk",
+  "version": "0.0.5",
   "description": "This SDK provides functionalities for AES and RSA encryption schemes, ECDSA signature scheme and some functionalities used for working with sodalabs blockchain.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

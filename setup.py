@@ -22,11 +22,11 @@ def read_readme():
     return "Soda SDK - Cryptographic functions for Soda Labs blockchain"
 
 setup(
-    name='soda-sdk',
-    version='0.0.3.dev20251024112408',
+    name='gcevm-sdk',
+    version='0.0.5',
     packages=find_packages(where='python'),
     package_dir={'': 'python'},
-    description='Cryptographic SDK for AES, RSA, ECDSA encryption and Soda Labs blockchain integration',
+    description='Soda SDK - Cryptographic functions for Soda Labs blockchain',
     long_description=read_readme(),
     long_description_content_type='text/markdown',
     author='Soda Labs',

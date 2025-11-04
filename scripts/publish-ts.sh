@@ -40,16 +40,16 @@ check_setup() {
     echo "✅ Logged in to npm as: $(npm whoami)"
     
     # Check if package name is available
-    if npm view soda-sdk > /dev/null 2>&1; then
-        echo "✅ Package 'soda-sdk' exists on npm"
+    if npm view gcevm-sdk > /dev/null 2>&1; then
+        echo "✅ Package 'gcevm-sdk' exists on npm"
     else
-        echo "⚠️  Package 'soda-sdk' not found on npm (this is normal for new packages)"
+        echo "⚠️  Package 'gcevm-sdk' not found on npm (this is normal for new packages)"
     fi
     
-    # Check if dist directory exists
+    # Build the package if dist doesn't exist
     if [ ! -d "dist" ]; then
-        echo "❌ dist/ directory not found. Please run 'npm run build' first."
-        return 1
+        echo "📦 Building package..."
+        npm run build
     fi
     
     echo "✅ dist/ directory exists"
@@ -70,6 +70,11 @@ check_setup() {
 # Function to test locally
 test_local() {
     echo "🧪 Testing package locally..."
+    
+    # Clean up old build artifacts
+    echo "🧹 Cleaning up old build artifacts..."
+    rm -rf dist/
+    rm -f *.tgz
     
     # Build the package
     echo "📦 Building package..."
@@ -92,7 +97,7 @@ test_local() {
     # Test the package
     echo "🧪 Testing package functionality..."
     node -e "
-        const { generateAesKey, prepareIT256 } = require('soda-sdk');
+        const { generateAesKey, prepareIT256 } = require('gcevm-sdk');
         const key = generateAesKey();
         console.log('✅ SDK working! Generated key length:', key.length);
     " || echo "⚠️ Package test failed, but continuing..."
@@ -114,17 +119,26 @@ publish_test() {
         exit 1
     fi
     
+    # Clean up old build artifacts
+    echo "🧹 Cleaning up old build artifacts..."
+    rm -rf dist/
+    rm -f *.tgz
+    
     # Create a test version
     echo "📝 Creating test version..."
     TIMESTAMP=$(date +%Y%m%d%H%M%S)
     npm version prerelease --preid="test.$TIMESTAMP" --no-git-tag-version
+    
+    # Build the package
+    echo "📦 Building package..."
+    npm run build
     
     # Publish to test channel
     echo "📤 Publishing to test channel..."
     npm publish --tag test
     
     echo "✅ Successfully published to npm test channel!"
-    echo "📦 Install with: npm install soda-sdk@test"
+    echo "📦 Install with: npm install gcevm-sdk@test"
 }
 
 # Function to publish to beta channel
@@ -135,16 +149,25 @@ publish_beta() {
         exit 1
     fi
     
+    # Clean up old build artifacts
+    echo "🧹 Cleaning up old build artifacts..."
+    rm -rf dist/
+    rm -f *.tgz
+    
     # Create a beta version
     echo "📝 Creating beta version..."
     npm version prerelease --preid="beta" --no-git-tag-version
+    
+    # Build the package
+    echo "📦 Building package..."
+    npm run build
     
     # Publish to beta channel
     echo "📤 Publishing to beta channel..."
     npm publish --tag beta
     
     echo "✅ Successfully published to npm beta channel!"
-    echo "📦 Install with: npm install soda-sdk@beta"
+    echo "📦 Install with: npm install gcevm-sdk@beta"
 }
 
 # Function to publish to latest channel
@@ -155,12 +178,21 @@ publish_latest() {
         exit 1
     fi
     
+    # Clean up old build artifacts
+    echo "🧹 Cleaning up old build artifacts..."
+    rm -rf dist/
+    rm -f *.tgz
+    
+    # Build the package
+    echo "📦 Building package..."
+    npm run build
+    
     # Publish to latest channel
     echo "📤 Publishing to latest channel..."
     npm publish
     
     echo "✅ Successfully published to npm latest channel!"
-    echo "📦 Install with: npm install soda-sdk"
+    echo "📦 Install with: npm install gcevm-sdk"
 }
 
 # Main script logic

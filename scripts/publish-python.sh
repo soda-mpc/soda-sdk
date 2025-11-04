@@ -150,6 +150,12 @@ publish_test() {
         exit 1
     fi
     
+    # Clean up old build artifacts
+    echo "🧹 Cleaning up old build artifacts..."
+    rm -rf dist/
+    rm -rf build/
+    rm -rf *.egg-info/
+    
     # Create a test version
     echo "📝 Creating test version..."
     TIMESTAMP=$(date +%Y%m%d%H%M%S)
@@ -174,7 +180,7 @@ publish_test() {
     mv setup.py.bak setup.py
     
     echo "✅ Successfully published to TestPyPI!"
-    echo "📦 Install with: pip install --index-url https://test.pypi.org/simple/ soda-sdk"
+    echo "📦 Install with: pip install --index-url https://test.pypi.org/simple/ gcevm-sdk"
 }
 
 # Function to publish to PyPI
@@ -184,6 +190,12 @@ publish_pypi() {
     if ! check_setup; then
         exit 1
     fi
+    
+    # Clean up old build artifacts
+    echo "🧹 Cleaning up old build artifacts..."
+    rm -rf dist/
+    rm -rf build/
+    rm -rf *.egg-info/
     
     # Build the package
     echo "📦 Building package..."
@@ -198,7 +210,7 @@ publish_pypi() {
     python -m twine upload dist/*
     
     echo "✅ Successfully published to PyPI!"
-    echo "📦 Install with: pip install soda-sdk"
+    echo "📦 Install with: pip install gcevm-sdk"
 }
 
 # Function to clean up
