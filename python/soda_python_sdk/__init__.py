@@ -10,7 +10,9 @@ from .crypto import (
     sign,
     sign_eip191,
     prepare_IT,
+    prepare_IT_256,
     generate_rsa_keypair,
+    encrypt_rsa,
     decrypt_rsa,
     recover_user_key,
     keccak256,
@@ -19,7 +21,8 @@ from .crypto import (
     ADDRESS_SIZE,
     FUNC_SIG_SIZE,
     CT_SIZE,
-    KEY_SIZE
+    KEY_SIZE,
+    MAX_PLAINTEXT_BIT_SIZE
 )
 
 # Define what gets exposed when someone imports * from this module
@@ -34,13 +37,17 @@ __all__ = [
     'sign',
     'sign_eip191',
     'prepare_IT',
+    'prepare_IT_256',
     'generate_rsa_keypair',
+    'encrypt_rsa',
     'decrypt_rsa',
     'recover_user_key',
     'keccak256',
     'get_func_sig',
+    'BLOCK_SIZE',
     'ADDRESS_SIZE',
     'FUNC_SIG_SIZE',
     'CT_SIZE',
-    'KEY_SIZE'
+    'KEY_SIZE',
+    'MAX_PLAINTEXT_BIT_SIZE'
 ]
