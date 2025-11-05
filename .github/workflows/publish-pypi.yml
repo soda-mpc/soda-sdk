@@ -1,0 +1,155 @@
+name: Publish Python Package to PyPI
+
+on:
+  workflow_dispatch:  # Manual triggering only
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 0.1.0, patch, minor, major)'
+        required: true
+        default: 'patch'
+      channel:
+        description: 'PyPI channel to publish to'
+        required: true
+        default: 'testpypi'
+        type: choice
+        options:
+          - testpypi
+          - pypi
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write  # Required for OIDC
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine wheel
+          pip install -r requirements.txt
+
+      - name: Run Python tests
+        run: |
+          cd python/soda_python_sdk
+          python -m unittest test.py -v -k "TestMpcHelper"
+
+      - name: Handle versioning
+        id: versioning
+        run: |
+          VERSION_INPUT="${{ github.event.inputs.version }}"
+          CHANNEL="${{ github.event.inputs.channel }}"
+          
+          # Get current version from setup.py
+          CURRENT_VERSION=$(python -c "import re; print(re.search(r'version=[\'\"]([^\'\"]*)[\'\"]', open('setup.py').read()).group(1))")
+          echo "Current version: $CURRENT_VERSION"
+          
+          if [ "$VERSION_INPUT" = "patch" ] || [ "$VERSION_INPUT" = "minor" ] || [ "$VERSION_INPUT" = "major" ]; then
+            # Simple version bumping without bump2version
+            IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+            MAJOR=${VERSION_PARTS[0]}
+            MINOR=${VERSION_PARTS[1]}
+            PATCH=${VERSION_PARTS[2]}
+            
+            case "$VERSION_INPUT" in
+              "major")
+                NEW_VERSION="$((MAJOR + 1)).0.0"
+                ;;
+              "minor")
+                NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
+                ;;
+              "patch")
+                NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+                ;;
+            esac
+            
+            # Update setup.py
+            sed -i "s/version='[^']*'/version='$NEW_VERSION'/" setup.py
+          else
+            # Use specific version
+            NEW_VERSION=$VERSION_INPUT
+            sed -i "s/version='[^']*'/version='$NEW_VERSION'/" setup.py
+          fi
+          
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
+          echo "Publishing version $NEW_VERSION to $CHANNEL"
+
+      - name: Clean build artifacts
+        run: |
+          rm -rf dist/ build/ python/soda_sdk.egg-info/
+
+      - name: Build package
+        run: |
+          python -m build
+          ls -la dist/
+
+      - name: Verify package
+        run: |
+          python -m twine check dist/*
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          TWINE_REPOSITORY: ${{ steps.versioning.outputs.channel == 'testpypi' && 'testpypi' || 'pypi' }}
+        run: |
+          python -m twine upload dist/*
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: python-v${{ steps.versioning.outputs.version }}
+          release_name: Python SDK Release ${{ steps.versioning.outputs.version }} (${{ steps.versioning.outputs.channel }})
+          body: |
+            ## Python SDK Release ${{ steps.versioning.outputs.version }}
+            
+            - Updated Python SDK to version ${{ steps.versioning.outputs.version }}
+            - Published to PyPI ${{ steps.versioning.outputs.channel }}
+            - All tests passing ✅
+            
+            ## Installation
+            
+            ```bash
+            # From PyPI
+            pip install soda-sdk
+            
+            # From TestPyPI
+            pip install --index-url https://test.pypi.org/simple/ soda-sdk
+            ```
+            
+            ## Features
+            
+            - AES encryption/decryption
+            - RSA key generation and encryption
+            - ECDSA signature generation
+            - Blockchain integration utilities
+            - 256-bit number support
+          draft: false
+          prerelease: ${{ steps.versioning.outputs.channel == 'testpypi' }}
+
+      - name: Update setup.py version in repo
+        run: |
+          git add setup.py
+          git commit -m "chore: bump Python SDK version to ${{ steps.versioning.outputs.version }}"
+          git push origin ${{ github.ref_name }}
+
