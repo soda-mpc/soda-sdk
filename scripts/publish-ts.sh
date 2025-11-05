@@ -40,10 +40,10 @@ check_setup() {
     echo "✅ Logged in to npm as: $(npm whoami)"
     
     # Check if package name is available
-    if npm view gcevm-sdk > /dev/null 2>&1; then
-        echo "✅ Package 'gcevm-sdk' exists on npm"
+    if npm view soda-bubble-sdk > /dev/null 2>&1; then
+        echo "✅ Package 'soda-bubble-sdk' exists on npm"
     else
-        echo "⚠️  Package 'gcevm-sdk' not found on npm (this is normal for new packages)"
+        echo "⚠️  Package 'soda-bubble-sdk' not found on npm (this is normal for new packages)"
     fi
     
     # Build the package if dist doesn't exist
@@ -56,7 +56,7 @@ check_setup() {
     
     # Check if tests pass
     echo "🧪 Running tests..."
-    if npm test; then
+    if npm run test:ts; then
         echo "✅ All tests passed"
     else
         echo "❌ Tests failed. Please fix tests before publishing."
@@ -97,7 +97,7 @@ test_local() {
     # Test the package
     echo "🧪 Testing package functionality..."
     node -e "
-        const { generateAesKey, prepareIT256 } = require('gcevm-sdk');
+        const { generateAesKey, prepareIT256 } = require('soda-bubble-sdk');
         const key = generateAesKey();
         console.log('✅ SDK working! Generated key length:', key.length);
     " || echo "⚠️ Package test failed, but continuing..."
@@ -138,7 +138,7 @@ publish_test() {
     npm publish --tag test
     
     echo "✅ Successfully published to npm test channel!"
-    echo "📦 Install with: npm install gcevm-sdk@test"
+    echo "📦 Install with: npm install soda-bubble-sdk@test"
 }
 
 # Function to publish to beta channel
@@ -167,7 +167,7 @@ publish_beta() {
     npm publish --tag beta
     
     echo "✅ Successfully published to npm beta channel!"
-    echo "📦 Install with: npm install gcevm-sdk@beta"
+    echo "📦 Install with: npm install soda-bubble-sdk@beta"
 }
 
 # Function to publish to latest channel
@@ -192,7 +192,7 @@ publish_latest() {
     npm publish
     
     echo "✅ Successfully published to npm latest channel!"
-    echo "📦 Install with: npm install gcevm-sdk"
+    echo "📦 Install with: npm install soda-bubble-sdk"
 }
 
 # Main script logic

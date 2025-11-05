@@ -48,7 +48,7 @@ setup_venv() {
     
     # Install build tools
     echo "📦 Installing build tools..."
-    pip install build twine wheel
+    pip install build twine wheel setuptools
     
     # Install package dependencies
     echo "📦 Installing package dependencies..."
@@ -180,7 +180,7 @@ publish_test() {
     mv setup.py.bak setup.py
     
     echo "✅ Successfully published to TestPyPI!"
-    echo "📦 Install with: pip install --index-url https://test.pypi.org/simple/ gcevm-sdk"
+    echo "📦 Install with: pip install --index-url https://test.pypi.org/simple/ soda-bubble-sdk"
 }
 
 # Function to publish to PyPI
@@ -210,7 +210,7 @@ publish_pypi() {
     python -m twine upload dist/*
     
     echo "✅ Successfully published to PyPI!"
-    echo "📦 Install with: pip install gcevm-sdk"
+    echo "📦 Install with: pip install soda-bubble-sdk"
 }
 
 # Function to clean up

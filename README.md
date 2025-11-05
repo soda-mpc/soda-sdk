@@ -1,4 +1,4 @@
-# Soda-sdk
+# Soda-bubble-sdk
 
 This SDK provides functionalities for AES and RSA encryption schemes, ECDSA signature scheme and some functionalties used for working with sodalabs interface.
 The SDK provides all functionalities in three common widely used languages - Golang, Python and JavaScript.
@@ -87,7 +87,7 @@ The SDK support provide the following functionalities:
 Clone the repository:
 
 ```bash
-git clone https://github.com/soda-mpc/soda-sdk.git
+git clone -b bubble https://github.com/soda-mpc/soda-sdk.git
 ```
 
 ## Golang 
