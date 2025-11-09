@@ -262,21 +262,21 @@ def read_public_key_from_pem(pem_public_key_path):
 
     return uncompressed65[1:]  # 64 bytes: X||Y
 
-def verify_encrypt_to_user_signature(public_key, handles, output, signature):
+def verify_encrypt_to_user_signature(public_key, handles, outputs, signature):
     """Verify the signature of the message."""
 
-    if (len(handles) != len(output)):
-        raise ValueError("handles and output must have the same length")
+    if (len(handles) != len(outputs)):
+        raise ValueError("handles and outputs must have the same length")
 
-    if len(handles) == 0 or len(output) == 0:  
-        raise ValueError("handles and output must be non-empty") 
+    if len(handles) == 0:  
+        raise ValueError("handles and outputs must be non-empty") 
 
     all_handles = bytes()
     for handle in handles:
         all_handles += handle
 
     all_outputs = bytes()
-    for output in output:
+    for output in outputs:
         all_outputs += output
 
     # Create the message to be signed

@@ -439,7 +439,7 @@ export function verifyEncryptToUserSignature(publicKey, handles, outputs, signat
         throw new RangeError("handles and outputs must have the same length");
     }
     
-    if (handles.length === 0 || outputs.length === 0){
+    if (handles.length === 0){
         throw new RangeError("handles and outputs must be non-empty");
     }
 
