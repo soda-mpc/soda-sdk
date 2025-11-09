@@ -427,27 +427,46 @@ export function readPublicKeyFromPem(pemPublicKeyPath) {
 }
 
 /**
+ * 
+ * @param {Buffer|Uint8Array} publicKey - The public key in X||Y format (64 bytes).
+ * @param {Buffer|Uint8Array} handles - The handles to be verified.
+ * @param {Buffer|Uint8Array} outputs - The output bytes to be verified.
+ * @param {Buffer|Uint8Array} signature - The signature in r||s||v format (65 bytes).
+ * @returns {boolean} - Returns true if the signature is valid, false otherwise.
+ */
+export function verifyEncryptToUserSignature(publicKey, handles, outputs, signature){    
+    if (handles.length !== outputs.length){
+        throw new RangeError("handles and outputs must have the same length");
+    }
+    
+    if (handles.length === 0){
+        throw new RangeError("handles and outputs must be non-empty");
+    }
+
+    let allHandles = Buffer.concat(handles);
+    let allOutputs = Buffer.concat(outputs);
+
+    const message = Buffer.concat([allHandles, allOutputs]);
+
+    return verifySignature(publicKey, message, signature);
+}
+
+/**
  * Verify the signature of the message.
  * @param {Buffer|Uint8Array} publicKey - The public key in X||Y format (64 bytes).
- * @param {Buffer|Uint8Array} handleBytes - The handle bytes to be verified.
- * @param {Buffer|Uint8Array} output - The output bytes to be verified.
+ * @param {Buffer|Uint8Array} message - The message to be verified.
  * @param {Buffer|Uint8Array} signature - The signature in r||s||v format (65 bytes).
  * @returns {boolean} - Returns true if the signature is valid, false otherwise.
  * @throws {TypeError} - Throws if any of the input parameters are of invalid types.
  * @throws {RangeError} - Throws if any of the input parameters are empty or have incorrect lengths.
  */
-export function verifySignature(publicKey, handleBytes, output, signature) {
+export function verifySignature(publicKey, message, signature) {
     // Validate input types
-    if (!(handleBytes instanceof Buffer) && !(handleBytes instanceof Uint8Array)) {
-        throw new TypeError("handle_bytes must be Buffer or Uint8Array");
+    if (!(message instanceof Buffer) && !(message instanceof Uint8Array)) {
+        throw new TypeError("message must be Buffer or Uint8Array");
     }
-    if (!(output instanceof Buffer) && !(output instanceof Uint8Array)) {
-        throw new TypeError("output must be Buffer or Uint8Array");
-    }
-    
-    // Validate non-empty
-    if (handleBytes.length === 0 || output.length === 0) {
-        throw new RangeError("handle_bytes and output must be non-empty");
+    if (message.length === 0) {
+        throw new RangeError("message must be non-empty");
     }
 
     // Validate signature length
@@ -466,11 +485,6 @@ export function verifySignature(publicKey, handleBytes, output, signature) {
         throw new RangeError(`Invalid public key length: ${publicKey.length} bytes, must be 64 (X||Y)`);
     }
 
-    // Create the message to be signed
-    const handleBuf = Buffer.from(handleBytes);
-    const outputBuf = Buffer.from(output);
-    const message = Buffer.concat([handleBuf, outputBuf]);
-    
     // Hash the message
     const messageHash = ethereumjsUtil.keccak256(message);
 

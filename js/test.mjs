@@ -143,8 +143,8 @@ describe('Crypto Tests', () => {
         const signatureBytes = signIT(sender, addr, ct, key);
 
         const publicKey = ethereumjsUtil.privateToPublic(key);
-        const message = Buffer.concat([sender, addr]);
-        const verified = verifySignature(publicKey, message, ct, signatureBytes);
+        const message = Buffer.concat([sender, addr, ct]);
+        const verified = verifySignature(publicKey, message, signatureBytes);
 
         // Assert
         assert.strictEqual(verified, true);

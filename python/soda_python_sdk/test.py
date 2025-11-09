@@ -145,7 +145,7 @@ class TestMpcHelper(unittest.TestCase):
         signature_bytes = signIT(sender, addr, ct, key)
 
         public_key = keys.PrivateKey(key).public_key.to_bytes()
-        verified = verify_signature(public_key, sender + addr, ct, signature_bytes)
+        verified = verify_signature(public_key, sender + addr + ct, signature_bytes)
        
         # Assert
         self.assertEqual(verified, True)
