@@ -445,12 +445,6 @@ export function verifyEncryptToUserSignature(publicKey, handles, outputs, signat
 
     let allHandles = Buffer.concat(handles);
     let allOutputs = Buffer.concat(outputs);
-    // for (let i = 0; i < handles.length; i++){
-    //     allHandles += Buffer.from(handles[i]);
-    // }
-    // for (let i = 0; i < outputs.length; i++){
-    //     allOutputs += Buffer.from(outputs[i]);
-    // }
 
     const message = Buffer.concat([allHandles, allOutputs]);
 
