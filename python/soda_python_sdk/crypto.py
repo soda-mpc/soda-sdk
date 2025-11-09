@@ -262,17 +262,38 @@ def read_public_key_from_pem(pem_public_key_path):
 
     return uncompressed65[1:]  # 64 bytes: X||Y
 
-def verify_signature(public_key, handle_bytes, output, signature):
+def verify_encrypt_to_user_signature(public_key, handles, output, signature):
     """Verify the signature of the message."""
 
-    if not isinstance(handle_bytes, (bytes, bytearray)) or not isinstance(output, (bytes, bytearray)):  
-        raise TypeError("handle_bytes and output must be bytes")  
-    if len(handle_bytes) == 0 or len(output) == 0:  
-        raise ValueError("handle_bytes and output must be non-empty")  
+    if (len(handles) != len(output)):
+        raise ValueError("handles and output must have the same length")
+
+    if len(handles) == 0 or len(output) == 0:  
+        raise ValueError("handles and output must be non-empty") 
+
+    all_handles = bytes()
+    for handle in handles:
+        all_handles += handle
+
+    all_outputs = bytes()
+    for output in output:
+        all_outputs += output
 
     # Create the message to be signed
-    message = handle_bytes + output
+    message = all_handles + all_outputs
     
+    return verify_signature(public_key, message, signature)
+
+def verify_signature(public_key, message, signature):
+    """Verify the signature of the message."""
+
+    if not isinstance(message, (bytes, bytearray)):  
+        raise TypeError("message must be of type bytes or bytearray")  
+    if len(message) == 0:  
+        raise ValueError("message must be non-empty")  
+
+    if not isinstance(signature, (bytes, bytearray)):  
+        raise TypeError("signature must be of type bytes or bytearray")  
     if len(signature) != SIGNATURE_SIZE:
         raise ValueError(f"Invalid signature length: {len(signature)} bytes, must be {SIGNATURE_SIZE} bytes")
 
@@ -281,7 +302,7 @@ def verify_signature(public_key, handle_bytes, output, signature):
 
     # Validate public key format: expect 64-byte X||Y  
     if not isinstance(public_key, (bytes, bytearray)):  
-        raise TypeError("public_key must be bytes")  
+        raise TypeError("public_key must be of type bytes or bytearray")  
     if len(public_key) != EC_PUBLIC_KEY_SIZE - 1:  
         raise ValueError(f"Invalid public key length: {len(public_key)} bytes, must be 64 (X||Y)")  
 
