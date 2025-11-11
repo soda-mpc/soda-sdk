@@ -358,109 +358,37 @@ export function prepareIT256(plaintext, userAesKey, sender, contract, signingKey
     return { ciphertext: {ciphertextHigh: ciphertextHighUint, ciphertextLow: ciphertextLowUint}, signature };
 }
 
-export function readPublicKeyFromPem(pemPublicKeyPath) {
-    // Read the PEM file
-    const pemPublicKey = fs.readFileSync(pemPublicKeyPath, 'utf8');
-
-    // Use Node.js crypto to create a KeyObject from PEM
-    // This handles PEM parsing automatically
-    const keyObject = crypto.createPublicKey(pemPublicKey);
-    
-    // Get the key type and parameters
-    const keyType = keyObject.asymmetricKeyType;
-    if (keyType !== 'ec') {
-        throw new Error(`Invalid key type: expected 'ec', got '${keyType}'`);
-    }
-    
-    // Export the public key in DER format
-    const derBytes = keyObject.export({ format: 'der', type: 'spki' });
-    
-    // Parse ASN.1 DER structure to extract the EC point
-    // SubjectPublicKeyInfo: SEQUENCE { AlgorithmIdentifier, BIT STRING { point } }
-    const asn1 = forge.asn1.fromDer(derBytes.toString('binary'));
-    
-    // Check if we have a SEQUENCE
-    if (!asn1) {
-        throw new Error('Invalid PEM format: failed to parse DER');
-    }
-    
-    // Check type - forge uses both 'tag' and 'type' properties
-    const isSequence = (asn1.type === forge.asn1.Type.SEQUENCE) || 
-                       (asn1.tag === forge.asn1.Type.SEQUENCE);
-    if (!isSequence) {
-        throw new Error(`Invalid PEM format: expected SEQUENCE, got type=${asn1.type}, tag=${asn1.tag}`);
-    }
-    
-    // The value should be an array of ASN.1 structures
-    const children = asn1.value;
-    if (!children || !Array.isArray(children) || children.length < 2) {
-        throw new Error('Invalid PEM format: missing public key data');
-    }
-    
-    // Second child is the BIT STRING containing the EC point
-    const bitString = children[1];
-    const isBitString = (bitString.type === forge.asn1.Type.BIT_STRING) ||
-                        (bitString.tag === forge.asn1.Type.BIT_STRING);
-    if (!bitString || !isBitString) {
-        throw new Error(`Invalid PEM format: expected BIT STRING, got type=${bitString?.type}, tag=${bitString?.tag}`);
-    }
-    
-    // BIT STRING: first byte is unused bits count, rest is the actual data
-    // The value is a string in binary format
-    const bitStringData = bitString.value;
-    if (typeof bitStringData !== 'string') {
-        throw new Error('Invalid BIT STRING format: expected string value');
-    }
-    
-    const bitStringBytes = Buffer.from(bitStringData, 'binary');
-    
-    // Skip unused bits indicator (first byte, usually 0)
-    const publicKeyPoint = bitStringBytes.subarray(1);
-    
-    // For secp256k1, uncompressed format is 0x04 || X(32 bytes) || Y(32 bytes) = 65 bytes
-    if (publicKeyPoint.length !== EC_PUBLIC_KEY_SIZE || publicKeyPoint[0] !== 0x04) {
-        throw new Error(`Invalid EC public key format: expected ${EC_PUBLIC_KEY_SIZE} bytes with 0x04 prefix, got ${publicKeyPoint.length} bytes`);
-    }
-    
-    // Return X||Y (skip the 0x04 prefix) - 64 bytes total
-    return publicKeyPoint.subarray(1);
-}
-
 /**
- * 
- * @param {Buffer|Uint8Array} publicKey - The public key in X||Y format (64 bytes).
- * @param {Buffer|Uint8Array} handles - The handles to be verified.
- * @param {Buffer|Uint8Array} outputs - The output bytes to be verified.
- * @param {Buffer|Uint8Array} signature - The signature in r||s||v format (65 bytes).
- * @returns {boolean} - Returns true if the signature is valid, false otherwise.
- */
-export function verifyEncryptToUserSignature(publicKey, handles, outputs, signature){    
-    if (handles.length !== outputs.length){
-        throw new RangeError("handles and outputs must have the same length");
-    }
-    
-    if (handles.length === 0){
-        throw new RangeError("handles and outputs must be non-empty");
-    }
-
-    let allHandles = Buffer.concat(handles);
-    let allOutputs = Buffer.concat(outputs);
-
-    const message = Buffer.concat([allHandles, allOutputs]);
-
-    return verifySignature(publicKey, message, signature);
-}
-
-/**
- * Verify the signature of the message.
- * @param {Buffer|Uint8Array} publicKey - The public key in X||Y format (64 bytes).
+ * Verifies the signatures of the message.
  * @param {Buffer|Uint8Array} message - The message to be verified.
- * @param {Buffer|Uint8Array} signature - The signature in r||s||v format (65 bytes).
- * @returns {boolean} - Returns true if the signature is valid, false otherwise.
- * @throws {TypeError} - Throws if any of the input parameters are of invalid types.
- * @throws {RangeError} - Throws if any of the input parameters are empty or have incorrect lengths.
+ * @param {Buffer|Uint8Array} signatures - The signatures to be verified.
+ * @param {string[]} signers - The list of signers.
+ * @returns {boolean} - Returns true if the signatures are valid, false otherwise.
  */
-export function verifySignature(publicKey, message, signature) {
+export function verifySignatures(message, signatures, signers){  
+    const recoveredAddresses = [];
+    for (const signature of signatures) {
+        const recoveredAddress = recoverAddressFromSignature(message, signature);
+        if (!signers.includes(recoveredAddress)) {
+            console.log("Recovered address " + recoveredAddress + " not in the list of signers")
+            return false;
+        }
+        if (recoveredAddresses.includes(recoveredAddress)) {
+            console.log("Same address recovered multiple times")
+            return false;
+        }
+        recoveredAddresses.push(recoveredAddress);
+    }
+    return true;
+}
+
+/**
+ * Recovers the address from the signature.
+ * @param {Buffer|Uint8Array} message - The message to be signed.
+ * @param {Buffer|Uint8Array} signature - The signature in r||s||v format (65 bytes).
+ * @returns {string} - The address recovered from the signature.
+ */
+export function recoverAddressFromSignature(message, signature) {
     // Validate input types
     if (!(message instanceof Buffer) && !(message instanceof Uint8Array)) {
         throw new TypeError("message must be Buffer or Uint8Array");
@@ -477,20 +405,9 @@ export function verifySignature(publicKey, message, signature) {
         throw new RangeError(`Invalid signature length: ${signature.length} bytes, must be ${SIGNATURE_SIZE} bytes`);
     }
 
-    // Validate public key format: expect 64-byte X||Y
-    if (!(publicKey instanceof Buffer) && !(publicKey instanceof Uint8Array)) {
-        throw new TypeError("public_key must be Buffer or Uint8Array");
-    }
-    if (publicKey.length !== EC_PUBLIC_KEY_SIZE - 1) {
-        throw new RangeError(`Invalid public key length: ${publicKey.length} bytes, must be 64 (X||Y)`);
-    }
-
     // Hash the message
     const messageHash = ethereumjsUtil.keccak256(message);
 
-    // Convert public key to Buffer if needed
-    const publicKeyBuf = Buffer.from(publicKey);
-    
     // Convert signature components (r, s, v)
     const { rBytes, sBytes, vByte } = extractSignatureComponents(Buffer.from(signature));
 
@@ -501,9 +418,10 @@ export function verifySignature(publicKey, message, signature) {
 
     // Recover the public key from the signature
     const recoveredPublicKey = ethereumjsUtil.ecrecover(messageHash, v, rBytes, sBytes);
-    
-    // Compare the recovered public key with the provided public key
-    return recoveredPublicKey.equals(publicKeyBuf);
+
+    // Get the address from the recovered public key
+    const addressBuffer = ethereumjsUtil.pubToAddress(recoveredPublicKey);
+    return ethereumjsUtil.toChecksumAddress('0x' + addressBuffer.toString('hex'));
 }
 
 /**
