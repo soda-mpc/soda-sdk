@@ -241,9 +241,9 @@ def inner_prepare_IT(plaintext, user_aes_key, sender, contract, signing_key, eip
 def verify_signatures(message, signatures, signers):
     """Verify the signatures of the message."""
     # Normalize signers to checksum addresses for comparison
-    signers_normalized = [Web3.to_checksum_address(signer) for signer in signers]
+    signers_normalized = {Web3.to_checksum_address(signer) for signer in signers}
 
-    recovered_addresses = []
+    recovered_addresses = set()
     for signature in signatures:
         recovered_address = recover_address_from_signature(message, signature)
         # Normalize recovered address to checksum format
@@ -255,7 +255,7 @@ def verify_signatures(message, signatures, signers):
         if recovered_address in recovered_addresses:
             print(f"Same address recovered multiple times")
             return False
-        recovered_addresses.append(recovered_address)
+        recovered_addresses.add(recovered_address)
         
     return True
     

@@ -373,7 +373,7 @@ export function verifySignatures(message, signatures, signers){
             console.log("Recovered address " + recoveredAddress + " not in the list of signers")
             return false;
         }
-        if (recoveredAddress in recoveredAddresses) {
+        if (recoveredAddresses.includes(recoveredAddress)) {
             console.log("Same address recovered multiple times")
             return false;
         }
