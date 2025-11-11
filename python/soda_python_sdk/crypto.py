@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.asymmetric import ec
 from eth_account import Account
 from eth_account.messages import encode_defunct
+from web3 import Web3
 
 BLOCK_SIZE = AES.block_size
 ADDRESS_SIZE = 20
@@ -237,55 +238,30 @@ def inner_prepare_IT(plaintext, user_aes_key, sender, contract, signing_key, eip
 
     return ctInt, signature
 
-def read_public_key_from_pem(pem_public_key_path):
-    """Return 64-byte uncompressed EC public key (X||Y) from a PEM public key."""
-    with open(pem_public_key_path, "rb") as f:
-        data = f.read()
+def verify_signatures(message, signatures, signers):
+    """Verify the signatures of the message."""
+    # Normalize signers to checksum addresses for comparison
+    signers_normalized = [Web3.to_checksum_address(signer) for signer in signers]
 
-    pubkey = serialization.load_pem_public_key(data)
-
-    # Ensure it's an EC key (e.g., secp256k1)
-    if not isinstance(pubkey, ec.EllipticCurvePublicKey):
-        raise ValueError("PEM does not contain an EC public key")
-    curve = getattr(pubkey, "curve", None)  
-    if curve is None or getattr(curve, "name", "").lower() != "secp256k1":  
-        raise ValueError(f"Unsupported EC curve: {getattr(curve, 'name', None)}; expected secp256k1") 
-
-    # Get uncompressed point (65 bytes: 0x04 + X(32) + Y(32) for secp256k1)
-    uncompressed65 = pubkey.public_bytes(
-        encoding=serialization.Encoding.X962,
-        format=serialization.PublicFormat.UncompressedPoint,
-    )
-
-    if len(uncompressed65) != EC_PUBLIC_KEY_SIZE or uncompressed65[0] != 0x04:
-        raise ValueError(f"Unexpected uncompressed key format/length: {len(uncompressed65)}")
-
-    return uncompressed65[1:]  # 64 bytes: X||Y
-
-def verify_encrypt_to_user_signature(public_key, handles, outputs, signature):
-    """Verify the signature of the message."""
-
-    if (len(handles) != len(outputs)):
-        raise ValueError("handles and outputs must have the same length")
-
-    if len(handles) == 0:  
-        raise ValueError("handles and outputs must be non-empty") 
-
-    all_handles = bytes()
-    for handle in handles:
-        all_handles += handle
-
-    all_outputs = bytes()
-    for output in outputs:
-        all_outputs += output
-
-    # Create the message to be signed
-    message = all_handles + all_outputs
+    recovered_addresses = []
+    for signature in signatures:
+        recovered_address = recover_address_from_signature(message, signature)
+        # Normalize recovered address to checksum format
+        recovered_address = Web3.to_checksum_address(recovered_address)
+        
+        if recovered_address not in signers_normalized:
+            print(f"Recovered address {recovered_address} not in the list of signers")
+            return False
+        if recovered_address in recovered_addresses:
+            print(f"Same address recovered multiple times")
+            return False
+        recovered_addresses.append(recovered_address)
+        
+    return True
     
-    return verify_signature(public_key, message, signature)
 
-def verify_signature(public_key, message, signature):
-    """Verify the signature of the message."""
+def recover_address_from_signature(message, signature):
+    """Recover the address from the signature."""
 
     if not isinstance(message, (bytes, bytearray)):  
         raise TypeError("message must be of type bytes or bytearray")  
@@ -299,17 +275,13 @@ def verify_signature(public_key, message, signature):
 
     # Hash the message
     message_hash = keccak256(message)
-
-    # Validate public key format: expect 64-byte X||Y  
-    if not isinstance(public_key, (bytes, bytearray)):  
-        raise TypeError("public_key must be of type bytes or bytearray")  
-    if len(public_key) != EC_PUBLIC_KEY_SIZE - 1:  
-        raise ValueError(f"Invalid public key length: {len(public_key)} bytes, must be 64 (X||Y)")  
-
-    # Verify the signature
-    pk = keys.PublicKey(public_key)
-    sig = keys.Signature(signature)
-    return sig.verify_msg_hash(message_hash, pk)
+    
+    # Use eth_keys to recover public key from raw hash (not EIP-191 formatted) and signature
+    sig = keys.Signature(signature_bytes=signature)
+    public_key = sig.recover_public_key_from_msg_hash(message_hash)
+    
+    # Get the address from the public key
+    return public_key.to_address()
 
 def generate_rsa_keypair():
     # Generate RSA key pair

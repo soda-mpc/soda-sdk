@@ -6,7 +6,7 @@ import {
     generateECDSAPrivateKey, generateRSAKeyPair,
     getFuncSig,
     prepareIT, prepareIT256, prepareMessage,
-    signIT, verifySignature,
+    signIT, verifySignatures,
     writeBigUInt256BE, extractSignatureComponents
 } from './crypto.mjs';
 
@@ -143,8 +143,9 @@ describe('Crypto Tests', () => {
         const signatureBytes = signIT(sender, addr, ct, key);
 
         const publicKey = ethereumjsUtil.privateToPublic(key);
+        const signerAddress = ethereumjsUtil.toChecksumAddress('0x' + ethereumjsUtil.pubToAddress(publicKey).toString('hex'));
         const message = Buffer.concat([sender, addr, ct]);
-        const verified = verifySignature(publicKey, message, signatureBytes);
+        const verified = verifySignatures(message, [signatureBytes], [signerAddress]);
 
         // Assert
         assert.strictEqual(verified, true);
