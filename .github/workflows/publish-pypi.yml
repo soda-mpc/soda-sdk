@@ -147,9 +147,3 @@ jobs:
           draft: false
           prerelease: ${{ steps.versioning.outputs.channel == 'testpypi' }}
 
-      - name: Update setup.py version in repo
-        run: |
-          git add setup.py
-          git commit -m "chore: bump Python SDK version to ${{ steps.versioning.outputs.version }}"
-          git push origin ${{ github.ref_name }}
-

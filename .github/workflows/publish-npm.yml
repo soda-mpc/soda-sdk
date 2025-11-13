@@ -108,14 +108,8 @@ jobs:
             ## Installation
             
             ```bash
-            npm install soda-sdk@${{ steps.versioning.outputs.channel }}
+            npm install soda-bubble-sdk@${{ steps.versioning.outputs.channel }}
             ```
           draft: false
           prerelease: ${{ contains(steps.versioning.outputs.channel, 'beta') || contains(steps.versioning.outputs.channel, 'alpha') || contains(steps.versioning.outputs.channel, 'test') }}
-
-      - name: Update package.json version in repo
-        run: |
-          git add package.json
-          git commit -m "chore: bump version to ${{ steps.versioning.outputs.version }}"
-          git push origin ${{ github.ref_name }}
 
