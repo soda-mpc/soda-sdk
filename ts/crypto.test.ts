@@ -5,11 +5,12 @@ import {
     encrypt, encryptRSA,
     FUNC_SIG_SIZE,
     generateAesKey,
-    generateECDSAPrivateKey, generateRSAKeyPair, getFuncSig, HEX_BASE, prepareIT, prepareMessage, signIT, prepareIT256, writeBigUInt256BE, CT_SIZE
+    generateECDSAPrivateKey, generateRSAKeyPair, getFuncSig, HEX_BASE, prepareIT, prepareMessage, signIT, prepareIT256, writeBigUInt256BE, CT_SIZE,
+    verifySignature, extractSignatureComponents,
+    loadAesKey, writeAesKey
 } from "./crypto"
 import fs from 'fs';
 import crypto from 'crypto';
-import {loadAesKey, writeAesKey} from "./utills";
 import {
     Address,
     ecrecover,
@@ -21,22 +22,6 @@ import {
 } from "ethereumjs-util";
 import {ethers} from "ethers";
 import * as assert from "node:assert";
-
-
-function extractSignatureComponents(signatureBytes: Buffer): { rBytes: Buffer, sBytes: Buffer, vByte: Buffer } {
-    // Allocate buffers for r, s, and v
-    let rBytes = Buffer.alloc(32);
-    let sBytes = Buffer.alloc(32);
-    let vByte = Buffer.alloc(1);
-
-    // Copy the corresponding bytes from the signature
-    signatureBytes.copy(rBytes, 0, 0, 32);
-    signatureBytes.copy(sBytes, 0, 32, 64);
-    signatureBytes.copy(vByte, 0, 64);
-
-    // Return the components as an object
-    return { rBytes, sBytes, vByte };
-}
 
 function uint8ArrayToBigInt(uint8Array: Uint8Array): bigint {
     let value = BigInt(0);
@@ -163,35 +148,12 @@ describe('Crypto Tests', () => {
         // Generate the signature
         const signatureBytes = signIT(sender, addr, ct, key);
 
-        const {rBytes, sBytes, vByte} = extractSignatureComponents(signatureBytes);
-
-        // Convert v buffer back to integer
-        let v = vByte.readUInt8();
-
-        // JS expects v to be 27 or 28. But in Ethereum, v is either 0 or 1.
-        // In the sign function, 27 is subtracted from v in order to make it work with ethereum.
-        // Now 27 should be added back to v to make it work with JS veification.
-        if (v !== 27 && v !== 28) {
-            v += 27;
-        }
-
-        // Verify the signature
-        const expectedPublicKey = privateToPublic(key);
-        const expectedAddress = toChecksumAddress('0x' + expectedPublicKey.toString('hex'));
-
-        const message = Buffer.concat([sender, addr, ct]);
-        const hash = keccak256(message);
-
-        // Recover the public key from the signature
-        const publicKey = ecrecover(hash, v, rBytes, sBytes);
-        // Derive the Ethereum address from the recovered public key
-        const address = toChecksumAddress('0x' + publicKey.toString('hex'));
-
-        // Compare the derived address with the expected signer's address
-        const isVerified = address === expectedAddress;
+        const publicKey = privateToPublic(key);
+        const message = Buffer.concat([sender, addr]);
+        const verified = verifySignature(publicKey, message, ct, signatureBytes);
 
         // Assert
-        assert.strictEqual(isVerified, true);
+        assert.strictEqual(verified, true);
     });
 
     // Test case for verify signature
@@ -299,8 +261,8 @@ describe('Crypto Tests', () => {
         // Generate the signature
         const {ctInt, signature} = prepareIT(plaintext, userKey, sender.toBuffer(), contract.toBuffer(), signingKey);
 
-        const ctHex = ctInt.toString(HEX_BASE);
-        // Create a Buffer to hold the bytes
+        const ctHex = ctInt.toString(HEX_BASE).padStart(CT_SIZE * 2, '0');
+        // Create a Buffer to hold the bytes (CT_SIZE = 32 bytes = 2 * BLOCK_SIZE)
         const ctBuffer = Buffer.from(ctHex, 'hex');
 
         // Write Buffer to file to later check in Go
@@ -362,16 +324,11 @@ describe('Crypto Tests', () => {
         // Act
         const ciphertext = encryptRSA(publicKey, plaintext);
 
-        const hexString = privateKey.toString('hex') + "\n" + publicKey.toString('hex');
+        const hexString = privateKey.toString('hex') + "\n" + publicKey.toString('hex') + "\n" + Buffer.from(ciphertext).toString('hex');
 
         // Write buffer to the file
         const filename = 'test_tsRSAEncryption.txt'; // Name of the file to write to
-        fs.writeFile(filename, hexString, (err) => {
-            if (err) {
-                console.error('Error writing to file:', err);
-                return;
-            }
-        });
+        fs.writeFileSync(filename, hexString);
 
         const decrypted = decryptRSA(privateKey, Buffer.from(ciphertext).toString('hex'));
 
