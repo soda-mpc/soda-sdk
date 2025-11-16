@@ -240,6 +240,13 @@ def inner_prepare_IT(plaintext, user_aes_key, sender, contract, signing_key, eip
 
 def verify_signatures(message, signatures, signers):
     """Verify the signatures of the message."""
+
+    if len(signatures) != len(signers):
+        raise ValueError(f"Number of signatures and signers must be the same")
+
+    if len(signers) == 0:
+        raise ValueError(f"Signers must be non-empty")
+
     # Normalize signers to checksum addresses for comparison
     signers_normalized = {Web3.to_checksum_address(signer) for signer in signers}
 

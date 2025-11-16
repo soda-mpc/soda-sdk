@@ -3,10 +3,9 @@ import {
     BLOCK_SIZE,
     decrypt, decryptRSA,
     encrypt, encryptRSA,
-    FUNC_SIG_SIZE,
     generateAesKey,
     generateECDSAPrivateKey, generateRSAKeyPair, getFuncSig, HEX_BASE, prepareIT, prepareMessage, signIT, prepareIT256, writeBigUInt256BE, CT_SIZE,
-    verifySignature, extractSignatureComponents,
+    verifySignatures, extractSignatureComponents,
     loadAesKey, writeAesKey
 } from "./crypto"
 import fs from 'fs';
@@ -15,7 +14,7 @@ import {
     Address,
     ecrecover,
     hashPersonalMessage,
-    keccak256,
+    pubToAddress,
     privateToPublic,
     toBuffer,
     toChecksumAddress
@@ -149,8 +148,9 @@ describe('Crypto Tests', () => {
         const signatureBytes = signIT(sender, addr, ct, key);
 
         const publicKey = privateToPublic(key);
-        const message = Buffer.concat([sender, addr]);
-        const verified = verifySignature(publicKey, message, ct, signatureBytes);
+        const signerAddress = toChecksumAddress('0x' + pubToAddress(publicKey).toString('hex'));
+        const message = Buffer.concat([sender, addr, ct]);
+        const verified = verifySignatures(message, [signatureBytes], [signerAddress]);
 
         // Assert
         assert.strictEqual(verified, true);

@@ -366,18 +366,26 @@ export function prepareIT256(plaintext, userAesKey, sender, contract, signingKey
  * @returns {boolean} - Returns true if the signatures are valid, false otherwise.
  */
 export function verifySignatures(message, signatures, signers){  
-    const recoveredAddresses = [];
+    // Validate the number of signatures and signers
+    if (signatures.length !== signers.length) {
+        throw new RangeError("Number of signatures and signers must be the same");
+    }
+    if (signers.length === 0) {
+        throw new RangeError("Signers must be non-empty");
+    }
+
+    const recoveredAddresses = new Set();
     for (const signature of signatures) {
         const recoveredAddress = recoverAddressFromSignature(message, signature);
         if (!signers.includes(recoveredAddress)) {
             console.log("Recovered address " + recoveredAddress + " not in the list of signers")
             return false;
         }
-        if (recoveredAddresses.includes(recoveredAddress)) {
+        if (recoveredAddresses.has(recoveredAddress)) {
             console.log("Same address recovered multiple times")
             return false;
         }
-        recoveredAddresses.push(recoveredAddress);
+        recoveredAddresses.add(recoveredAddress);
     }
     return true;
 }
