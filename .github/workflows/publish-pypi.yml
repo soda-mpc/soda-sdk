@@ -3,10 +3,6 @@ name: Publish Python Package to PyPI
 on:
   workflow_dispatch:  # Manual triggering only
     inputs:
-      version:
-        description: 'Version to publish (e.g., 0.1.0, patch, minor, major)'
-        required: true
-        default: 'patch'
       channel:
         description: 'PyPI channel to publish to'
         required: true
@@ -49,39 +45,12 @@ jobs:
       - name: Handle versioning
         id: versioning
         run: |
-          VERSION_INPUT="${{ github.event.inputs.version }}"
           CHANNEL="${{ github.event.inputs.channel }}"
           
-          # Get current version from setup.py
+          # Get current version from setup.py (managed manually)
           CURRENT_VERSION=$(python -c "import re; print(re.search(r'version=[\'\"]([^\'\"]*)[\'\"]', open('setup.py').read()).group(1))")
-          echo "Current version: $CURRENT_VERSION"
-          
-          if [ "$VERSION_INPUT" = "patch" ] || [ "$VERSION_INPUT" = "minor" ] || [ "$VERSION_INPUT" = "major" ]; then
-            # Simple version bumping without bump2version
-            IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
-            MAJOR=${VERSION_PARTS[0]}
-            MINOR=${VERSION_PARTS[1]}
-            PATCH=${VERSION_PARTS[2]}
-            
-            case "$VERSION_INPUT" in
-              "major")
-                NEW_VERSION="$((MAJOR + 1)).0.0"
-                ;;
-              "minor")
-                NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
-                ;;
-              "patch")
-                NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
-                ;;
-            esac
-            
-            # Update setup.py
-            sed -i "s/version='[^']*'/version='$NEW_VERSION'/" setup.py
-          else
-            # Use specific version
-            NEW_VERSION=$VERSION_INPUT
-            sed -i "s/version='[^']*'/version='$NEW_VERSION'/" setup.py
-          fi
+          echo "Current version (from setup.py): $CURRENT_VERSION"
+          NEW_VERSION="$CURRENT_VERSION"
           
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
@@ -105,13 +74,18 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-      - name: Publish to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-          TWINE_REPOSITORY: ${{ steps.versioning.outputs.channel == 'testpypi' && 'testpypi' || 'pypi' }}
-        run: |
-          python -m twine upload dist/*
+      - name: Publish to TestPyPI (trusted publisher)
+        if: ${{ steps.versioning.outputs.channel == 'testpypi' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+
+      - name: Publish to PyPI (trusted publisher)
+        if: ${{ steps.versioning.outputs.channel == 'pypi' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
 
       - name: Create GitHub Release
         uses: actions/create-release@v1
@@ -146,4 +120,3 @@ jobs:
             - 256-bit number support
           draft: false
           prerelease: ${{ steps.versioning.outputs.channel == 'testpypi' }}
-
