@@ -53,7 +53,7 @@ jobs:
           fi
           echo "::add-mask::$NPM_TOKEN"
           npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
-          npm config set //registry.npmjs.org/:always-auth true
+          npm config set always-auth true
           echo "Token length: ${#NPM_TOKEN}"
           npm whoami
 
