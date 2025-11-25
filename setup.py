@@ -20,7 +20,7 @@ else:
 
 setup(
     name='soda-bubble-sdk',
-    version='0.0.6',
+    version='0.0.8',
     packages=find_packages(where='python'),  # Look for packages in the 'python' directory
     package_dir={'': 'python'},  # Maps the root package to the 'python' directory
     description='This SDK provides functionalities for AES and RSA encryption schemes, ECDSA signature scheme and some functionalities used for working with sodalabs blockchain.',
