@@ -3,10 +3,6 @@ name: Publish to npm
 on:
   workflow_dispatch:  # Manual triggering only
     inputs:
-      version:
-        description: 'Version to publish (e.g., 0.1.0, patch, minor, major)'
-        required: true
-        default: 'patch'
       channel:
         description: 'npm channel to publish to'
         required: true
@@ -80,18 +76,8 @@ jobs:
       - name: Handle versioning
         id: versioning
         run: |
-          VERSION_INPUT="${{ github.event.inputs.version }}"
           CHANNEL="${{ github.event.inputs.channel }}"
-          
-          if [ "$VERSION_INPUT" = "patch" ] || [ "$VERSION_INPUT" = "minor" ] || [ "$VERSION_INPUT" = "major" ]; then
-            # Use npm version to bump
-            npm version $VERSION_INPUT --no-git-tag-version
-            NEW_VERSION=$(node -p "require('./package.json').version")
-          else
-            # Use specific version
-            npm version $VERSION_INPUT --no-git-tag-version
-            NEW_VERSION=$VERSION_INPUT
-          fi
+          NEW_VERSION=$(node -p "require('./package.json').version")
           
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
