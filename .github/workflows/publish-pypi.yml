@@ -88,6 +88,7 @@ jobs:
           packages-dir: dist
 
       - name: Create GitHub Release
+        if: ${{ steps.versioning.outputs.channel == 'pypi' }}
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
