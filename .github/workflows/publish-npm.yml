@@ -45,7 +45,9 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npm test
+        run: |
+          npm run test:ts
+          npm run test:js
 
       - name: Build TypeScript
         run: npm run build
