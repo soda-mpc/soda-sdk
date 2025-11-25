@@ -41,6 +41,18 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
 
+      - name: Configure npm auth
+        # NPM_TOKEN must be an "automation" token so publish does not require OTP.
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM token is not configured" >&2
+            exit 1
+          fi
+          npm config set //registry.npmjs.org/:_authToken "$NODE_AUTH_TOKEN"
+          npm whoami
+
       - name: Install dependencies
         run: npm ci
 
@@ -116,4 +128,3 @@ jobs:
             ```
           draft: false
           prerelease: ${{ contains(steps.versioning.outputs.channel, 'beta') || contains(steps.versioning.outputs.channel, 'alpha') || contains(steps.versioning.outputs.channel, 'test') }}
-
