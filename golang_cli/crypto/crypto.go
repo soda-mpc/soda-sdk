@@ -274,34 +274,22 @@ func RecoverPKAndVerifySignature(userAddress, message, signature []byte) bool {
 // plaintext: The plaintext to encrypt
 // userAesKey: Aes key used to encrypt the plaintext
 // sender: The address of the sender
-// addr: The address of the contract
-// signingKey: The private key used for signing
 // The function encrypt the plaintext using the userAesKey
 // and then signs on the concatination of sender, addr, funcSig, and the ciphertext.
 // It returns the ciphertext, signature, and an error if any occurred.
-func prepareIT(plaintext uint64, userAesKey []byte, sender, contract common.Address, signingKey []byte) (*big.Int, []byte, error) {
-	// Get the bytes of the addresses
-	senderBytes := sender.Bytes()
-	contractBytes := contract.Bytes()
-
+func prepareIT(plaintext uint64, userAesKey []byte, sender common.Address) (common.Address, *big.Int, error) {
 	// Encrypt the plaintext
 	plaintextBytes := make([]byte, Uint64BytesSize) // Create a slice of 8 bytes for 64 bits to hold the plaintext bytes
 	binary.BigEndian.PutUint64(plaintextBytes, plaintext)
 	ciphertext, r, err := Encrypt(userAesKey, plaintextBytes)
 	if err != nil {
-		return nil, nil, err
+		return common.Address{}, nil, err
 	}
 	ct := append(ciphertext, r...)
 
-	// Sign the message
-	signature, err := SignIT(senderBytes, contractBytes, ct, signingKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	// Convert ct to uint64
 	ctIntValue := new(big.Int).SetBytes(ct)
-	return ctIntValue, signature, nil
+	return sender, ctIntValue, nil
 }
 
 func GenerateRSAKeyPair() ([]byte, []byte, error) {

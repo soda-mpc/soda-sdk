@@ -210,35 +210,16 @@ class TestMpcHelper(unittest.TestCase):
         # Create an account object manually
         sender = Account()
         sender.address = "0x8f01160c98e5cdfa625197849c85cf5fc1f76b1b"
-        contract = Account()
-        contract.address = "0x69413851f025306dbe12c48ff2225016fc5bbe1b"
-        signingKey = bytes.fromhex("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
-
+        
         # Act
         # Call the sign function
-        ct, signature = prepare_IT(plaintext, userKey, sender, contract, signingKey)
+        sender, ct = prepare_IT(plaintext, userKey, sender)
         # Write hexadecimal string to a file, this simulates the communication between the evm (golang) and the user (python/js)
         with open("test_pythonIT.txt", "w") as f:
             f.write(ct.to_bytes((ct.bit_length() + 7) // 8, 'big').hex())
-            f.write("\n")
-            f.write(signature.hex())
-
-        sender_address_bytes = bytes.fromhex(sender.address[2:])
-        contract_address_bytes = bytes.fromhex(contract.address[2:])
 
         # Convert the integer to a byte slice with size aligned to 8.
         ctBytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
-
-         # Create the message to be signed
-        message = sender_address_bytes + contract_address_bytes + ctBytes
-
-        pk = keys.PrivateKey(signingKey)
-        signature = keys.Signature(signature)
-        # Verify the signature against the message hash and the public key
-        verified = signature.verify_msg(message, pk.public_key)
-       
-        # Assert
-        self.assertEqual(verified, True)
 
         decrypted = decrypt(userKey, ctBytes[BLOCK_SIZE:], ctBytes[:BLOCK_SIZE])
         decrypted_integer = int.from_bytes(decrypted, 'big')
@@ -251,13 +232,10 @@ class TestMpcHelper(unittest.TestCase):
         # Create an account object manually
         sender = Account()
         sender.address = "0x8f01160c98e5cdfa625197849c85cf5fc1f76b1b"
-        contract = Account()
-        contract.address = "0x69413851f025306dbe12c48ff2225016fc5bbe1b"
-        signingKey = bytes.fromhex("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
-
+        
         # Act
         # Call the sign function
-        (ct, _) = prepare_IT_256(plaintext, userKey, sender, contract, signingKey)
+        (_, ct) = prepare_IT_256(plaintext, userKey, sender)
         ctHigh, ctLow = ct
         # Convert the integer to a byte slice with size aligned to 8.
         ct1Bytes = ctHigh.to_bytes(2*BLOCK_SIZE, 'big')
