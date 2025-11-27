@@ -273,11 +273,7 @@ export function writeBigUInt256BE(buffer, value, offset = 0) {
     bytes.copy(buffer, offset);
 }
 
-export function prepareIT(plaintext, userAesKey, sender, contract, signingKey, eip191=false) {
-
-    // Get the bytes of the sender, contract, and function signature
-    const senderBytes = toBuffer(sender)
-    const contractBytes = toBuffer(contract)
+export function prepareIT(plaintext, userAesKey, sender) {
 
     // Convert the plaintext to bytes
     const plaintextBigInt = BigInt(plaintext);
@@ -292,21 +288,14 @@ export function prepareIT(plaintext, userAesKey, sender, contract, signingKey, e
     const {ciphertext, r} = encrypt(userAesKey, plaintextBytes);
     let ct = Buffer.concat([ciphertext, r]);
     
-    // Sign the message
-    const signature = signIT(senderBytes, contractBytes, ct, signingKey, eip191);
-
     // Convert the ciphertext to BigInt
     const ctInt = BigInt('0x' + ct.toString('hex'));
 
-    return { ctInt, signature };
+    return { sender, ctInt };
 }
 
-export function prepareIT256(plaintext, userAesKey, sender, contract, signingKey, eip191=false, is256bit=false) {
+export function prepareIT256(plaintext, userAesKey, sender) {
 
-    // Get the bytes of the sender, contract, and function signature
-    const senderBytes = toBuffer(sender)
-    const contractBytes = toBuffer(contract)
-    
     // Convert the plaintext to bytes
     const plaintextBigInt = BigInt(plaintext);
     const bitSize = plaintextBigInt.toString(2).length;
@@ -345,9 +334,6 @@ export function prepareIT256(plaintext, userAesKey, sender, contract, signingKey
         ct = Buffer.concat([ciphertextHigh, rHigh, ciphertextLow, rLow]);
     } 
 
-    // Sign the message
-    const signature = signIT(senderBytes, contractBytes, ct, signingKey, eip191);
-
     const ciphertextHigh = ct.slice(0, CT_SIZE);
     const ciphertextLow = ct.slice(CT_SIZE);
 
@@ -355,7 +341,7 @@ export function prepareIT256(plaintext, userAesKey, sender, contract, signingKey
     const ciphertextHighUint = BigInt('0x' + ciphertextHigh.toString('hex'));
     const ciphertextLowUint = BigInt('0x' + ciphertextLow.toString('hex'));
 
-    return { ciphertext: {ciphertextHigh: ciphertextHighUint, ciphertextLow: ciphertextLowUint}, signature };
+    return { sender, ciphertext: {ciphertextHigh: ciphertextHighUint, ciphertextLow: ciphertextLowUint} };
 }
 
 /**
