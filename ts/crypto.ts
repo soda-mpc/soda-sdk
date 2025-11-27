@@ -332,14 +332,14 @@ export function writeBigUInt256BE(buffer: Buffer, value: bigint, offset = 0) {
  * This data represents encrypted data that can be sent to the contract.
  * @param {bigint} plaintext - The plaintext value to be encrypted as a BigInt.
  * @param {Buffer} userAesKey - The AES key used for encryption (16 bytes).
- * @param {Buffer} sender - The sender's address as a Buffer.
+ * @param {Buffer} userAddress - The sender's address as a Buffer.
  * @returns {Object} - An object containing the encrypted integer (as `ctInt`) and the signature.
  */
 export function prepareIT(
   plaintext:bigint,
   userAesKey:Buffer,
-  sender:Buffer,
-):{sender:Buffer, ctInt:bigint} {
+  userAddress:Buffer,
+):{userAddress:Buffer, ctInt:bigint} {
     // Convert the plaintext to bytes
     const plaintextBigInt = BigInt(plaintext);
     const bitSize = plaintextBigInt.toString(2).length;
@@ -357,7 +357,7 @@ export function prepareIT(
     // Convert the ciphertext to BigInt
     const ctInt = BigInt('0x' + ct.toString('hex'));
 
-    return { sender, ctInt };
+    return { userAddress, ctInt };
 }
 
 /**
@@ -365,9 +365,9 @@ export function prepareIT(
  * This data represents encrypted data that can be sent to the contract.
  * @param {bigint} plaintext - The plaintext value to be encrypted as a BigInt.
  * @param {Buffer} userAesKey - The AES key used for encryption (16 bytes).
- * @param {Buffer} sender - The sender's address as a Buffer.
+ * @param {Buffer} userAddress - The sender's address as a Buffer.
  */
-export function prepareIT256(plaintext:bigint, userAesKey:Buffer, sender:Buffer) {
+export function prepareIT256(plaintext:bigint, userAesKey:Buffer, userAddress:Buffer) {
 
     // Convert the plaintext to bytes
     const plaintextBigInt = BigInt(plaintext);
@@ -414,7 +414,7 @@ export function prepareIT256(plaintext:bigint, userAesKey:Buffer, sender:Buffer)
     const ciphertextHighUint = BigInt('0x' + ciphertextHigh.toString('hex'));
     const ciphertextLowUint = BigInt('0x' + ciphertextLow.toString('hex'));
 
-    return { sender, ciphertext: {ciphertextHigh: ciphertextHighUint, ciphertextLow: ciphertextLowUint} };
+    return { userAddress, ciphertext: {ciphertextHigh: ciphertextHighUint, ciphertextLow: ciphertextLowUint} };
 }
 
 /**

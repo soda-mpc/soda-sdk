@@ -257,7 +257,7 @@ describe('Crypto Tests', () => {
        
         // Act
         // Generate the signature
-        const {sender: senderAddress, ctInt} = prepareIT(plaintext, userKey, sender.toBuffer());
+        const {userAddress, ctInt} = prepareIT(plaintext, userKey, sender.toBuffer());
 
         const ctHex = ctInt.toString(HEX_BASE).padStart(CT_SIZE * 2, '0');
         // Create a Buffer to hold the bytes (CT_SIZE = 32 bytes = 2 * BLOCK_SIZE)
@@ -289,7 +289,7 @@ describe('Crypto Tests', () => {
         
         // Act
         // Generate the signature
-        const {sender: senderAddress, ciphertext} = prepareIT256(plaintext, userKey, sender.toBuffer());
+        const {userAddress, ciphertext} = prepareIT256(plaintext, userKey, sender.toBuffer());
 
         const ctHighBytes = Buffer.alloc(CT_SIZE); // Allocate a buffer of size 32 bytes
         writeBigUInt256BE(ctHighBytes, ciphertext.ciphertextHigh); // Write the uint256 value to the buffer as big-endian

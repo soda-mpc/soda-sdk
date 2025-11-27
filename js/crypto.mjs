@@ -273,7 +273,7 @@ export function writeBigUInt256BE(buffer, value, offset = 0) {
     bytes.copy(buffer, offset);
 }
 
-export function prepareIT(plaintext, userAesKey, sender) {
+export function prepareIT(plaintext, userAesKey, userAddress) {
 
     // Convert the plaintext to bytes
     const plaintextBigInt = BigInt(plaintext);
@@ -291,10 +291,10 @@ export function prepareIT(plaintext, userAesKey, sender) {
     // Convert the ciphertext to BigInt
     const ctInt = BigInt('0x' + ct.toString('hex'));
 
-    return { sender, ctInt };
+    return { userAddress, ctInt };
 }
 
-export function prepareIT256(plaintext, userAesKey, sender) {
+export function prepareIT256(plaintext, userAesKey, userAddress) {
 
     // Convert the plaintext to bytes
     const plaintextBigInt = BigInt(plaintext);
@@ -341,7 +341,7 @@ export function prepareIT256(plaintext, userAesKey, sender) {
     const ciphertextHighUint = BigInt('0x' + ciphertextHigh.toString('hex'));
     const ciphertextLowUint = BigInt('0x' + ciphertextLow.toString('hex'));
 
-    return { sender, ciphertext: {ciphertextHigh: ciphertextHighUint, ciphertextLow: ciphertextLowUint} };
+    return { userAddress, ciphertext: {ciphertextHigh: ciphertextHighUint, ciphertextLow: ciphertextLowUint} };
 }
 
 /**
