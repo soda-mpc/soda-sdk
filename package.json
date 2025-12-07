@@ -1,6 +1,6 @@
 {
   "name": "soda-bubble-sdk",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "This SDK provides functionalities for AES and RSA encryption schemes, ECDSA signature scheme and some functionalities used for working with sodalabs blockchain.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
