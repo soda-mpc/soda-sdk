@@ -276,45 +276,39 @@ func TestIT(t *testing.T) {
 	// Create plaintext with the value 100 as a big integer with less than 128 bits
 	plaintext := uint64(100)
 	sender := common.HexToAddress("8f01160c98e5cdfa625197849c85cf5fc1f76b1b")
-	contract := common.HexToAddress("69413851f025306dbe12c48ff2225016fc5bbe1b")
 	userKey, _ := hex.DecodeString("b3c3fe73c1bb91862b166a29fe1d63e9")
-	signingKey, _ := hex.DecodeString("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")
 
 	// Act and assert
 	// Sign the message
-	ct, signature, err := prepareIT(plaintext, userKey, sender, contract, signingKey)
+	_, ct, err := prepareIT(plaintext, userKey, sender)
 	require.NoError(t, err, "Sign should not return an error")
 
 	plaintextBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(plaintextBytes, plaintext)
 
-	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), ct.Bytes(), signature)
+	checkIT(t, plaintextBytes, userKey, ct.Bytes())
 
 	// Reading from file simulates the communication between the evm (golang) and the user (python/js)
-	pythonCt, pythonSignature, err := readTwoHexStringsFromFile("../../python/soda_python_sdk/test_pythonIT.txt")
+	pythonCt, err := readHexStringFromFile("../../python/soda_python_sdk/test_pythonIT.txt")
 	require.NoError(t, err, "Read file should not return an error")
-	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), pythonCt, pythonSignature)
+	checkIT(t, plaintextBytes, userKey, pythonCt)
 	err = os.Remove("../../python/soda_python_sdk/test_pythonIT.txt")
 	require.NoError(t, err, "Delete file should not return an error")
 
-	jsCt, jsSignature, err := readTwoHexStringsFromFile("../../js/test_jsIT.txt")
+	jsCt, err := readHexStringFromFile("../../js/test_jsIT.txt")
 	require.NoError(t, err, "Read file should not return an error")
-	tsCt, tsSignature, err := readTwoHexStringsFromFile("../../ts/test_tsIT.txt")
+	tsCt, err := readHexStringFromFile("../../ts/test_tsIT.txt")
 	require.NoError(t, err, "Read file should not return an error")
 
-	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), jsCt, jsSignature)
-	checkIT(t, plaintextBytes, userKey, sender.Bytes(), contract.Bytes(), tsCt, tsSignature)
+	checkIT(t, plaintextBytes, userKey, jsCt)
+	checkIT(t, plaintextBytes, userKey, tsCt)
 	err = os.Remove("../../js/test_jsIT.txt")
 	require.NoError(t, err, "Delete file should not return an error")
 	err = os.Remove("../../ts/test_tsIT.txt")
 	require.NoError(t, err, "Delete file should not return an error")
 }
 
-func checkIT(t *testing.T, plaintext, userKey, sender, addr, ct, signature []byte) {
-	// Verify the signature
-	verified := VerifyIT(sender, addr, ct, signature)
-	assert.Equal(t, verified, true, "Verify signature should return true")
-
+func checkIT(t *testing.T, plaintext, userKey, ct []byte) {
 	decryptedText, err := Decrypt(userKey, ct[aes.BlockSize:], ct[:aes.BlockSize])
 	if err != nil {
 		t.Fatalf("Decrypt failed: %v", err)
@@ -344,6 +338,21 @@ func TestRSAEncryption(t *testing.T) {
 
 	// Verify decrypted plaintext matches original message
 	assert.Equal(t, plaintext, decryptedText, "Decrypted plaintext should match original message")
+}
+
+func readHexStringFromFile(path string) ([]byte, error) {
+	data, err := readValFromFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	hexString, err := hex.DecodeString(string(data))
+	if err != nil {
+		fmt.Println("Error decoding hex:", err)
+		return nil, err
+	}
+
+	return hexString, nil
 }
 
 func readTwoHexStringsFromFile(path string) ([]byte, []byte, error) {

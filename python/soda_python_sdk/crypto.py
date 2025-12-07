@@ -178,20 +178,20 @@ def sign_eip191(message, key):
     return signed_message.signature
 
 
-def prepare_IT(plaintext, user_aes_key, sender, contract, signing_key, eip191=False):
+def prepare_IT(plaintext, user_aes_key, sender):
 
     if (plaintext.bit_length() > MAX_PLAINTEXT_BIT_SIZE/2):
         raise ValueError("Plaintext size must be 128 bits or smaller. To prepare a 256 bit plaintext, use prepare_IT_256 instead.")
 
-    return inner_prepare_IT(plaintext, user_aes_key, sender, contract, signing_key, eip191, False)
+    return inner_prepare_IT(plaintext, user_aes_key, sender, False)
 
-def prepare_IT_256(plaintext, user_aes_key, sender, contract, signing_key, eip191=False):
+def prepare_IT_256(plaintext, user_aes_key, sender):
 
     if (plaintext.bit_length() > MAX_PLAINTEXT_BIT_SIZE):
         raise ValueError("Plaintext size must be 256 bits or smaller.")
 
     # Create the function signature
-    ct, signature =  inner_prepare_IT(plaintext, user_aes_key, sender, contract, signing_key, eip191, True)
+    sender, ct =  inner_prepare_IT(plaintext, user_aes_key, sender, True)
 
     # Convert integer back to bytes to check length
     ct_bytes = ct.to_bytes(CT_SIZE * 2, 'big')
@@ -200,13 +200,10 @@ def prepare_IT_256(plaintext, user_aes_key, sender, contract, signing_key, eip19
     # Convert the ct into two integers
     ctIntHigh = int.from_bytes(ctHigh, byteorder='big')
     ctIntLow = int.from_bytes(ctLow, byteorder='big')
-    return ((ctIntHigh, ctIntLow), signature)
+    return (sender, (ctIntHigh, ctIntLow))
 
-def inner_prepare_IT(plaintext, user_aes_key, sender, contract, signing_key, eip191, is256bit):
-    # Get addresses as bytes
-    sender_address_bytes = bytes.fromhex(sender.address[2:])
-    contract_address_bytes = bytes.fromhex(contract.address[2:])
-
+def inner_prepare_IT(plaintext, user_aes_key, sender, is256bit):
+    
     # Convert the integer to a byte slice with size aligned to 8.
     plaintext_bytes = plaintext.to_bytes((plaintext.bit_length() + 7) // 8, 'big')
 
@@ -230,13 +227,11 @@ def inner_prepare_IT(plaintext, user_aes_key, sender, contract, signing_key, eip
         ciphertextLow, rLow = encrypt(user_aes_key, padded_plaintext_bytes[BLOCK_SIZE:])
         ct = ciphertextHigh + rHigh + ciphertextLow + rLow
 
-    # Sign the message
-    signature = signIT(sender_address_bytes, contract_address_bytes, ct, signing_key, eip191)
-
+    
     # Convert the ct to an integer
     ctInt = int.from_bytes(ct, byteorder='big')
 
-    return ctInt, signature
+    return sender, ctInt
 
 def verify_signatures(message, signatures, signers):
     """Verify the signatures of the message."""

@@ -328,29 +328,18 @@ export function writeBigUInt256BE(buffer: Buffer, value: bigint, offset = 0) {
 }
 
 /**
- * Prepares an IT by encrypting the plaintext, signing the encrypted message,
- * and packaging the resulting data. This data represents encrypted data that can be sent to the contract.
+ * Prepares an IT by encrypting the plaintext and packaging the resulting data. 
+ * This data represents encrypted data that can be sent to the contract.
  * @param {bigint} plaintext - The plaintext value to be encrypted as a BigInt.
  * @param {Buffer} userAesKey - The AES key used for encryption (16 bytes).
- * @param {Buffer} sender - The sender's address as a Buffer.
- * @param {Buffer} contract - The contract's address as a Buffer.
- * @param {Buffer} signingKey - The ECDSA signing key (32 bytes).
- * @param {boolean} [eip191=false] - Whether to use EIP-191 signing (default: false).
+ * @param {Buffer} userAddress - The sender's address as a Buffer.
  * @returns {Object} - An object containing the encrypted integer (as `ctInt`) and the signature.
  */
 export function prepareIT(
   plaintext:bigint,
   userAesKey:Buffer,
-  sender:Buffer,
-  contract:Buffer,
-  signingKey:Buffer,
-  eip191 = false
-):{ctInt:bigint, signature:Buffer} {
-    // Get the bytes of the sender, contract
-    // todo: check if sender and contract are already in bytes
-    const senderBytes = sender;
-    const contractBytes = contract;
-
+  userAddress:Buffer,
+):{userAddress:Buffer, ctInt:bigint} {
     // Convert the plaintext to bytes
     const plaintextBigInt = BigInt(plaintext);
     const bitSize = plaintextBigInt.toString(2).length;
@@ -365,28 +354,21 @@ export function prepareIT(
     const { ciphertext, r } = encrypt(userAesKey, plaintextBytes);
     let ct = Buffer.concat([ciphertext, r]);
 
-    // Sign the message
-    const signature = signIT(senderBytes, contractBytes, ct, signingKey, eip191);
-
     // Convert the ciphertext to BigInt
     const ctInt = BigInt('0x' + ct.toString('hex'));
 
-    return { ctInt, signature };
+    return { userAddress, ctInt };
 }
 
 /**
- * Prepares a 256 bit IT by encrypting both parts of the plaintext, signing the encrypted message,
- * and packaging the resulting data. This data represents encrypted data that can be sent to the contract.
+ * Prepares a 256 bit IT by encrypting both parts of the plaintext and packaging the resulting data. 
+ * This data represents encrypted data that can be sent to the contract.
  * @param {bigint} plaintext - The plaintext value to be encrypted as a BigInt.
  * @param {Buffer} userAesKey - The AES key used for encryption (16 bytes).
- * @param {Buffer} sender - The sender's address as a Buffer.
- * @param {Buffer} contract - The contract's address as a Buffer.
- * @param {Buffer} signingKey - The ECDSA signing key (32 bytes).
- * @param {boolean} [eip191=false] - Whether to use EIP-191 signing (default: false).
+ * @param {Buffer} userAddress - The sender's address as a Buffer.
  */
-export function prepareIT256(plaintext:bigint, userAesKey:Buffer, sender:Buffer, contract:Buffer, signingKey:Buffer, eip191=false) {
+export function prepareIT256(plaintext:bigint, userAesKey:Buffer, userAddress:Buffer) {
 
-    // todo: check if sender and contract are already in bytes (as in regular prepareIT)
     // Convert the plaintext to bytes
     const plaintextBigInt = BigInt(plaintext);
     const bitSize = plaintextBigInt.toString(2).length;
@@ -425,9 +407,6 @@ export function prepareIT256(plaintext:bigint, userAesKey:Buffer, sender:Buffer,
         ct = Buffer.concat([ciphertextHigh, rHigh, ciphertextLow, rLow]);
     } 
 
-    // Sign the message
-    const signature = signIT(sender, contract, ct, signingKey, eip191);
-
     const ciphertextHigh = ct.slice(0, CT_SIZE);
     const ciphertextLow = ct.slice(CT_SIZE);
 
@@ -435,7 +414,7 @@ export function prepareIT256(plaintext:bigint, userAesKey:Buffer, sender:Buffer,
     const ciphertextHighUint = BigInt('0x' + ciphertextHigh.toString('hex'));
     const ciphertextLowUint = BigInt('0x' + ciphertextLow.toString('hex'));
 
-    return { ciphertext: {ciphertextHigh: ciphertextHighUint, ciphertextLow: ciphertextLowUint}, signature };
+    return { userAddress, ciphertext: {ciphertextHigh: ciphertextHighUint, ciphertextLow: ciphertextLowUint} };
 }
 
 /**

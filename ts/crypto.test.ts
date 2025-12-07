@@ -254,19 +254,17 @@ describe('Crypto Tests', () => {
         const plaintext = BigInt("100");
         const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');;
         const sender = new Address(toBuffer(Buffer.from('8f01160c98e5cdfa625197849c85cf5fc1f76b1b', 'hex')));
-        const contract = new Address(toBuffer(Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex')));
-        const signingKey = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
-
+       
         // Act
         // Generate the signature
-        const {ctInt, signature} = prepareIT(plaintext, userKey, sender.toBuffer(), contract.toBuffer(), signingKey);
+        const {userAddress, ctInt} = prepareIT(plaintext, userKey, sender.toBuffer());
 
         const ctHex = ctInt.toString(HEX_BASE).padStart(CT_SIZE * 2, '0');
         // Create a Buffer to hold the bytes (CT_SIZE = 32 bytes = 2 * BLOCK_SIZE)
         const ctBuffer = Buffer.from(ctHex, 'hex');
 
         // Write Buffer to file to later check in Go
-        fs.writeFileSync("test_tsIT.txt", ctHex + "\n" + signature.toString('hex'));
+        fs.writeFileSync("test_tsIT.txt", ctHex);
 
         // Decrypt the ct and check the decrypted value is equal to the plaintext
         const decryptedBuffer = decrypt(userKey, ctBuffer.subarray(BLOCK_SIZE, ctBuffer.length), ctBuffer.subarray(0, BLOCK_SIZE));
@@ -288,12 +286,10 @@ describe('Crypto Tests', () => {
         const plaintext = BigInt("34028236692093846346337460743176821145600");
         const userKey = Buffer.from('b3c3fe73c1bb91862b166a29fe1d63e9', 'hex');;
         const sender = new Address(toBuffer(Buffer.from('8f01160c98e5cdfa625197849c85cf5fc1f76b1b', 'hex')));
-        const contract = new Address(toBuffer(Buffer.from('69413851f025306dbe12c48ff2225016fc5bbe1b', 'hex')));
-        const signingKey = Buffer.from('3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e', 'hex');
-
+        
         // Act
         // Generate the signature
-        const {ciphertext, signature} = prepareIT256(plaintext, userKey, sender.toBuffer(), contract.toBuffer(), signingKey);
+        const {userAddress, ciphertext} = prepareIT256(plaintext, userKey, sender.toBuffer());
 
         const ctHighBytes = Buffer.alloc(CT_SIZE); // Allocate a buffer of size 32 bytes
         writeBigUInt256BE(ctHighBytes, ciphertext.ciphertextHigh); // Write the uint256 value to the buffer as big-endian
