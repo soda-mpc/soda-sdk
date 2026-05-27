@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.asymmetric import ec
 from eth_account import Account
-from eth_account.messages import encode_defunct
+from eth_account.messages import encode_defunct, encode_typed_data
 from web3 import Web3
 
 BLOCK_SIZE = AES.block_size
@@ -21,6 +21,9 @@ KEY_SIZE = 32
 MAX_PLAINTEXT_BIT_SIZE = 256
 SIGNATURE_SIZE = 65
 EC_PUBLIC_KEY_SIZE = 65
+ADDRESS_SIZE = 20
+EIP712_DOMAIN_NAME = "SodaLabs MPC"
+EIP712_DOMAIN_VERSION = "1"
 
 def encrypt(key, plaintext):
 
@@ -176,6 +179,87 @@ def sign(message, key):
 def sign_eip191(message, key):
     signed_message = Account.sign_message(encode_defunct(primitive=message), key)
     return signed_message.signature
+
+
+def _eip712_domain(chain_id):
+    return {
+        "name": EIP712_DOMAIN_NAME,
+        "version": EIP712_DOMAIN_VERSION,
+        "chainId": chain_id,
+    }
+
+
+def _eip712_domain_types():
+    return {
+        "EIP712Domain": [
+            {"name": "name", "type": "string"},
+            {"name": "version", "type": "string"},
+            {"name": "chainId", "type": "uint256"},
+        ],
+    }
+
+
+def build_onboard_user_typed_data(rsa_public_key, address, chain_id=0):
+    """Build EIP-712 typed data for user onboarding."""
+    if isinstance(address, (bytes, bytearray)):
+        address = Web3.to_checksum_address(address)
+    return {
+        "types": {
+            **_eip712_domain_types(),
+            "OnboardUser": [
+                {"name": "rsaPublicKey", "type": "bytes"},
+                {"name": "address", "type": "address"},
+            ],
+        },
+        "primaryType": "OnboardUser",
+        "domain": _eip712_domain(chain_id),
+        "message": {
+            "rsaPublicKey": rsa_public_key,
+            "address": address,
+        },
+    }
+
+
+def build_encrypt_to_user_typed_data(handles, owner=None, chain_id=0):
+    """Build EIP-712 typed data for encrypt-to-user requests."""
+    if owner is None:
+        owner = "0x" + "0" * (ADDRESS_SIZE * 2)
+    elif isinstance(owner, (bytes, bytearray)):
+        owner = Web3.to_checksum_address(owner)
+
+    handle_values = []
+    for handle in handles:
+        if isinstance(handle, int):
+            handle = handle.to_bytes(32, byteorder="big")
+        handle_values.append("0x" + handle.hex())
+
+    return {
+        "types": {
+            **_eip712_domain_types(),
+            "EncryptToUser": [
+                {"name": "handles", "type": "bytes32[]"},
+                {"name": "owner", "type": "address"},
+            ],
+        },
+        "primaryType": "EncryptToUser",
+        "domain": _eip712_domain(chain_id),
+        "message": {
+            "handles": handle_values,
+            "owner": owner,
+        },
+    }
+
+
+def sign_eip712(typed_data, key):
+    """Sign EIP-712 typed data with the given private key."""
+    signed_message = Account.sign_typed_data(private_key=key, full_message=typed_data)
+    return signed_message.signature
+
+
+def recover_address_from_eip712_signature(typed_data, signature):
+    """Recover the signer address from an EIP-712 signature."""
+    signable_message = encode_typed_data(full_message=typed_data)
+    return Account.recover_message(signable_message, signature=signature)
 
 
 def prepare_IT(plaintext, user_aes_key, sender):

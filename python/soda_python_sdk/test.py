@@ -2,7 +2,7 @@ import unittest
 import tempfile
 import os
 from Crypto.Random import get_random_bytes
-from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key, prepare_IT_256, verify_signatures
+from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key, prepare_IT_256, verify_signatures, sign_eip712, build_onboard_user_typed_data, build_encrypt_to_user_typed_data, recover_address_from_eip712_signature
 from crypto import BLOCK_SIZE, ADDRESS_SIZE
 from eth_keys import keys
 from web3 import Account
@@ -177,6 +177,32 @@ class TestMpcHelper(unittest.TestCase):
 
         # Assert
         self.assertEqual(recovered_address, account_address)
+
+    def test_recover_address_from_eip712_signature_onboard(self):
+        _, rsa_public_key = generate_rsa_keypair()
+        key = generate_ECDSA_private_key()
+        account = Account.from_key(key)
+
+        typed_data = build_onboard_user_typed_data(
+            rsa_public_key,
+            bytes.fromhex(account.address[2:]),
+            chain_id=0,
+        )
+        signature = sign_eip712(typed_data, key)
+        recovered_address = recover_address_from_eip712_signature(typed_data, signature)
+
+        self.assertEqual(recovered_address, account.address)
+
+    def test_recover_address_from_eip712_signature_encrypt(self):
+        key = generate_ECDSA_private_key()
+        account = Account.from_key(key)
+        handle = bytes.fromhex("81ff8a56f19f4ffd576e57a01f3c0f256de80517a4e4385470d1c33fe7804fe7")
+
+        typed_data = build_encrypt_to_user_typed_data([handle], owner=None, chain_id=11155111)
+        signature = sign_eip712(typed_data, key)
+        recovered_address = recover_address_from_eip712_signature(typed_data, signature)
+
+        self.assertEqual(recovered_address, account.address)
 
     def test_fixedMSG_Signature(self):
         # Arrange

@@ -6,7 +6,7 @@ import {
     generateAesKey,
     generateECDSAPrivateKey, generateRSAKeyPair, getFuncSig, HEX_BASE, prepareIT, prepareMessage, signIT, prepareIT256, writeBigUInt256BE, CT_SIZE,
     verifySignatures, extractSignatureComponents,
-    loadAesKey, writeAesKey
+    loadAesKey, writeAesKey, signEIP712, buildOnboardUserTypedData, buildEncryptToUserTypedData, recoverAddressFromEIP712Signature
 } from "./crypto"
 import fs from 'fs';
 import crypto from 'crypto';
@@ -194,6 +194,31 @@ describe('Crypto Tests', () => {
 
         // Assert
         assert.strictEqual(isVerified, true);
+    });
+
+    it('should sign and recover the EIP712 onboard signature', async () => {
+        const { publicKey } = generateRSAKeyPair();
+        const key = generateECDSAPrivateKey();
+        const wallet = new ethers.Wallet(ethers.hexlify(key));
+        const address = Buffer.from(wallet.address.slice(2), 'hex');
+
+        const typedData = buildOnboardUserTypedData(publicKey, address, 0);
+        const signature = await signEIP712(typedData, key);
+        const recoveredAddress = recoverAddressFromEIP712Signature(typedData, signature);
+
+        assert.strictEqual(recoveredAddress.toLowerCase(), wallet.address.toLowerCase());
+    });
+
+    it('should sign and recover the EIP712 encrypt-to-user signature', async () => {
+        const key = generateECDSAPrivateKey();
+        const wallet = new ethers.Wallet(ethers.hexlify(key));
+        const handle = Buffer.from('81ff8a56f19f4ffd576e57a01f3c0f256de80517a4e4385470d1c33fe7804fe7', 'hex');
+
+        const typedData = buildEncryptToUserTypedData([handle], null, 11155111);
+        const signature = await signEIP712(typedData, key);
+        const recoveredAddress = recoverAddressFromEIP712Signature(typedData, signature);
+
+        assert.strictEqual(recoveredAddress.toLowerCase(), wallet.address.toLowerCase());
     });
 
     // Test case for verify signature
