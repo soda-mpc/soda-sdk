@@ -1,9 +1,10 @@
 import unittest
 import tempfile
 import os
+import copy
 from Crypto.Random import get_random_bytes
 from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key, prepare_IT_256, verify_signatures, sign_eip712, build_onboard_user_typed_data, build_encrypt_to_user_typed_data, recover_address_from_eip712_signature
-from crypto import BLOCK_SIZE, ADDRESS_SIZE
+from crypto import BLOCK_SIZE, ADDRESS_SIZE, BYTES32_SIZE
 from eth_keys import keys
 from web3 import Account
 from eth_account.messages import encode_defunct
@@ -193,6 +194,22 @@ class TestMpcHelper(unittest.TestCase):
 
         self.assertEqual(recovered_address, account.address)
 
+        # A tampered payload must recover a DIFFERENT address, proving the
+        # EIP-712 encoding is exercised, not just the signature primitive.
+        tampered_address = copy.deepcopy(typed_data)
+        tampered_address["message"]["address"] = "0x" + "00" * ADDRESS_SIZE
+        self.assertNotEqual(
+            recover_address_from_eip712_signature(tampered_address, signature),
+            account.address,
+        )
+
+        tampered_chain_id = copy.deepcopy(typed_data)
+        tampered_chain_id["domain"]["chainId"] += 1
+        self.assertNotEqual(
+            recover_address_from_eip712_signature(tampered_chain_id, signature),
+            account.address,
+        )
+
     def test_recover_address_from_eip712_signature_encrypt(self):
         key = generate_ECDSA_private_key()
         account = Account.from_key(key)
@@ -203,6 +220,21 @@ class TestMpcHelper(unittest.TestCase):
         recovered_address = recover_address_from_eip712_signature(typed_data, signature)
 
         self.assertEqual(recovered_address, account.address)
+
+        # Tampering owner or a handle must change the recovered address.
+        tampered_owner = copy.deepcopy(typed_data)
+        tampered_owner["message"]["owner"] = account.address
+        self.assertNotEqual(
+            recover_address_from_eip712_signature(tampered_owner, signature),
+            account.address,
+        )
+
+        tampered_handle = copy.deepcopy(typed_data)
+        tampered_handle["message"]["handles"][0] = "0x" + "00" * BYTES32_SIZE
+        self.assertNotEqual(
+            recover_address_from_eip712_signature(tampered_handle, signature),
+            account.address,
+        )
 
     def test_fixedMSG_Signature(self):
         # Arrange

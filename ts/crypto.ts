@@ -13,6 +13,7 @@ export const HEX_BASE = 16;
 export const MAX_PLAINTEXT_BIT_SIZE = 256;
 export const SIGNATURE_SIZE = 65; // r (32 bytes) + s (32 bytes) + v (1 byte)
 export const EC_PUBLIC_KEY_SIZE = 65; // Uncompressed public key (0x04 + X + Y)
+export const BYTES32_SIZE = 32; // size of an EIP-712 bytes32 element (e.g. an encrypt-to-user handle)
 export const EIP712_DOMAIN_NAME = "SodaLabs MPC";
 export const EIP712_DOMAIN_VERSION = "1";
 
@@ -269,6 +270,13 @@ function buildEIP712DomainTypes() {
 
 /**
  * Builds EIP-712 typed data for user onboarding (eth_signTypedData_v4 format).
+ *
+ * chainId defaults to 0 on purpose: onboarding is a bubble-level identity
+ * operation with no chain in the middle. The signature is verified off-chain by
+ * bubble (not by a per-chain on-chain verifier), and the onboarded identity is
+ * reused across every chain, so there is no chain to bind it to. Contrast with
+ * buildEncryptToUserTypedData, where the handle belongs to a specific chain and
+ * chainId is therefore required.
  */
 export function buildOnboardUserTypedData(rsaPublicKey: Buffer, address: Buffer, chainId = 0) {
     return {
@@ -307,7 +315,13 @@ export function buildEncryptToUserTypedData(handles: Buffer[], owner: Buffer | n
         primaryType: "EncryptToUser",
         domain: buildEIP712Domain(chainId),
         message: {
-            handles: handles.map((handle) => ethers.hexlify(handle)),
+            handles: handles.map((handle, i) => {
+                const hex = ethers.hexlify(handle);
+                if (ethers.dataLength(hex) !== BYTES32_SIZE) {
+                    throw new Error(`handles[${i}] must be exactly ${BYTES32_SIZE} bytes (bytes32), got ${ethers.dataLength(hex)}`);
+                }
+                return hex;
+            }),
             owner: ownerAddress,
         },
     };

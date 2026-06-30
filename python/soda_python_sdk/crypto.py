@@ -21,7 +21,7 @@ KEY_SIZE = 32
 MAX_PLAINTEXT_BIT_SIZE = 256
 SIGNATURE_SIZE = 65
 EC_PUBLIC_KEY_SIZE = 65
-ADDRESS_SIZE = 20
+BYTES32_SIZE = 32  # size of an EIP-712 bytes32 element (e.g. an encrypt-to-user handle)
 EIP712_DOMAIN_NAME = "SodaLabs MPC"
 EIP712_DOMAIN_VERSION = "1"
 
@@ -200,9 +200,18 @@ def _eip712_domain_types():
 
 
 def build_onboard_user_typed_data(rsa_public_key, address, chain_id=0):
-    """Build EIP-712 typed data for user onboarding."""
-    if isinstance(address, (bytes, bytearray)):
-        address = Web3.to_checksum_address(address)
+    """Build EIP-712 typed data for user onboarding.
+
+    chain_id defaults to 0 on purpose: onboarding is a bubble-level identity
+    operation with no chain in the middle. The signature is verified off-chain
+    by bubble (not by a per-chain on-chain verifier), and the onboarded identity
+    is reused across every chain, so there is no chain to bind it to. Contrast
+    with build_encrypt_to_user_typed_data, where the handle belongs to a
+    specific chain and chain_id is therefore required.
+    """
+    address = Web3.to_checksum_address(address)
+    if isinstance(rsa_public_key, (bytes, bytearray)):
+        rsa_public_key = "0x" + bytes(rsa_public_key).hex()
     return {
         "types": {
             **_eip712_domain_types(),
@@ -220,18 +229,23 @@ def build_onboard_user_typed_data(rsa_public_key, address, chain_id=0):
     }
 
 
-def build_encrypt_to_user_typed_data(handles, owner=None, chain_id=0):
+def build_encrypt_to_user_typed_data(handles, owner, chain_id):
     """Build EIP-712 typed data for encrypt-to-user requests."""
-    if owner is None:
+    if not owner:
         owner = "0x" + "0" * (ADDRESS_SIZE * 2)
-    elif isinstance(owner, (bytes, bytearray)):
+    else:
         owner = Web3.to_checksum_address(owner)
 
     handle_values = []
-    for handle in handles:
+    for i, handle in enumerate(handles):
         if isinstance(handle, int):
-            handle = handle.to_bytes(32, byteorder="big")
-        handle_values.append("0x" + handle.hex())
+            if not 0 <= handle < 2 ** (BYTES32_SIZE * 8):
+                raise ValueError(f"handles[{i}] does not fit in bytes32 (must be 0 <= x < 2**{BYTES32_SIZE * 8})")
+            handle = handle.to_bytes(BYTES32_SIZE, byteorder="big")
+        if not isinstance(handle, (bytes, bytearray)) or len(handle) != BYTES32_SIZE:
+            got = f"{len(handle)} bytes" if isinstance(handle, (bytes, bytearray)) else type(handle).__name__
+            raise ValueError(f"handles[{i}] must be exactly {BYTES32_SIZE} bytes (bytes32), got {got}")
+        handle_values.append("0x" + bytes(handle).hex())
 
     return {
         "types": {

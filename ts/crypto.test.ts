@@ -207,6 +207,22 @@ describe('Crypto Tests', () => {
         const recoveredAddress = recoverAddressFromEIP712Signature(typedData, signature);
 
         assert.strictEqual(recoveredAddress.toLowerCase(), wallet.address.toLowerCase());
+
+        // A tampered payload must recover a DIFFERENT address, proving the
+        // EIP-712 encoding is exercised, not just the signature primitive.
+        const tamperedAddress = structuredClone(typedData);
+        tamperedAddress.message.address = ethers.ZeroAddress;
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedAddress, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+
+        const tamperedChainId = structuredClone(typedData);
+        tamperedChainId.domain.chainId += 1;
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedChainId, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
     });
 
     it('should sign and recover the EIP712 encrypt-to-user signature', async () => {
@@ -219,6 +235,21 @@ describe('Crypto Tests', () => {
         const recoveredAddress = recoverAddressFromEIP712Signature(typedData, signature);
 
         assert.strictEqual(recoveredAddress.toLowerCase(), wallet.address.toLowerCase());
+
+        // Tampering owner or a handle must change the recovered address.
+        const tamperedOwner = structuredClone(typedData);
+        tamperedOwner.message.owner = wallet.address;
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedOwner, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+
+        const tamperedHandle = structuredClone(typedData);
+        tamperedHandle.message.handles[0] = '0x' + '00'.repeat(32);
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedHandle, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
     });
 
     // Test case for verify signature
