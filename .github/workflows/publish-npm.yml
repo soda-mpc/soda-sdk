@@ -3,10 +3,6 @@ name: Publish to npm
 on:
   workflow_dispatch:  # Manual triggering only
     inputs:
-      version:
-        description: 'Version to publish (e.g., 0.1.0, patch, minor, major)'
-        required: true
-        default: 'patch'
       channel:
         description: 'npm channel to publish to'
         required: true
@@ -21,6 +17,8 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}  # ensure secret is available to all steps
     permissions:
       contents: write
       packages: write
@@ -34,16 +32,33 @@ jobs:
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         with:
           node-version: '18'
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
+          always-auth: true  # force npm to use auth for all requests
+
+      - name: Configure npm auth
+        # NPM_TOKEN must be an "automation" token so publish does not require OTP.
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "NPM token is not configured" >&2
+            exit 1
+          fi
+          echo "::add-mask::$NPM_TOKEN"
+          npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
+          echo "Token length: ${#NPM_TOKEN}"
+          npm whoami
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run tests
-        run: npm test
+        run: |
+          npm run test:ts
+          npm run test:js
 
       - name: Build TypeScript
         run: npm run build
@@ -61,18 +76,8 @@ jobs:
       - name: Handle versioning
         id: versioning
         run: |
-          VERSION_INPUT="${{ github.event.inputs.version }}"
           CHANNEL="${{ github.event.inputs.channel }}"
-          
-          if [ "$VERSION_INPUT" = "patch" ] || [ "$VERSION_INPUT" = "minor" ] || [ "$VERSION_INPUT" = "major" ]; then
-            # Use npm version to bump
-            npm version $VERSION_INPUT --no-git-tag-version
-            NEW_VERSION=$(node -p "require('./package.json').version")
-          else
-            # Use specific version
-            npm version $VERSION_INPUT --no-git-tag-version
-            NEW_VERSION=$VERSION_INPUT
-          fi
+          NEW_VERSION=$(node -p "require('./package.json').version")
           
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
@@ -112,4 +117,3 @@ jobs:
             ```
           draft: false
           prerelease: ${{ contains(steps.versioning.outputs.channel, 'beta') || contains(steps.versioning.outputs.channel, 'alpha') || contains(steps.versioning.outputs.channel, 'test') }}
-
