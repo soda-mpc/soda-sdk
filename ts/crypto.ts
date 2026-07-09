@@ -13,6 +13,9 @@ export const HEX_BASE = 16;
 export const MAX_PLAINTEXT_BIT_SIZE = 256;
 export const SIGNATURE_SIZE = 65; // r (32 bytes) + s (32 bytes) + v (1 byte)
 export const EC_PUBLIC_KEY_SIZE = 65; // Uncompressed public key (0x04 + X + Y)
+export const BYTES32_SIZE = 32; // size of an EIP-712 bytes32 element (e.g. an encrypt-to-user handle)
+export const EIP712_DOMAIN_NAME = "SodaLabs MPC";
+export const EIP712_DOMAIN_VERSION = "1";
 
 /**
  * Encrypts a plaintext using AES encryption with a given key.
@@ -245,6 +248,118 @@ export function signEIP191(message: Buffer, key: Buffer): Buffer {
         ethers.getBytes(signature.s),
         vBytes
     ]);
+}
+
+function buildEIP712Domain(chainId: number) {
+    return {
+        name: EIP712_DOMAIN_NAME,
+        version: EIP712_DOMAIN_VERSION,
+        chainId,
+    };
+}
+
+function buildEIP712DomainTypes() {
+    return {
+        EIP712Domain: [
+            { name: "name", type: "string" },
+            { name: "version", type: "string" },
+            { name: "chainId", type: "uint256" },
+        ],
+    };
+}
+
+/**
+ * Builds EIP-712 typed data for user onboarding (eth_signTypedData_v4 format).
+ *
+ * chainId defaults to 0 on purpose: onboarding is a bubble-level identity
+ * operation with no chain in the middle. The signature is verified off-chain by
+ * bubble (not by a per-chain on-chain verifier), and the onboarded identity is
+ * reused across every chain, so there is no chain to bind it to. Contrast with
+ * buildEncryptToUserTypedData, where the handle belongs to a specific chain and
+ * chainId is therefore required.
+ */
+export function buildOnboardUserTypedData(rsaPublicKey: Buffer, address: Buffer, chainId = 0) {
+    return {
+        types: {
+            ...buildEIP712DomainTypes(),
+            OnboardUser: [
+                { name: "rsaPublicKey", type: "bytes" },
+                { name: "address", type: "address" },
+            ],
+        },
+        primaryType: "OnboardUser",
+        domain: buildEIP712Domain(chainId),
+        message: {
+            rsaPublicKey: ethers.hexlify(rsaPublicKey),
+            address: ethers.getAddress(ethers.hexlify(address)),
+        },
+    };
+}
+
+/**
+ * Builds EIP-712 typed data for encrypt-to-user requests (eth_signTypedData_v4 format).
+ */
+export function buildEncryptToUserTypedData(handles: Buffer[], owner: Buffer | null, chainId: number) {
+    const ownerAddress = owner && owner.length > 0
+        ? ethers.getAddress(ethers.hexlify(owner))
+        : ethers.ZeroAddress;
+
+    return {
+        types: {
+            ...buildEIP712DomainTypes(),
+            EncryptToUser: [
+                { name: "handles", type: "bytes32[]" },
+                { name: "owner", type: "address" },
+            ],
+        },
+        primaryType: "EncryptToUser",
+        domain: buildEIP712Domain(chainId),
+        message: {
+            handles: handles.map((handle, i) => {
+                const hex = ethers.hexlify(handle);
+                if (ethers.dataLength(hex) !== BYTES32_SIZE) {
+                    throw new Error(`handles[${i}] must be exactly ${BYTES32_SIZE} bytes (bytes32), got ${ethers.dataLength(hex)}`);
+                }
+                return hex;
+            }),
+            owner: ownerAddress,
+        },
+    };
+}
+
+export type EIP712TypedData = ReturnType<typeof buildOnboardUserTypedData> | ReturnType<typeof buildEncryptToUserTypedData>;
+
+/**
+ * Signs EIP-712 typed data using a private key.
+ */
+export async function signEIP712(typedData: EIP712TypedData, key: Buffer): Promise<Buffer> {
+    const wallet = new ethers.Wallet(ethers.hexlify(key));
+    const types = typedData.types as Record<string, Array<{ name: string; type: string }>>;
+    const messageTypes = { [typedData.primaryType]: types[typedData.primaryType] };
+    const signature = await wallet.signTypedData(
+        typedData.domain,
+        messageTypes,
+        typedData.message,
+    );
+    return Buffer.from(ethers.getBytes(signature));
+}
+
+/**
+ * Recovers the signer address from an EIP-712 signature.
+ */
+export function recoverAddressFromEIP712Signature(
+    typedData: EIP712TypedData,
+    signature: Buffer | Uint8Array,
+): string {
+    const types = typedData.types as Record<string, Array<{ name: string; type: string }>>;
+    const messageTypes = { [typedData.primaryType]: types[typedData.primaryType] };
+    const sigHex = ethers.hexlify(signature);
+    return ethers.verifyTypedData(
+        typedData.domain,
+        messageTypes,
+        typedData.message,
+        sigHex,
+    );
 }
 
 /**

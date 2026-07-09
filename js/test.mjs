@@ -7,7 +7,8 @@ import {
     getFuncSig,
     prepareIT, prepareIT256, prepareMessage,
     signIT, verifySignatures,
-    writeBigUInt256BE, extractSignatureComponents
+    writeBigUInt256BE, extractSignatureComponents,
+    signEIP712, buildOnboardUserTypedData, buildEncryptToUserTypedData, recoverAddressFromEIP712Signature
 } from './crypto.mjs';
 
 import { writeAesKey, loadAesKey } from './utils.mjs';
@@ -189,6 +190,62 @@ describe('Crypto Tests', () => {
 
         // Assert
         assert.strictEqual(isVerified, true);
+    });
+
+    it('should sign and recover the EIP712 onboard signature', async () => {
+        const { publicKey } = generateRSAKeyPair();
+        const key = generateECDSAPrivateKey();
+        const wallet = new ethers.Wallet(ethers.hexlify(key));
+        const address = Buffer.from(wallet.address.slice(2), 'hex');
+
+        const typedData = buildOnboardUserTypedData(publicKey, address, 0);
+        const signature = await signEIP712(typedData, key);
+        const recoveredAddress = recoverAddressFromEIP712Signature(typedData, signature);
+
+        assert.strictEqual(recoveredAddress.toLowerCase(), wallet.address.toLowerCase());
+
+        // A tampered payload must recover a DIFFERENT address, proving the
+        // EIP-712 encoding is exercised, not just the signature primitive.
+        const tamperedAddress = structuredClone(typedData);
+        tamperedAddress.message.address = ethers.ZeroAddress;
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedAddress, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+
+        const tamperedChainId = structuredClone(typedData);
+        tamperedChainId.domain.chainId += 1;
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedChainId, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+    });
+
+    it('should sign and recover the EIP712 encrypt-to-user signature', async () => {
+        const key = generateECDSAPrivateKey();
+        const wallet = new ethers.Wallet(ethers.hexlify(key));
+        const handle = Buffer.from('81ff8a56f19f4ffd576e57a01f3c0f256de80517a4e4385470d1c33fe7804fe7', 'hex');
+
+        const typedData = buildEncryptToUserTypedData([handle], null, 11155111);
+        const signature = await signEIP712(typedData, key);
+        const recoveredAddress = recoverAddressFromEIP712Signature(typedData, signature);
+
+        assert.strictEqual(recoveredAddress.toLowerCase(), wallet.address.toLowerCase());
+
+        // Tampering owner or a handle must change the recovered address.
+        const tamperedOwner = structuredClone(typedData);
+        tamperedOwner.message.owner = wallet.address;
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedOwner, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+
+        const tamperedHandle = structuredClone(typedData);
+        tamperedHandle.message.handles[0] = '0x' + '00'.repeat(32);
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedHandle, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
     });
 
     // Test case for verify signature

@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.asymmetric import ec
 from eth_account import Account
-from eth_account.messages import encode_defunct
+from eth_account.messages import encode_defunct, encode_typed_data
 from web3 import Web3
 
 BLOCK_SIZE = AES.block_size
@@ -21,6 +21,9 @@ KEY_SIZE = 32
 MAX_PLAINTEXT_BIT_SIZE = 256
 SIGNATURE_SIZE = 65
 EC_PUBLIC_KEY_SIZE = 65
+BYTES32_SIZE = 32  # size of an EIP-712 bytes32 element (e.g. an encrypt-to-user handle)
+EIP712_DOMAIN_NAME = "SodaLabs MPC"
+EIP712_DOMAIN_VERSION = "1"
 
 def encrypt(key, plaintext):
 
@@ -176,6 +179,101 @@ def sign(message, key):
 def sign_eip191(message, key):
     signed_message = Account.sign_message(encode_defunct(primitive=message), key)
     return signed_message.signature
+
+
+def _eip712_domain(chain_id):
+    return {
+        "name": EIP712_DOMAIN_NAME,
+        "version": EIP712_DOMAIN_VERSION,
+        "chainId": chain_id,
+    }
+
+
+def _eip712_domain_types():
+    return {
+        "EIP712Domain": [
+            {"name": "name", "type": "string"},
+            {"name": "version", "type": "string"},
+            {"name": "chainId", "type": "uint256"},
+        ],
+    }
+
+
+def build_onboard_user_typed_data(rsa_public_key, address, chain_id=0):
+    """Build EIP-712 typed data for user onboarding.
+
+    chain_id defaults to 0 on purpose: onboarding is a bubble-level identity
+    operation with no chain in the middle. The signature is verified off-chain
+    by bubble (not by a per-chain on-chain verifier), and the onboarded identity
+    is reused across every chain, so there is no chain to bind it to. Contrast
+    with build_encrypt_to_user_typed_data, where the handle belongs to a
+    specific chain and chain_id is therefore required.
+    """
+    address = Web3.to_checksum_address(address)
+    if isinstance(rsa_public_key, (bytes, bytearray)):
+        rsa_public_key = "0x" + bytes(rsa_public_key).hex()
+    return {
+        "types": {
+            **_eip712_domain_types(),
+            "OnboardUser": [
+                {"name": "rsaPublicKey", "type": "bytes"},
+                {"name": "address", "type": "address"},
+            ],
+        },
+        "primaryType": "OnboardUser",
+        "domain": _eip712_domain(chain_id),
+        "message": {
+            "rsaPublicKey": rsa_public_key,
+            "address": address,
+        },
+    }
+
+
+def build_encrypt_to_user_typed_data(handles, owner, chain_id):
+    """Build EIP-712 typed data for encrypt-to-user requests."""
+    if not owner:
+        owner = "0x" + "0" * (ADDRESS_SIZE * 2)
+    else:
+        owner = Web3.to_checksum_address(owner)
+
+    handle_values = []
+    for i, handle in enumerate(handles):
+        if isinstance(handle, int):
+            if not 0 <= handle < 2 ** (BYTES32_SIZE * 8):
+                raise ValueError(f"handles[{i}] does not fit in bytes32 (must be 0 <= x < 2**{BYTES32_SIZE * 8})")
+            handle = handle.to_bytes(BYTES32_SIZE, byteorder="big")
+        if not isinstance(handle, (bytes, bytearray)) or len(handle) != BYTES32_SIZE:
+            got = f"{len(handle)} bytes" if isinstance(handle, (bytes, bytearray)) else type(handle).__name__
+            raise ValueError(f"handles[{i}] must be exactly {BYTES32_SIZE} bytes (bytes32), got {got}")
+        handle_values.append("0x" + bytes(handle).hex())
+
+    return {
+        "types": {
+            **_eip712_domain_types(),
+            "EncryptToUser": [
+                {"name": "handles", "type": "bytes32[]"},
+                {"name": "owner", "type": "address"},
+            ],
+        },
+        "primaryType": "EncryptToUser",
+        "domain": _eip712_domain(chain_id),
+        "message": {
+            "handles": handle_values,
+            "owner": owner,
+        },
+    }
+
+
+def sign_eip712(typed_data, key):
+    """Sign EIP-712 typed data with the given private key."""
+    signed_message = Account.sign_typed_data(private_key=key, full_message=typed_data)
+    return signed_message.signature
+
+
+def recover_address_from_eip712_signature(typed_data, signature):
+    """Recover the signer address from an EIP-712 signature."""
+    signable_message = encode_typed_data(full_message=typed_data)
+    return Account.recover_message(signable_message, signature=signature)
 
 
 def prepare_IT(plaintext, user_aes_key, sender):
