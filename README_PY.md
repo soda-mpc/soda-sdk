@@ -105,10 +105,11 @@ sender = "0xd67fe7792f18fbd663e29818334a050240887c28"         # sender address
 
 # prepare_IT returns the sender address and the ciphertext as an integer.
 # No contract address, function signature or ECDSA key is involved.
-sender, ct = prepare_IT(plaintext, user_key, sender)
+sender_out, ct = prepare_IT(plaintext, user_key, sender)
 
 # Decrypt the ciphertext with the same AES key and check it round-trips
-ct_bytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
+# Pin the width: to_bytes(bit_length) would drop leading zero bytes and shift the split
+ct_bytes = ct.to_bytes(block_size * 2, 'big')
 # ct_bytes holds the encrypted data followed by the random r; decrypt takes them separately
 decrypted = decrypt(user_key, ct_bytes[block_size:], ct_bytes[:block_size])
 assert int.from_bytes(decrypted, 'big') == plaintext
