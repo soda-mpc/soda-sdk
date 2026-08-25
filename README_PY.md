@@ -65,7 +65,7 @@ The SDK support provide the following functionalities:
         - AES key 
         - sender address
 
-        It encrypt the plaintext using the AES key to get the ciphertext, then sign the concatination of the addresses, hashed function signature and ciphertext using the ECDSA private key.
+        It encrypts the plaintext using the AES key and returns the InputText: the ciphertext together with the sender address. The address is carried alongside the ciphertext, not mixed into it. No signature is required.
     * Get function signature
 
         This function get the function signature as a string and returned the keccak-256 value on the signature
