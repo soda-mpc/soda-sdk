@@ -64,11 +64,8 @@ The SDK support provide the following functionalities:
         - plaintext 
         - AES key 
         - sender address
-        - contract address
-        - function signature (as string in go and python case, or hashed in js case)
-        - ECDSA private key.
 
-        It encrypt the plaintext using the AES key to get the ciphertext, then sign the concatination of the addresses, hashed function signature and ciphertext using the ECDSA private key.
+        It encrypts the plaintext using the AES key and returns the InputText: the ciphertext together with the sender address. The address is carried alongside the ciphertext, not mixed into it. No signature is required.
     * Get function signature
 
         This function get the function signature as a string and returned the keccak-256 value on the signature
@@ -91,44 +88,33 @@ In order to use the functionalities of python SDK, first import the modules from
 for example:
 
 ```bash 
-from crypto import prepare_IT, decrypt
+from soda_python_sdk.crypto import prepare_IT, decrypt
 ```
 
 Below is an example function from the python test file that demonstrate using some of the SDK functionality. Lets break it down:
 
 ```bash
-def test_prepareIT(self):
-    # Create inputs for prepare_IT function
-    plaintext = 100                                                     # plaintext 
-    userKey = bytes.fromhex("b3c3fe73c1bb91862b166a29fe1d63e9")         # AES key
-    sender = Account()                                                  # Sender account
-    sender.address = "0xd67fe7792f18fbd663e29818334a050240887c28"
-    contract = Account()                                                # Contract account
-    contract.address = "0x69413851f025306dbe12c48ff2225016fc5bbe1b"
-    signingKey = bytes.fromhex("3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e")  # ECDSA private key
+from soda_python_sdk.crypto import prepare_IT, decrypt
 
-    # Call prepare_IT function with the plaintext, AES key, sender and contract accounts, function signature and ECDSA private key
-    ct, signature = prepare_IT(plaintext, userKey, sender, contract, func_sig, signingKey)
-    # prepare_IT returns the ciphertext and the signature
+block_size = 16
 
-    # Verify the signature
-    sender_address_bytes = bytes.fromhex(sender.address[2:])     # Get the bytes of the accounts addresses
-    contract_address_bytes = bytes.fromhex(contract.address[2:])
-    # Create the signed message 
-    message = sender_address_bytes + contract_address_bytes + ctBytes
-    pk = keys.PrivateKey(signingKey)
-    signature = keys.Signature(signature)
-    # Verify the signature against the message hash and the public key
-    verified = signature.verify_msg(message, pk.public_key)
-    self.assertEqual(verified, True)
+# Create inputs for prepare_IT
+plaintext = 100                                               # plaintext
+user_key = bytes.fromhex("b3c3fe73c1bb91862b166a29fe1d63e9")  # AES key from onboarding
+sender = "0xd67fe7792f18fbd663e29818334a050240887c28"         # sender address
 
-    # Decrypt the ciphertext using the AES key and check the decrypted value against the original plaintext
-    ctBytes = ct.to_bytes((ct.bit_length() + 7) // 8, 'big')
-    
-    # ctBytes is divided into two components: random and encrypted data. The decrypt function processes each component separately. 
-    decrypted = decrypt(userKey, ctBytes[block_size:], ctBytes[:block_size])
-    decrypted_integer = int.from_bytes(decrypted, 'big')
-    self.assertEqual(plaintext, decrypted_integer)
+# prepare_IT returns the sender address and the ciphertext as an integer.
+# No contract address, function signature or ECDSA key is involved.
+sender_out, ct = prepare_IT(plaintext, user_key, sender)
+
+# Decrypt the ciphertext with the same AES key and check it round-trips
+# Pin the width: to_bytes(bit_length) would drop leading zero bytes and shift the split
+ct_bytes = ct.to_bytes(block_size * 2, 'big')
+# ct_bytes holds the encrypted data followed by the random r; decrypt takes them separately
+decrypted = decrypt(user_key, ct_bytes[block_size:], ct_bytes[:block_size])
+assert int.from_bytes(decrypted, 'big') == plaintext
+
+# For 256-bit values use prepare_IT_256, which returns (sender, (ctHigh, ctLow))
 ```
 
 This example uses the prepare_IT and decrypt functionalities of the python SDK.
