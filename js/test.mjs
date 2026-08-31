@@ -13,7 +13,11 @@ import {
 
 import { writeAesKey, loadAesKey } from './utils.mjs';
 
-import { BLOCK_SIZE, ADDRESS_SIZE, HEX_BASE, CT_SIZE } from './crypto.mjs';
+import { BLOCK_SIZE, ADDRESS_SIZE, HEX_BASE, CT_SIZE, KEY_SIZE, SIGNATURE_SIZE } from './crypto.mjs';
+// Where the shared vectors live, relative to this suite's working directory.
+const VECTORS_PATH = '../testVectors/signerCounting.json';
+// secp256k1 recovery ids are 0/1 on the wire and 27/28 in ecsign's return.
+const V_OFFSET = 27;
 import fs from 'fs';
 import crypto from 'crypto';
 import ethereumjsUtil, {hashPersonalMessage} from 'ethereumjs-util';
@@ -442,6 +446,54 @@ describe('Crypto Tests', () => {
     
     });
 
+
+    // The counting rule is implemented three times in three languages. Nothing but a shared fixture keeps
+    // them answering the same question, and a divergence between two of them is invisible to a suite that
+    // exercises only one - which is how a real disagreement between this implementation and the Python one
+    // reached review instead of failing here.
+    it('should agree with the shared signer-counting vectors', () => {
+        const vectors = JSON.parse(fs.readFileSync(VECTORS_PATH, 'utf8'));
+        const message = Buffer.from(vectors.message, 'hex');
+
+        // However many keys the vectors actually reach for, rather than a number picked to be large enough.
+        const allCases = vectors.cases.concat(vectors.rejectedInputs);
+        const keyCount = 1 + Math.max(
+            ...allCases.map(c => c.signers),
+            ...vectors.cases.flatMap(c => c.signedBy),
+            ...vectors.cases.filter(c => c.plusStrangerKey !== undefined).map(c => c.plusStrangerKey),
+        );
+
+        // Derived, not stored: the fixture carries no secrets, only the rule that private key i is the byte
+        // (i+1) repeated. Every language builds the same addresses from it.
+        const privkeys = Array.from({ length: keyCount }, (_, i) => Buffer.alloc(KEY_SIZE, i + 1));
+        const addressOf = (i) => ethereumjsUtil.toChecksumAddress(
+            '0x' + ethereumjsUtil.pubToAddress(ethereumjsUtil.privateToPublic(privkeys[i])).toString('hex'));
+        // r and s take equal halves of the signature, with the recovery id in the trailing byte.
+        const componentSize = (SIGNATURE_SIZE - 1) / 2;
+        const sign = (i) => {
+            const s = ethereumjsUtil.ecsign(ethereumjsUtil.keccak256(message), privkeys[i]);
+            return Buffer.concat([ethereumjsUtil.setLengthLeft(s.r, componentSize),
+                                  ethereumjsUtil.setLengthLeft(s.s, componentSize),
+                                  Buffer.from([s.v - V_OFFSET])]);
+        };
+        const signersFor = (c) => {
+            const signers = Array.from({ length: c.signers }, (_, i) => addressOf(i));
+            if (c.duplicatePosition) signers[c.duplicatePosition[1]] = signers[c.duplicatePosition[0]];
+            return signers;
+        };
+
+        for (const c of vectors.cases) {
+            const signatures = c.signedBy.map(sign);
+            if (c.plusStrangerKey !== undefined) signatures.push(sign(c.plusStrangerKey));
+            assert.strictEqual(verifySignatures(message, signatures, signersFor(c), c.N, c.T), c.expected, c.name);
+        }
+        for (const c of vectors.rejectedInputs) {
+            // Fourth argument, not third: chai reads the third as a message matcher, so passing the case
+            // name there asserts the error text rather than labelling the failure.
+            assert.throws(() => verifySignatures(message, [sign(0)], signersFor(c), c.N, c.T),
+                          RangeError, null, c.name);
+        }
+    });
 });
 
 

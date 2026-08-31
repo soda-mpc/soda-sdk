@@ -470,8 +470,23 @@ export function prepareIT256(plaintext, userAesKey, userAddress) {
  * @returns {boolean} - True if at least T evaluators signed in full, false otherwise.
  */
 export function verifySignatures(message, signatures, signers, N = 1, T = 1){
+    // A uint read from a contract arrives as a bigint through ethers, and mixing that with a number throws
+    // partway through rather than failing validation. Coerce first, then insist on whole numbers: a
+    // fractional N can satisfy the divisibility check below and only fail later at new Array(N).
+    N = Number(N);
+    T = Number(T);
+    if (!Number.isInteger(N) || !Number.isInteger(T)) {
+        throw new RangeError(`N and T must be integers, got N = ${N}, T = ${T}`);
+    }
+
     if (signers.length === 0) {
         throw new RangeError("Signers must be non-empty");
+    }
+    // Position is identity here, so a repeated address would leave one of its positions unfillable and that
+    // evaluator permanently short of its quota - silently, and inconsistently between languages, since a
+    // first-match lookup and a last-wins map disagree about which position an address owns.
+    if (new Set(signers).size !== signers.length) {
+        throw new RangeError("Signers must not contain duplicate addresses");
     }
     if (N < 1 || signers.length % N !== 0) {
         throw new RangeError(`${signers.length} signers do not divide among ${N} evaluator(s)`);
@@ -492,6 +507,13 @@ export function verifySignatures(message, signatures, signers, N = 1, T = 1){
         throw new RangeError(`T must be in [1, ${N}], got ${T}`);
     }
 
+    // Checksummed once, because position is identity: recoverAddressFromSignature returns a checksummed
+    // address, so a signers list in any other casing would match nothing at all.
+    // Wrapped rather than passed by reference: map hands the callback (element, index, array), and
+    // toChecksumAddress takes an optional EIP-1191 chain id as its second argument, so passing it directly
+    // would checksum every address against its own index and match nothing.
+    const normalizedSigners = signers.map(signer => ethereumjsUtil.toChecksumAddress(signer));
+
     // The Soda instances are the last N entries, one per evaluator, so everything before them is an
     // operator instance.
     const sodaOffset = signers.length - N;
@@ -508,10 +530,16 @@ export function verifySignatures(message, signatures, signers, N = 1, T = 1){
 
     for (const signature of signatures) {
         const recoveredAddress = recoverAddressFromSignature(message, signature);
-        const position = signers.indexOf(recoveredAddress);
+        const position = normalizedSigners.indexOf(recoveredAddress);
+        // Skipped rather than fatal. An address that is not registered contributes to no evaluator's count,
+        // so ignoring it cannot make an unproven result look proven - while rejecting outright would throw
+        // away an otherwise sufficient set because one extra signature came along, which is what happens
+        // when a key is rotated out between a response being assembled and the signer list being read, or
+        // when a caller simply forwards everything it collected. The old rule could fail hard safely
+        // because it demanded the exact full set; this one accepts subsets, so it has to accept supersets.
         if (position === -1) {
-            console.log("Recovered address " + recoveredAddress + " not in the list of signers");
-            return false;
+            console.log("Ignoring signature from " + recoveredAddress + ", which is not a registered signer");
+            continue;
         }
         if (positionSeen.has(position)) {
             continue;

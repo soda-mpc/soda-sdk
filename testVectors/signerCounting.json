@@ -1,0 +1,115 @@
+{
+  "_comment": [
+    "Shared vectors for the T-of-N signer-counting rule, read by all three suites: js/test.mjs,",
+    "ts/crypto.test.ts and python/soda_python_sdk/test.py.",
+    "",
+    "The rule is implemented three times, in three languages, ~90 lines each. Nothing but a shared fixture",
+    "keeps them answering the same question - a divergence between two of them is invisible to a suite that",
+    "only exercises one, and was in fact found by review rather than by CI.",
+    "",
+    "Keys are derived deterministically so every language builds the same addresses without shipping any",
+    "secret: private key i is the byte (i+1) repeated 32 times. Signatures are recoverable secp256k1 over",
+    "keccak256(message) with no Ethereum prefix, which is what the engine produces.",
+    "",
+    "'signers' is how many addresses the signer list holds, ordered as the verifier contract stores them:",
+    "every operator instance first, then every Soda instance, so the last N entries are Soda's - one per",
+    "evaluator - and within either block entry i belongs to evaluator i % N.",
+    "",
+    "'signedBy' are positions in that list, not key indices."
+  ],
+  "message": "68656c6c6f20776f726c64",
+  "cases": [
+    {
+      "name": "T evaluators' operators plus Soda from a counted evaluator",
+      "signers": 10, "N": 5, "T": 3,
+      "signedBy": [0, 1, 2, 6],
+      "expected": true
+    },
+    {
+      "name": "Soda signature from an evaluator none of the counted operators ran with",
+      "signers": 10, "N": 5, "T": 3,
+      "signedBy": [0, 1, 2, 9],
+      "expected": false
+    },
+    {
+      "name": "one evaluator short of the threshold",
+      "signers": 10, "N": 5, "T": 3,
+      "signedBy": [0, 1, 5],
+      "expected": false
+    },
+    {
+      "name": "one operator signing repeatedly cannot stand in for other evaluators",
+      "signers": 10, "N": 5, "T": 3,
+      "signedBy": [0, 0, 0, 5],
+      "expected": false
+    },
+    {
+      "name": "every evaluator signed",
+      "signers": 10, "N": 5, "T": 3,
+      "signedBy": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "expected": true
+    },
+    {
+      "name": "three instances per evaluator: one operator each is not a whole evaluator",
+      "signers": 9, "N": 3, "T": 2,
+      "signedBy": [0, 1, 6],
+      "expected": false
+    },
+    {
+      "name": "three instances per evaluator: every operator of T evaluators",
+      "signers": 9, "N": 3, "T": 2,
+      "signedBy": [0, 3, 1, 4, 6],
+      "expected": true
+    },
+    {
+      "name": "one operator signing twice cannot fill its evaluator's quota",
+      "signers": 9, "N": 3, "T": 2,
+      "signedBy": [0, 0, 1, 1, 6],
+      "expected": false
+    },
+    {
+      "name": "a signature from a key outside the signer set is ignored, not fatal",
+      "signers": 10, "N": 5, "T": 3,
+      "signedBy": [0, 1, 2, 6],
+      "plusStrangerKey": 10,
+      "expected": true
+    },
+    {
+      "name": "single evaluator, defaults: the one signer must sign",
+      "signers": 1, "N": 1, "T": 1,
+      "signedBy": [0],
+      "expected": true
+    },
+    {
+      "name": "single evaluator of two instances: both must sign",
+      "signers": 2, "N": 1, "T": 1,
+      "signedBy": [0, 1],
+      "expected": true
+    },
+    {
+      "name": "single evaluator of two instances: one is not enough",
+      "signers": 2, "N": 1, "T": 1,
+      "signedBy": [0],
+      "expected": false
+    }
+  ],
+  "rejectedInputs": [
+    {
+      "name": "operator-free layout would let one Soda signature satisfy any threshold",
+      "signers": 5, "N": 5, "T": 5
+    },
+    {
+      "name": "duplicate addresses make a position unfillable and resolve differently per language",
+      "signers": 10, "N": 5, "T": 3,
+      "duplicatePosition": [0, 1]
+    },
+    {
+      "name": "signers do not divide among the evaluators",
+      "signers": 9, "N": 5, "T": 3
+    },
+    {
+      "name": "threshold above the number of evaluators",
+      "signers": 10, "N": 5, "T": 6
+    }
+  ]
+}

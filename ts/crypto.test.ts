@@ -5,7 +5,7 @@ import {
     encrypt, encryptRSA,
     generateAesKey,
     generateECDSAPrivateKey, generateRSAKeyPair, getFuncSig, HEX_BASE, prepareIT, prepareMessage, signIT, prepareIT256, writeBigUInt256BE, CT_SIZE,
-    verifySignatures, extractSignatureComponents,
+    verifySignatures, extractSignatureComponents, KEY_SIZE, SIGNATURE_SIZE,
     loadAesKey, writeAesKey, signEIP712, buildOnboardUserTypedData, buildEncryptToUserTypedData, recoverAddressFromEIP712Signature
 } from "./crypto"
 import fs from 'fs';
@@ -17,8 +17,16 @@ import {
     pubToAddress,
     privateToPublic,
     toBuffer,
-    toChecksumAddress
+    toChecksumAddress,
+    ecsign,
+    keccak256,
+    setLengthLeft
 } from "ethereumjs-util";
+
+// Where the shared vectors live, relative to this suite's working directory.
+const VECTORS_PATH = '../testVectors/signerCounting.json';
+// secp256k1 recovery ids are 0/1 on the wire and 27/28 in ecsign's return.
+const V_OFFSET = 27;
 import {ethers} from "ethers";
 import * as assert from "node:assert";
 
@@ -448,6 +456,50 @@ describe('Crypto Tests', () => {
         // Write Buffer to file
         fs.writeFileSync(filename, hash.toString('hex'));
 
+    });
+
+    // The counting rule is implemented three times in three languages, and this file guards the one that
+    // actually ships: package.json builds dist/ from ts/, so a fix applied only to js/ never reaches an npm
+    // consumer. The shared fixture is what keeps the three answering the same question.
+    it('should agree with the shared signer-counting vectors', () => {
+        const vectors = JSON.parse(fs.readFileSync(VECTORS_PATH, 'utf8'));
+        const message = Buffer.from(vectors.message, 'hex');
+
+        // However many keys the vectors actually reach for, rather than a number picked to be large enough.
+        const allCases = vectors.cases.concat(vectors.rejectedInputs);
+        const keyCount = 1 + Math.max(
+            ...allCases.map((c: any) => c.signers),
+            ...vectors.cases.flatMap((c: any) => c.signedBy),
+            ...vectors.cases.filter((c: any) => c.plusStrangerKey !== undefined).map((c: any) => c.plusStrangerKey),
+        );
+
+        // Derived, not stored: the fixture carries no secrets, only the rule that private key i is the byte
+        // (i+1) repeated. Every language builds the same addresses from it.
+        const privkeys = Array.from({ length: keyCount }, (_, i) => Buffer.alloc(KEY_SIZE, i + 1));
+        const addressOf = (i: number) => toChecksumAddress(
+            '0x' + pubToAddress(privateToPublic(privkeys[i])).toString('hex'));
+        // r and s take equal halves of the signature, with the recovery id in the trailing byte.
+        const componentSize = (SIGNATURE_SIZE - 1) / 2;
+        const sign = (i: number) => {
+            const s = ecsign(keccak256(message), privkeys[i]);
+            return Buffer.concat([setLengthLeft(s.r, componentSize),
+                                  setLengthLeft(s.s, componentSize),
+                                  Buffer.from([Number(s.v) - V_OFFSET])]);
+        };
+        const signersFor = (c: any) => {
+            const signers = Array.from({ length: c.signers }, (_, i) => addressOf(i));
+            if (c.duplicatePosition) signers[c.duplicatePosition[1]] = signers[c.duplicatePosition[0]];
+            return signers;
+        };
+
+        for (const c of vectors.cases) {
+            const signatures = c.signedBy.map(sign);
+            if (c.plusStrangerKey !== undefined) signatures.push(sign(c.plusStrangerKey));
+            expect(verifySignatures(message, signatures, signersFor(c), c.N, c.T)).toBe(c.expected);
+        }
+        for (const c of vectors.rejectedInputs) {
+            expect(() => verifySignatures(message, [sign(0)], signersFor(c), c.N, c.T)).toThrow(RangeError);
+        }
     });
 });
 

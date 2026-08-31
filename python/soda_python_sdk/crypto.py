@@ -358,6 +358,14 @@ def verify_signatures(message, signatures, signers, N=1, T=1):
 
     if len(signers) == 0:
         raise ValueError("Signers must be non-empty")
+    
+    # Position is identity here, so a repeated address would leave one of its positions unfillable and that
+    # evaluator permanently short of its quota - silently, and inconsistently between languages, since a
+    # first-match lookup and a last-wins map disagree about which position an address owns.
+    normalized = [Web3.to_checksum_address(signer) for signer in signers]
+    if len(set(normalized)) != len(normalized):
+        raise ValueError("Signers must not contain duplicate addresses")
+    
     if N < 1 or len(signers) % N != 0:
         raise ValueError(f"{len(signers)} signers do not divide among {N} evaluator(s)")
     # At least two instances per evaluator, which is what setSigners enforces on-chain. Exactly N signers
@@ -376,7 +384,7 @@ def verify_signatures(message, signatures, signers, N=1, T=1):
 
     # Position by address, so a recovered signer says which evaluator it belongs to. Checksummed on both
     # sides, since a case difference would otherwise read as an unregistered signer.
-    position_of = {Web3.to_checksum_address(signer): position for position, signer in enumerate(signers)}
+    position_of = {signer: position for position, signer in enumerate(normalized)}
 
     # The Soda instances are the last N entries, one per evaluator, so everything before them is an operator
     # instance.
@@ -396,9 +404,15 @@ def verify_signatures(message, signatures, signers, N=1, T=1):
         recovered_address = Web3.to_checksum_address(recover_address_from_signature(message, signature))
 
         position = position_of.get(recovered_address)
+        # Skipped rather than fatal. An address that is not registered contributes to no evaluator's count,
+        # so ignoring it cannot make an unproven result look proven - while rejecting outright would throw
+        # away an otherwise sufficient set because one extra signature came along, which is what happens
+        # when a key is rotated out between a response being assembled and the signer list being read, or
+        # when a caller simply forwards everything it collected. The old rule could fail hard safely because
+        # it demanded the exact full set; this one accepts subsets, so it has to accept supersets.
         if position is None:
-            print(f"Recovered address {recovered_address} not in the list of signers")
-            return False
+            print(f"Ignoring signature from {recovered_address}, which is not a registered signer")
+            continue
         if position in position_seen:
             continue
         position_seen.add(position)
