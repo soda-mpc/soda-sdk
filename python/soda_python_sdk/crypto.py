@@ -360,6 +360,17 @@ def verify_signatures(message, signatures, signers, N=1, T=1):
         raise ValueError("Signers must be non-empty")
     if N < 1 or len(signers) % N != 0:
         raise ValueError(f"{len(signers)} signers do not divide among {N} evaluator(s)")
+    # At least two instances per evaluator, which is what setSigners enforces on-chain. Exactly N signers
+    # would mean no operator instances at all, and an evaluator with no operators is vacuously complete -
+    # so a single Soda signature would satisfy any threshold, T = N included.
+    #
+    # A single evaluator is exempt because there the same shape is not a shortcut: one evaluator, one
+    # signer, and that signer still has to have signed. That is the unreplicated deployment the defaults
+    # describe, and rejecting it would break the plain "did this key sign this message" check.
+    if N > 1 and len(signers) < 2 * N:
+        raise ValueError(
+            f"{len(signers)} signers is fewer than two per evaluator for N = {N}; "
+            f"an evaluator with no operator instance would count as having signed without doing so")
     if T < 1 or T > N:
         raise ValueError(f"T must be in [1, {N}], got {T}")
 

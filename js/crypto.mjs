@@ -476,6 +476,18 @@ export function verifySignatures(message, signatures, signers, N = 1, T = 1){
     if (N < 1 || signers.length % N !== 0) {
         throw new RangeError(`${signers.length} signers do not divide among ${N} evaluator(s)`);
     }
+    // At least two instances per evaluator, which is what setSigners enforces on-chain. Exactly N signers
+    // would mean no operator instances at all, and an evaluator with no operators is vacuously complete -
+    // so a single Soda signature would satisfy any threshold, T = N included.
+    //
+    // A single evaluator is exempt because there the same shape is not a shortcut: one evaluator, one
+    // signer, and that signer still has to have signed. That is the unreplicated deployment the defaults
+    // describe, and rejecting it would break the plain "did this key sign this message" check.
+    if (N > 1 && signers.length < 2 * N) {
+        throw new RangeError(
+            `${signers.length} signers is fewer than two per evaluator for N = ${N}; ` +
+            `an evaluator with no operator instance would count as having signed without doing so`);
+    }
     if (T < 1 || T > N) {
         throw new RangeError(`T must be in [1, ${N}], got ${T}`);
     }
