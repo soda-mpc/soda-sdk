@@ -439,35 +439,95 @@ export function prepareIT256(plaintext, userAesKey, userAddress) {
 }
 
 /**
- * Verifies the signatures of the message.
- * @param {Buffer|Uint8Array} message - The message to be verified.
- * @param {Buffer|Uint8Array} signatures - The signatures to be verified.
- * @param {string[]} signers - The list of signers.
- * @returns {boolean} - Returns true if the signatures are valid, false otherwise.
+ * Verifies that at least T of the N evaluators signed the message.
+ *
+ * Each evaluator is run by two parties - an operator (external) instance and a Soda (internal) one - and
+ * each signs with its own key. An evaluator has attested a result only once both of its instances have
+ * signed it, so `signers` holds two addresses per evaluator: every operator instance first, then every Soda
+ * instance, so the final N entries are Soda's, one per evaluator, and within either block entry i belongs to
+ * evaluator i % N.
+ *
+ * That ordering is what says which evaluator a recovered signer belongs to, so a differently ordered list
+ * does not fail - it attributes signatures to the wrong evaluators. `getSignersAddresses` returns them in
+ * this order.
+ *
+ * This counts evaluators rather than signatures, which is the whole point: five signatures from five
+ * different evaluators' operators plus one Soda signature is six valid signatures and not one evaluator
+ * that attested the result in full, so a signature count would accept a result no evaluator stands behind.
+ *
+ * It mirrors `_verifySignaturesDigest` in GCDecryptionVerifier.sol, the normative statement of the rule.
+ * Where the two differ the contract is right: a result the chain accepts and this rejects, or the reverse,
+ * is a bug here.
+ *
+ * The defaults describe a single evaluator, which is what an unreplicated deployment has, and for which this
+ * reduces exactly to the previous rule - every signer must have signed.
+ *
+ * @param {Buffer|Uint8Array} message - The message that was signed.
+ * @param {Array} signatures - The signatures to verify, in any order.
+ * @param {string[]} signers - Every instance's address, ordered as described above.
+ * @param {number} [N=1] - How many evaluators those instances make up.
+ * @param {number} [T=1] - How many evaluators must have signed.
+ * @returns {boolean} - True if at least T evaluators signed in full, false otherwise.
  */
-export function verifySignatures(message, signatures, signers){  
-    // Validate the number of signatures and signers
-    if (signatures.length !== signers.length) {
-        throw new RangeError("Number of signatures and signers must be the same");
-    }
+export function verifySignatures(message, signatures, signers, N = 1, T = 1){
     if (signers.length === 0) {
         throw new RangeError("Signers must be non-empty");
     }
+    if (N < 1 || signers.length % N !== 0) {
+        throw new RangeError(`${signers.length} signers do not divide among ${N} evaluator(s)`);
+    }
+    if (T < 1 || T > N) {
+        throw new RangeError(`T must be in [1, ${N}], got ${T}`);
+    }
 
-    const recoveredAddresses = new Set();
+    // The Soda instances are the last N entries, one per evaluator, so everything before them is an
+    // operator instance.
+    const sodaOffset = signers.length - N;
+    // How many operator instances must sign before an evaluator has spoken. Written out rather than assumed
+    // to be one, so a deployment running more instances per evaluator cannot quietly come to mean "any one
+    // of them".
+    const operatorsPerEvaluator = signers.length / N - 1;
+
+    // Counted rather than flagged: an evaluator with several operators has not spoken until all have.
+    const operatorsSigned = new Array(N).fill(0);
+    const sodaSigned = new Array(N).fill(false);
+    // Which positions have already been counted, so one instance signing twice adds nothing.
+    const positionSeen = new Set();
+
     for (const signature of signatures) {
         const recoveredAddress = recoverAddressFromSignature(message, signature);
-        if (!signers.includes(recoveredAddress)) {
-            console.log("Recovered address " + recoveredAddress + " not in the list of signers")
+        const position = signers.indexOf(recoveredAddress);
+        if (position === -1) {
+            console.log("Recovered address " + recoveredAddress + " not in the list of signers");
             return false;
         }
-        if (recoveredAddresses.has(recoveredAddress)) {
-            console.log("Same address recovered multiple times")
-            return false;
+        if (positionSeen.has(position)) {
+            continue;
         }
-        recoveredAddresses.add(recoveredAddress);
+        positionSeen.add(position);
+
+        if (position < sodaOffset) {
+            operatorsSigned[position % N]++;
+        } else {
+            sodaSigned[position - sodaOffset] = true;
+        }
     }
-    return true;
+
+    // T evaluators must have had every operator sign, and at least one of those same evaluators must also
+    // carry its Soda signature. Requiring that Soda signature to come from an evaluator already counted is
+    // what ties the two sides together: otherwise the instance attesting the result could belong to an
+    // evaluator none of the counted operators ever ran alongside.
+    let evaluatorsHeardFrom = 0;
+    let countedEvaluatorHasSoda = false;
+    for (let evaluator = 0; evaluator < N; evaluator++) {
+        if (operatorsSigned[evaluator] === operatorsPerEvaluator) {
+            evaluatorsHeardFrom++;
+            if (sodaSigned[evaluator]) {
+                countedEvaluatorHasSoda = true;
+            }
+        }
+    }
+    return evaluatorsHeardFrom >= T && countedEvaluatorHasSoda;
 }
 
 /**
