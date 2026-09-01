@@ -331,33 +331,110 @@ def inner_prepare_IT(plaintext, user_aes_key, sender, is256bit):
 
     return sender, ctInt
 
-def verify_signatures(message, signatures, signers):
-    """Verify the signatures of the message."""
+def verify_signatures(message, signatures, signers, N=1, T=1):
+    """Verify that at least T of the N evaluators signed the message.
 
-    if len(signatures) != len(signers):
-        raise ValueError(f"Number of signatures and signers must be the same")
+    Each evaluator is run by two parties - an operator (external) instance and a Soda (internal) one - and
+    each signs with its own key. An evaluator has attested a result only once both of its instances have
+    signed it, so `signers` holds two addresses per evaluator: every operator instance first, then every Soda
+    instance, so the final N entries are Soda's, one per evaluator, and within either block entry i belongs to
+    evaluator i % N.
+
+    That ordering is what says which evaluator a recovered signer belongs to, so a differently ordered list
+    does not fail - it attributes signatures to the wrong evaluators. get_signers_addresses returns them in
+    this order.
+
+    It counts evaluators rather than signatures, which is the whole point: five signatures from five
+    different evaluators' operators plus one Soda signature is six valid signatures and not one evaluator
+    that attested the result in full, so a signature count would accept a result no evaluator stands behind.
+
+    It mirrors _verifySignaturesDigest in GCDecryptionVerifier.sol, the normative statement of the rule.
+    Where the two differ the contract is right: a result the chain accepts and this rejects, or the reverse,
+    is a bug here.
+
+    The defaults describe a single evaluator, which is what an unreplicated deployment has, and for which
+    this reduces exactly to the previous rule - every signer must have signed.
+    """
 
     if len(signers) == 0:
-        raise ValueError(f"Signers must be non-empty")
+        raise ValueError("Signers must be non-empty")
+    
+    # Position is identity here, so a repeated address would leave one of its positions unfillable and that
+    # evaluator permanently short of its quota - silently, and inconsistently between languages, since a
+    # first-match lookup and a last-wins map disagree about which position an address owns.
+    normalized = [Web3.to_checksum_address(signer) for signer in signers]
+    if len(set(normalized)) != len(normalized):
+        raise ValueError("Signers must not contain duplicate addresses")
+    
+    if N < 1 or len(signers) % N != 0:
+        raise ValueError(f"{len(signers)} signers do not divide among {N} evaluator(s)")
+    # At least two instances per evaluator, which is what setSigners enforces on-chain. Exactly N signers
+    # would mean no operator instances at all, and an evaluator with no operators is vacuously complete -
+    # so a single Soda signature would satisfy any threshold, T = N included.
+    #
+    # A single evaluator is exempt because there the same shape is not a shortcut: one evaluator, one
+    # signer, and that signer still has to have signed. That is the unreplicated deployment the defaults
+    # describe, and rejecting it would break the plain "did this key sign this message" check.
+    if N > 1 and len(signers) < 2 * N:
+        raise ValueError(
+            f"{len(signers)} signers is fewer than two per evaluator for N = {N}; "
+            f"an evaluator with no operator instance would count as having signed without doing so")
+    if T < 1 or T > N:
+        raise ValueError(f"T must be in [1, {N}], got {T}")
 
-    # Normalize signers to checksum addresses for comparison
-    signers_normalized = {Web3.to_checksum_address(signer) for signer in signers}
+    # Position by address, so a recovered signer says which evaluator it belongs to. Checksummed on both
+    # sides, since a case difference would otherwise read as an unregistered signer.
+    position_of = {signer: position for position, signer in enumerate(normalized)}
 
-    recovered_addresses = set()
+    # The Soda instances are the last N entries, one per evaluator, so everything before them is an operator
+    # instance.
+    soda_offset = len(signers) - N
+    # How many operator instances must sign before an evaluator has spoken. Written out rather than assumed
+    # to be one, so a deployment running more instances per evaluator cannot quietly come to mean "any one
+    # of them".
+    operators_per_evaluator = len(signers) // N - 1
+
+    # Counted rather than flagged: an evaluator with several operators has not spoken until all have.
+    operators_signed = [0] * N
+    soda_signed = [False] * N
+    # Which positions have already been counted, so one instance signing twice adds nothing.
+    position_seen = set()
+
     for signature in signatures:
-        recovered_address = recover_address_from_signature(message, signature)
-        # Normalize recovered address to checksum format
-        recovered_address = Web3.to_checksum_address(recovered_address)
-        
-        if recovered_address not in signers_normalized:
-            print(f"Recovered address {recovered_address} not in the list of signers")
-            return False
-        if recovered_address in recovered_addresses:
-            print(f"Same address recovered multiple times")
-            return False
-        recovered_addresses.add(recovered_address)
-        
-    return True
+        recovered_address = Web3.to_checksum_address(recover_address_from_signature(message, signature))
+
+        position = position_of.get(recovered_address)
+        # Skipped rather than fatal. An address that is not registered contributes to no evaluator's count,
+        # so ignoring it cannot make an unproven result look proven - while rejecting outright would throw
+        # away an otherwise sufficient set because one extra signature came along, which is what happens
+        # when a key is rotated out between a response being assembled and the signer list being read, or
+        # when a caller simply forwards everything it collected. The old rule could fail hard safely because
+        # it demanded the exact full set; this one accepts subsets, so it has to accept supersets.
+        if position is None:
+            print(f"Ignoring signature from {recovered_address}, which is not a registered signer")
+            continue
+        if position in position_seen:
+            continue
+        position_seen.add(position)
+
+        if position < soda_offset:
+            operators_signed[position % N] += 1
+        else:
+            soda_signed[position - soda_offset] = True
+
+    # T evaluators must have had every operator sign, and at least one of those same evaluators must also
+    # carry its Soda signature. Requiring that Soda signature to come from an evaluator already counted is
+    # what ties the two sides together: otherwise the instance attesting the result could belong to an
+    # evaluator none of the counted operators ever ran alongside.
+    evaluators_heard_from = 0
+    counted_evaluator_has_soda = False
+    for evaluator in range(N):
+        if operators_signed[evaluator] == operators_per_evaluator:
+            evaluators_heard_from += 1
+            if soda_signed[evaluator]:
+                counted_evaluator_has_soda = True
+
+    return evaluators_heard_from >= T and counted_evaluator_has_soda
     
 
 def recover_address_from_signature(message, signature):

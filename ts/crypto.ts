@@ -533,35 +533,143 @@ export function prepareIT256(plaintext:bigint, userAesKey:Buffer, userAddress:Bu
 }
 
 /**
- * Verifies the signatures of the message.
- * @param {Buffer|Uint8Array} message - The message to be verified.
- * @param {Buffer|Uint8Array} signatures - The signatures to be verified.
- * @param {string[]} signers - The list of signers.
- * @returns {boolean} - Returns true if the signatures are valid, false otherwise.
+ * Verifies that at least T of the N evaluators signed the message.
+ *
+ * Each evaluator is run by two parties - an operator (external) instance and a Soda (internal) one - and
+ * each signs with its own key. An evaluator has attested a result only once both of its instances have
+ * signed it, so `signers` holds two addresses per evaluator: every operator instance first, then every Soda
+ * instance, so the final N entries are Soda's, one per evaluator, and within either block entry i belongs to
+ * evaluator i % N.
+ *
+ * That ordering is what says which evaluator a recovered signer belongs to, so a differently ordered list
+ * does not fail - it attributes signatures to the wrong evaluators. `getSignersAddresses` returns them in
+ * this order.
+ *
+ * It counts evaluators rather than signatures, which is the whole point: five signatures from five different
+ * evaluators' operators plus one Soda signature is six valid signatures and not one evaluator that attested
+ * the result in full, so a signature count would accept a result no evaluator stands behind.
+ *
+ * It mirrors `_verifySignaturesDigest` in GCDecryptionVerifier.sol, with one deliberate difference: the
+ * contract reverts on a signature from an unregistered key, while this skips it. The contract sees exactly
+ * the calldata a relayer posts, whereas a client is handed whatever the response carried, and an
+ * unregistered signature contributes to no count either way.
+ *
+ * The defaults describe a single evaluator, which is what an unreplicated deployment has, and for which this
+ * reduces exactly to the previous rule - every signer must have signed.
+ *
+ * @param {Buffer|Uint8Array} message - The message that was signed.
+ * @param {(Buffer|Uint8Array)[]} signatures - The signatures to verify, in any order.
+ * @param {string[]} signers - Every instance's address, ordered as described above.
+ * @param {number} [N=1] - How many evaluators those instances make up.
+ * @param {number} [T=1] - How many evaluators must have signed.
+ * @returns {boolean} - True if at least T evaluators signed in full, false otherwise.
  */
-export function verifySignatures(message: Buffer | Uint8Array, signatures: (Buffer | Uint8Array)[], signers: string[]){  
-    // Validate the number of signatures and signers
-    if (signatures.length !== signers.length) {
-        throw new RangeError("Number of signatures and signers must be the same");
+export function verifySignatures(
+    message: Buffer | Uint8Array,
+    signatures: (Buffer | Uint8Array)[],
+    signers: string[],
+    N: number = 1,
+    T: number = 1,
+){
+    // A uint read from a contract arrives as a bigint through ethers, and mixing that with a number throws
+    // partway through rather than failing validation. Coerce first, then insist on whole numbers: a
+    // fractional N can satisfy the divisibility check below and only fail later at new Array(N).
+    N = Number(N);
+    T = Number(T);
+    if (!Number.isInteger(N) || !Number.isInteger(T)) {
+        throw new RangeError(`N and T must be integers, got N = ${N}, T = ${T}`);
     }
+
     if (signers.length === 0) {
         throw new RangeError("Signers must be non-empty");
     }
+    if (N < 1 || signers.length % N !== 0) {
+        throw new RangeError(`${signers.length} signers do not divide among ${N} evaluator(s)`);
+    }
+    // At least two instances per evaluator, which is what setSigners enforces on-chain. Exactly N signers
+    // would mean no operator instances at all, and an evaluator with no operators is vacuously complete -
+    // so a single Soda signature would satisfy any threshold, T = N included.
+    //
+    // A single evaluator is exempt because there the same shape is not a shortcut: one evaluator, one
+    // signer, and that signer still has to have signed. That is the unreplicated deployment the defaults
+    // describe, and rejecting it would break the plain "did this key sign this message" check.
+    if (N > 1 && signers.length < 2 * N) {
+        throw new RangeError(
+            `${signers.length} signers is fewer than two per evaluator for N = ${N}; ` +
+            `an evaluator with no operator instance would count as having signed without doing so`);
+    }
+    if (T < 1 || T > N) {
+        throw new RangeError(`T must be in [1, ${N}], got ${T}`);
+    }
 
-    const recoveredAddresses: Set<string> = new Set();
+    // Wrapped rather than passed by reference: map hands the callback (element, index, array), and
+    // toChecksumAddress takes an optional EIP-1191 chain id as its second argument, so passing it directly
+    // would checksum every address against its own index and match nothing.
+    const normalizedSigners = signers.map(signer => toChecksumAddress(signer));
+
+    // Deduped after normalization, not before: position is identity, and two entries are the same position
+    // exactly when they normalize to the same address. Checking the raw list instead lets a casing-only
+    // repeat through, and then indexOf resolves both entries to the first one - leaving the second position
+    // unfillable, its evaluator permanently short of its quota, and that evaluator's genuine operator
+    // signature reported as coming from an unregistered signer.
+    if (new Set(normalizedSigners).size !== normalizedSigners.length) {
+        throw new RangeError("Signers must not contain duplicate addresses");
+    }
+
+    // The Soda instances are the last N entries, one per evaluator, so everything before them is an
+    // operator instance.
+    const sodaOffset = signers.length - N;
+    // How many operator instances must sign before an evaluator has spoken. Written out rather than assumed
+    // to be one, so a deployment running more instances per evaluator cannot quietly come to mean "any one
+    // of them".
+    const operatorsPerEvaluator = signers.length / N - 1;
+
+    // Counted rather than flagged: an evaluator with several operators has not spoken until all have.
+    const operatorsSigned: number[] = new Array(N).fill(0);
+    const sodaSigned: boolean[] = new Array(N).fill(false);
+    // Which positions have already been counted, so one instance signing twice adds nothing.
+    const positionSeen: Set<number> = new Set();
+
     for (const signature of signatures) {
         const recoveredAddress = recoverAddressFromSignature(message, signature);
-        if (!signers.includes(recoveredAddress)) {
-            console.log("Recovered address " + recoveredAddress + " not in the list of signers")
-            return false;
+        const position = normalizedSigners.indexOf(recoveredAddress);
+        // Skipped rather than fatal. An address that is not registered contributes to no evaluator's count,
+        // so ignoring it cannot make an unproven result look proven - while rejecting outright would throw
+        // away an otherwise sufficient set because one extra signature came along, which is what happens
+        // when a key is rotated out between a response being assembled and the signer list being read, or
+        // when a caller simply forwards everything it collected. The old rule could fail hard safely
+        // because it demanded the exact full set; this one accepts subsets, so it has to accept supersets.
+        if (position === -1) {
+            console.log("Ignoring signature from " + recoveredAddress + ", which is not a registered signer");
+            continue;
         }
-        if (recoveredAddresses.has(recoveredAddress)) {
-            console.log("Same address recovered multiple times")
-            return false;
+        if (positionSeen.has(position)) {
+            continue;
         }
-        recoveredAddresses.add(recoveredAddress);
+        positionSeen.add(position);
+
+        if (position < sodaOffset) {
+            operatorsSigned[position % N]++;
+        } else {
+            sodaSigned[position - sodaOffset] = true;
+        }
     }
-    return true;
+
+    // T evaluators must have had every operator sign, and at least one of those same evaluators must also
+    // carry its Soda signature. Requiring that Soda signature to come from an evaluator already counted is
+    // what ties the two sides together: otherwise the instance attesting the result could belong to an
+    // evaluator none of the counted operators ever ran alongside.
+    let evaluatorsHeardFrom = 0;
+    let countedEvaluatorHasSoda = false;
+    for (let evaluator = 0; evaluator < N; evaluator++) {
+        if (operatorsSigned[evaluator] === operatorsPerEvaluator) {
+            evaluatorsHeardFrom++;
+            if (sodaSigned[evaluator]) {
+                countedEvaluatorHasSoda = true;
+            }
+        }
+    }
+    return evaluatorsHeardFrom >= T && countedEvaluatorHasSoda;
 }
 
 /**

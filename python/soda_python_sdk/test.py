@@ -1,11 +1,13 @@
 import unittest
+import json
 import tempfile
 import os
 import copy
 from Crypto.Random import get_random_bytes
 from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key, prepare_IT_256, verify_signatures, sign_eip712, build_onboard_user_typed_data, build_encrypt_to_user_typed_data, recover_address_from_eip712_signature
-from crypto import BLOCK_SIZE, ADDRESS_SIZE, BYTES32_SIZE
+from crypto import BLOCK_SIZE, ADDRESS_SIZE, BYTES32_SIZE, KEY_SIZE, SIGNATURE_SIZE
 from eth_keys import keys
+from eth_utils import keccak
 from web3 import Account
 from eth_account.messages import encode_defunct
 
@@ -331,6 +333,59 @@ class TestMpcHelper(unittest.TestCase):
         # Writing to a file simulates the communication between the evm (golang) and the user (python/js)
         with open("test_pythonFunctionKeccak.txt", "w") as f:
             f.write(hashed.hex())
+
+    def test_signer_counting_vectors(self):
+        """Run the shared T-of-N vectors that js/ and ts/ also run.
+
+        The counting rule is implemented three times in three languages. Nothing but a shared fixture keeps
+        them answering the same question, and a divergence between two of them is invisible to a suite that
+        exercises only one - which is how a real disagreement between this file and js/crypto.mjs reached
+        review instead of failing here.
+        """
+        vectors_path = os.path.join(os.path.dirname(__file__), "..", "..", "testVectors", "signerCounting.json")
+        with open(vectors_path) as f:
+            vectors = json.load(f)
+
+        message = bytes.fromhex(vectors["message"])
+
+        # However many keys the vectors actually reach for, rather than a number picked to be large enough.
+        key_count = 1 + max(
+            max(case["signers"] for case in vectors["cases"] + vectors["rejectedInputs"]),
+            max((i for case in vectors["cases"] for i in case["signedBy"]), default=0),
+            max((case["plusStrangerKey"] for case in vectors["cases"] if "plusStrangerKey" in case), default=0),
+        )
+
+        # Derived, not stored: the fixture carries no secrets, only the rule that private key i is the byte
+        # (i+1) repeated. Every language builds the same addresses from it.
+        privkeys = [keys.PrivateKey(bytes([i + 1] * KEY_SIZE)) for i in range(key_count)]
+
+        # r and s take equal halves of the signature, with the recovery id in the trailing byte.
+        component_size = (SIGNATURE_SIZE - 1) // 2
+
+        def sign(index):
+            signature = privkeys[index].sign_msg_hash(keccak(message))
+            return (signature.r.to_bytes(component_size, "big")
+                    + signature.s.to_bytes(component_size, "big")
+                    + bytes([signature.v]))
+
+        for case in vectors["cases"]:
+            with self.subTest(case=case["name"]):
+                signers = [privkeys[i].public_key.to_checksum_address() for i in range(case["signers"])]
+                signatures = [sign(i) for i in case["signedBy"]]
+                if "plusStrangerKey" in case:
+                    signatures.append(sign(case["plusStrangerKey"]))
+                actual = verify_signatures(message, signatures, signers, case["N"], case["T"])
+                self.assertEqual(actual, case["expected"], case["name"])
+
+        for case in vectors["rejectedInputs"]:
+            with self.subTest(rejected=case["name"]):
+                signers = [privkeys[i].public_key.to_checksum_address() for i in range(case["signers"])]
+                if case.get("duplicatePosition"):
+                    a, b = case["duplicatePosition"]
+                    signers[b] = signers[a].lower() if case.get("lowercaseDuplicate") else signers[a]
+                with self.assertRaises(ValueError, msg=case["name"]):
+                    verify_signatures(message, [sign(0)], signers, case["N"], case["T"])
+
 
 class TestDecrypt(unittest.TestCase):
 
