@@ -478,7 +478,10 @@ describe('Crypto Tests', () => {
         };
         const signersFor = (c) => {
             const signers = Array.from({ length: c.signers }, (_, i) => addressOf(i));
-            if (c.duplicatePosition) signers[c.duplicatePosition[1]] = signers[c.duplicatePosition[0]];
+            if (c.duplicatePosition) {
+                const source = signers[c.duplicatePosition[0]];
+                signers[c.duplicatePosition[1]] = c.lowercaseDuplicate ? source.toLowerCase() : source;
+            }
             return signers;
         };
 

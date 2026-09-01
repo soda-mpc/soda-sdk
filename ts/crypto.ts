@@ -583,12 +583,6 @@ export function verifySignatures(
     if (signers.length === 0) {
         throw new RangeError("Signers must be non-empty");
     }
-    // Position is identity here, so a repeated address would leave one of its positions unfillable and that
-    // evaluator permanently short of its quota - silently, and inconsistently between languages, since a
-    // first-match lookup and a last-wins map disagree about which position an address owns.
-    if (new Set(signers).size !== signers.length) {
-        throw new RangeError("Signers must not contain duplicate addresses");
-    }
     if (N < 1 || signers.length % N !== 0) {
         throw new RangeError(`${signers.length} signers do not divide among ${N} evaluator(s)`);
     }
@@ -612,6 +606,15 @@ export function verifySignatures(
     // toChecksumAddress takes an optional EIP-1191 chain id as its second argument, so passing it directly
     // would checksum every address against its own index and match nothing.
     const normalizedSigners = signers.map(signer => toChecksumAddress(signer));
+
+    // Deduped after normalization, not before: position is identity, and two entries are the same position
+    // exactly when they normalize to the same address. Checking the raw list instead lets a casing-only
+    // repeat through, and then indexOf resolves both entries to the first one - leaving the second position
+    // unfillable, its evaluator permanently short of its quota, and that evaluator's genuine operator
+    // signature reported as coming from an unregistered signer.
+    if (new Set(normalizedSigners).size !== normalizedSigners.length) {
+        throw new RangeError("Signers must not contain duplicate addresses");
+    }
 
     // The Soda instances are the last N entries, one per evaluator, so everything before them is an
     // operator instance.

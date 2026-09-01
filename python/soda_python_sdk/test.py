@@ -380,8 +380,9 @@ class TestMpcHelper(unittest.TestCase):
         for case in vectors["rejectedInputs"]:
             with self.subTest(rejected=case["name"]):
                 signers = [privkeys[i].public_key.to_checksum_address() for i in range(case["signers"])]
-                for a, b in [case.get("duplicatePosition")] if case.get("duplicatePosition") else []:
-                    signers[b] = signers[a]
+                if case.get("duplicatePosition"):
+                    a, b = case["duplicatePosition"]
+                    signers[b] = signers[a].lower() if case.get("lowercaseDuplicate") else signers[a]
                 with self.assertRaises(ValueError, msg=case["name"]):
                     verify_signatures(message, [sign(0)], signers, case["N"], case["T"])
 

@@ -104,6 +104,12 @@
       "duplicatePosition": [0, 1]
     },
     {
+      "name": "a duplicate visible only after checksum normalization is still a duplicate",
+      "signers": 10, "N": 5, "T": 3,
+      "duplicatePosition": [0, 1],
+      "lowercaseDuplicate": true
+    },
+    {
       "name": "signers do not divide among the evaluators",
       "signers": 9, "N": 5, "T": 3
     },
