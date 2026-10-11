@@ -296,6 +296,16 @@ describe('Crypto Tests', () => {
         );
 
         assert.throws(() => buildTransientInsertPermissionTypedData(-1, wallet.address, token, 421614, acl));
+        // A number above MAX_SAFE_INTEGER is rounded before BigInt sees it; the same value is fine as a bigint or string.
+        assert.throws(() => buildTransientInsertPermissionTypedData(2 ** 53 + 1, wallet.address, token, 421614, acl));
+        assert.strictEqual(
+            buildTransientInsertPermissionTypedData(2n ** 53n + 1n, wallet.address, token, 421614, acl).message.nonce,
+            '9007199254740993',
+        );
+        assert.strictEqual(
+            buildTransientInsertPermissionTypedData('9007199254740993', wallet.address, token, 421614, acl).message.nonce,
+            '9007199254740993',
+        );
     });
 
     // Test case for verify signature

@@ -356,6 +356,10 @@ export function buildTransientInsertPermissionTypedData(
     chainId: number,
     verifyingContract: Buffer | string,
 ) {
+    // A number above MAX_SAFE_INTEGER is already rounded before BigInt sees it and would sign the wrong nonce.
+    if (typeof nonce === "number" && !Number.isSafeInteger(nonce)) {
+        throw new Error("nonce must be a safe integer; pass a bigint or string for larger values");
+    }
     const nonceValue = BigInt(nonce);
     if (nonceValue < 0n || nonceValue >= (1n << 256n)) {
         throw new Error("nonce must fit in uint256");
