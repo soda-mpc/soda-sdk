@@ -314,6 +314,9 @@ describe('Crypto Tests', () => {
             buildTransientInsertPermissionTypedData('9007199254740993', wallet.address, token, 421614, acl).message.nonce,
             '9007199254740993',
         );
+        // BigInt('') and BigInt(' ') are 0n; a missing nonce must not become a grant for nonce zero.
+        assert.throws(() => buildTransientInsertPermissionTypedData('', wallet.address, token, 421614, acl));
+        assert.throws(() => buildTransientInsertPermissionTypedData(' ', wallet.address, token, 421614, acl));
     });
 
     it('should agree with the shared transient insert grant vector', () => {

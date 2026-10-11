@@ -360,6 +360,10 @@ export function buildTransientInsertPermissionTypedData(
     if (typeof nonce === "number" && !Number.isSafeInteger(nonce)) {
         throw new Error("nonce must be a safe integer; pass a bigint or string for larger values");
     }
+    // BigInt("") and BigInt("  ") are 0n; a missing nonce must not sign a grant for nonce zero.
+    if (typeof nonce === "string" && nonce.trim() === "") {
+        throw new Error("nonce must not be blank");
+    }
     const nonceValue = BigInt(nonce);
     if (nonceValue < 0n || nonceValue >= (1n << 256n)) {
         throw new Error("nonce must fit in uint256");
