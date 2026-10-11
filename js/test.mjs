@@ -8,7 +8,8 @@ import {
     prepareIT, prepareIT256, prepareMessage,
     signIT, verifySignatures,
     writeBigUInt256BE, extractSignatureComponents,
-    signEIP712, buildOnboardUserTypedData, buildEncryptToUserTypedData, recoverAddressFromEIP712Signature
+    signEIP712, buildOnboardUserTypedData, buildEncryptToUserTypedData, buildTransientInsertPermissionTypedData,
+    recoverAddressFromEIP712Signature
 } from './crypto.mjs';
 
 import { writeAesKey, loadAesKey } from './utils.mjs';
@@ -250,6 +251,51 @@ describe('Crypto Tests', () => {
             recoverAddressFromEIP712Signature(tamperedHandle, signature).toLowerCase(),
             wallet.address.toLowerCase(),
         );
+    });
+
+    it('should sign and recover the EIP712 transient insert grant signature', async () => {
+        const key = generateECDSAPrivateKey();
+        const wallet = new ethers.Wallet(ethers.hexlify(key));
+        const token = ethers.Wallet.createRandom().address;
+        const acl = ethers.Wallet.createRandom().address;
+
+        const typedData = buildTransientInsertPermissionTypedData(7n, wallet.address, token, 421614, acl);
+        const signature = await signEIP712(typedData, key);
+        const recoveredAddress = recoverAddressFromEIP712Signature(typedData, signature);
+
+        assert.strictEqual(recoveredAddress.toLowerCase(), wallet.address.toLowerCase());
+        assert.strictEqual(typedData.message.nonce, '7');
+
+        // Every signed field and both domain bindings must change the recovered address.
+        const tamperedNonce = structuredClone(typedData);
+        tamperedNonce.message.nonce = '8';
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedNonce, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+
+        const tamperedContract = structuredClone(typedData);
+        tamperedContract.message.contract = acl;
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedContract, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+
+        const tamperedVerifyingContract = structuredClone(typedData);
+        tamperedVerifyingContract.domain.verifyingContract = token;
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedVerifyingContract, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+
+        const tamperedChainId = structuredClone(typedData);
+        tamperedChainId.domain.chainId += 1;
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedChainId, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+
+        assert.throws(() => buildTransientInsertPermissionTypedData(-1, wallet.address, token, 421614, acl));
     });
 
     // Test case for verify signature

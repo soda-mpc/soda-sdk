@@ -4,7 +4,7 @@ import tempfile
 import os
 import copy
 from Crypto.Random import get_random_bytes
-from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key, prepare_IT_256, verify_signatures, sign_eip712, build_onboard_user_typed_data, build_encrypt_to_user_typed_data, recover_address_from_eip712_signature
+from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key, prepare_IT_256, verify_signatures, sign_eip712, build_onboard_user_typed_data, build_encrypt_to_user_typed_data, build_transient_insert_permission_typed_data, recover_address_from_eip712_signature
 from crypto import BLOCK_SIZE, ADDRESS_SIZE, BYTES32_SIZE, KEY_SIZE, SIGNATURE_SIZE
 from eth_keys import keys
 from eth_utils import keccak
@@ -237,6 +237,51 @@ class TestMpcHelper(unittest.TestCase):
             recover_address_from_eip712_signature(tampered_handle, signature),
             account.address,
         )
+
+    def test_recover_address_from_eip712_signature_transient_insert(self):
+        key = generate_ECDSA_private_key()
+        account = Account.from_key(key)
+        token = Account.create().address
+        acl = Account.create().address
+
+        typed_data = build_transient_insert_permission_typed_data(7, account.address, token, 421614, acl)
+        signature = sign_eip712(typed_data, key)
+        recovered_address = recover_address_from_eip712_signature(typed_data, signature)
+
+        self.assertEqual(recovered_address, account.address)
+        self.assertEqual(typed_data["message"]["user"], account.address)
+
+        # Every signed field and both domain bindings must change the recovered address.
+        tampered_nonce = copy.deepcopy(typed_data)
+        tampered_nonce["message"]["nonce"] += 1
+        self.assertNotEqual(
+            recover_address_from_eip712_signature(tampered_nonce, signature),
+            account.address,
+        )
+
+        tampered_contract = copy.deepcopy(typed_data)
+        tampered_contract["message"]["contract"] = acl
+        self.assertNotEqual(
+            recover_address_from_eip712_signature(tampered_contract, signature),
+            account.address,
+        )
+
+        tampered_verifying_contract = copy.deepcopy(typed_data)
+        tampered_verifying_contract["domain"]["verifyingContract"] = token
+        self.assertNotEqual(
+            recover_address_from_eip712_signature(tampered_verifying_contract, signature),
+            account.address,
+        )
+
+        tampered_chain_id = copy.deepcopy(typed_data)
+        tampered_chain_id["domain"]["chainId"] += 1
+        self.assertNotEqual(
+            recover_address_from_eip712_signature(tampered_chain_id, signature),
+            account.address,
+        )
+
+        with self.assertRaises(ValueError):
+            build_transient_insert_permission_typed_data(-1, account.address, token, 421614, acl)
 
     def test_fixedMSG_Signature(self):
         # Arrange

@@ -264,6 +264,54 @@ def build_encrypt_to_user_typed_data(handles, owner, chain_id):
     }
 
 
+def _transient_insert_eip712_domain_types():
+    # Same name and version as _eip712_domain, but the grant is verified on-chain by GCACL,
+    # so the domain also binds the verifying contract.
+    return {
+        "EIP712Domain": [
+            {"name": "name", "type": "string"},
+            {"name": "version", "type": "string"},
+            {"name": "chainId", "type": "uint256"},
+            {"name": "verifyingContract", "type": "address"},
+        ],
+    }
+
+
+def build_transient_insert_permission_typed_data(nonce, user, contract_address, chain_id, verifying_contract):
+    """Build EIP-712 typed data for a transient insert grant.
+
+    The grant lets `contract_address` call validateCiphertext on behalf of `user` for one transaction
+    only. It is consumed by GCACL.transientInsertPermission, so `verifying_contract` must be the GCACL
+    proxy address on `chain_id`, and `nonce` must be GCACL.transientInsertNonce(user).
+    The type string must match GCACL byte for byte:
+    TransientInsertPermission(uint256 nonce,address user,address contract)
+    """
+    if not isinstance(nonce, int) or not 0 <= nonce < 2 ** 256:
+        raise ValueError("nonce must be an integer that fits in uint256")
+    return {
+        "types": {
+            **_transient_insert_eip712_domain_types(),
+            "TransientInsertPermission": [
+                {"name": "nonce", "type": "uint256"},
+                {"name": "user", "type": "address"},
+                {"name": "contract", "type": "address"},
+            ],
+        },
+        "primaryType": "TransientInsertPermission",
+        "domain": {
+            "name": EIP712_DOMAIN_NAME,
+            "version": EIP712_DOMAIN_VERSION,
+            "chainId": chain_id,
+            "verifyingContract": Web3.to_checksum_address(verifying_contract),
+        },
+        "message": {
+            "nonce": nonce,
+            "user": Web3.to_checksum_address(user),
+            "contract": Web3.to_checksum_address(contract_address),
+        },
+    }
+
+
 def sign_eip712(typed_data, key):
     """Sign EIP-712 typed data with the given private key."""
     signed_message = Account.sign_typed_data(private_key=key, full_message=typed_data)

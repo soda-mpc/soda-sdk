@@ -327,7 +327,67 @@ export function buildEncryptToUserTypedData(handles: Buffer[], owner: Buffer | n
     };
 }
 
-export type EIP712TypedData = ReturnType<typeof buildOnboardUserTypedData> | ReturnType<typeof buildEncryptToUserTypedData>;
+function buildTransientInsertEIP712DomainTypes() {
+    // Same name and version as buildEIP712Domain, but the grant is verified on-chain by GCACL,
+    // so the domain also binds the verifying contract.
+    return {
+        EIP712Domain: [
+            { name: "name", type: "string" },
+            { name: "version", type: "string" },
+            { name: "chainId", type: "uint256" },
+            { name: "verifyingContract", type: "address" },
+        ],
+    };
+}
+
+/**
+ * Builds EIP-712 typed data for a transient insert grant (eth_signTypedData_v4 format).
+ *
+ * The grant lets `contractAddress` call validateCiphertext on behalf of `user` for one transaction only.
+ * It is consumed by GCACL.transientInsertPermission, so `verifyingContract` must be the GCACL proxy on
+ * `chainId`, and `nonce` must be GCACL.transientInsertNonce(user).
+ * The type string must match GCACL byte for byte:
+ * TransientInsertPermission(uint256 nonce,address user,address contract)
+ */
+export function buildTransientInsertPermissionTypedData(
+    nonce: bigint | number | string,
+    user: Buffer | string,
+    contractAddress: Buffer | string,
+    chainId: number,
+    verifyingContract: Buffer | string,
+) {
+    const nonceValue = BigInt(nonce);
+    if (nonceValue < 0n || nonceValue >= (1n << 256n)) {
+        throw new Error("nonce must fit in uint256");
+    }
+    return {
+        types: {
+            ...buildTransientInsertEIP712DomainTypes(),
+            TransientInsertPermission: [
+                { name: "nonce", type: "uint256" },
+                { name: "user", type: "address" },
+                { name: "contract", type: "address" },
+            ],
+        },
+        primaryType: "TransientInsertPermission",
+        domain: {
+            name: EIP712_DOMAIN_NAME,
+            version: EIP712_DOMAIN_VERSION,
+            chainId,
+            verifyingContract: ethers.getAddress(ethers.hexlify(verifyingContract)),
+        },
+        message: {
+            nonce: nonceValue.toString(),
+            user: ethers.getAddress(ethers.hexlify(user)),
+            contract: ethers.getAddress(ethers.hexlify(contractAddress)),
+        },
+    };
+}
+
+export type EIP712TypedData =
+    | ReturnType<typeof buildOnboardUserTypedData>
+    | ReturnType<typeof buildEncryptToUserTypedData>
+    | ReturnType<typeof buildTransientInsertPermissionTypedData>;
 
 /**
  * Signs EIP-712 typed data using a private key.
