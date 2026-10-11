@@ -26,6 +26,7 @@ import {
 
 // Where the shared vectors live, relative to this suite's working directory.
 const VECTORS_PATH = '../testVectors/signerCounting.json';
+const GRANT_VECTOR_PATH = '../testVectors/transientInsertGrant.json';
 // secp256k1 recovery ids are 0/1 on the wire and 27/28 in ecsign's return.
 const V_OFFSET = 27;
 import {ethers} from "ethers";
@@ -282,6 +283,13 @@ describe('Crypto Tests', () => {
             wallet.address.toLowerCase(),
         );
 
+        const tamperedUser = structuredClone(typedData);
+        tamperedUser.message.user = ethers.ZeroAddress;
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedUser, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+
         const tamperedContract = structuredClone(typedData);
         tamperedContract.message.contract = acl;
         assert.notStrictEqual(
@@ -314,6 +322,24 @@ describe('Crypto Tests', () => {
             buildTransientInsertPermissionTypedData('9007199254740993', wallet.address, token, 421614, acl).message.nonce,
             '9007199254740993',
         );
+    });
+
+    it('should agree with the shared transient insert grant vector', () => {
+        // Pins the digest GCACL hashes on-chain; the Python suite reads the same file, so a field-order or
+        // domain-type slip in one language fails here instead of only on-chain.
+        const v = JSON.parse(fs.readFileSync(GRANT_VECTOR_PATH, 'utf8'));
+        const key = Buffer.alloc(KEY_SIZE, v.signerKeyByte);
+        const wallet = new ethers.Wallet(ethers.hexlify(key));
+        assert.strictEqual(wallet.address, v.user);
+
+        const typedData = buildTransientInsertPermissionTypedData(v.nonce, v.user, v.contract, v.chainId, v.verifyingContract);
+        const types = typedData.types as Record<string, Array<{ name: string; type: string }>>;
+        const messageTypes = { [typedData.primaryType]: types[typedData.primaryType] };
+        const encoder = ethers.TypedDataEncoder.from(messageTypes);
+        assert.strictEqual(encoder.encodeType(typedData.primaryType), v.typeString);
+        assert.strictEqual(ethers.TypedDataEncoder.hashDomain(typedData.domain), v.domainSeparator);
+        assert.strictEqual(encoder.hash(typedData.message), v.structHash);
+        assert.strictEqual(ethers.TypedDataEncoder.hash(typedData.domain, messageTypes, typedData.message), v.digest);
     });
 
     // Test case for verify signature

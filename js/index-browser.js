@@ -9,6 +9,7 @@ export {
     signEIP712,
     buildOnboardUserTypedData,
     buildEncryptToUserTypedData,
+    buildTransientInsertPermissionTypedData,
     recoverAddressFromEIP712Signature,
     prepareMessage,
     prepareIT,

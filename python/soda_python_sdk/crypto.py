@@ -285,6 +285,9 @@ def build_transient_insert_permission_typed_data(nonce, user, contract_address, 
     proxy address on `chain_id`, and `nonce` must be GCACL.transientInsertNonce(user).
     The type string must match GCACL byte for byte:
     TransientInsertPermission(uint256 nonce,address user,address contract)
+
+    `nonce` is an int. Python ints are exact at any size, so unlike the JS/TS builders, which also take a
+    bigint or string because a JS number is unsafe above 2**53, there is no string form here.
     """
     if not isinstance(nonce, int) or not 0 <= nonce < 2 ** 256:
         raise ValueError("nonce must be an integer that fits in uint256")
