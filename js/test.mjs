@@ -8,7 +8,8 @@ import {
     prepareIT, prepareIT256, prepareMessage,
     signIT, verifySignatures,
     writeBigUInt256BE, extractSignatureComponents,
-    signEIP712, buildOnboardUserTypedData, buildEncryptToUserTypedData, recoverAddressFromEIP712Signature
+    signEIP712, buildOnboardUserTypedData, buildEncryptToUserTypedData, buildTransientInsertPermissionTypedData,
+    recoverAddressFromEIP712Signature
 } from './crypto.mjs';
 
 import { writeAesKey, loadAesKey } from './utils.mjs';
@@ -16,6 +17,7 @@ import { writeAesKey, loadAesKey } from './utils.mjs';
 import { BLOCK_SIZE, ADDRESS_SIZE, HEX_BASE, CT_SIZE, KEY_SIZE, SIGNATURE_SIZE } from './crypto.mjs';
 // Where the shared vectors live, relative to this suite's working directory.
 const VECTORS_PATH = '../testVectors/signerCounting.json';
+const GRANT_VECTOR_PATH = '../testVectors/transientInsertGrant.json';
 // secp256k1 recovery ids are 0/1 on the wire and 27/28 in ecsign's return.
 const V_OFFSET = 27;
 import fs from 'fs';
@@ -250,6 +252,88 @@ describe('Crypto Tests', () => {
             recoverAddressFromEIP712Signature(tamperedHandle, signature).toLowerCase(),
             wallet.address.toLowerCase(),
         );
+    });
+
+    it('should sign and recover the EIP712 transient insert grant signature', async () => {
+        const key = generateECDSAPrivateKey();
+        const wallet = new ethers.Wallet(ethers.hexlify(key));
+        const token = ethers.Wallet.createRandom().address;
+        const acl = ethers.Wallet.createRandom().address;
+
+        const typedData = buildTransientInsertPermissionTypedData(7n, wallet.address, token, 421614, acl);
+        const signature = await signEIP712(typedData, key);
+        const recoveredAddress = recoverAddressFromEIP712Signature(typedData, signature);
+
+        assert.strictEqual(recoveredAddress.toLowerCase(), wallet.address.toLowerCase());
+        assert.strictEqual(typedData.message.nonce, '7');
+
+        // Every signed field and both domain bindings must change the recovered address.
+        const tamperedNonce = structuredClone(typedData);
+        tamperedNonce.message.nonce = '8';
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedNonce, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+
+        const tamperedUser = structuredClone(typedData);
+        tamperedUser.message.user = ethers.ZeroAddress;
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedUser, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+
+        const tamperedContract = structuredClone(typedData);
+        tamperedContract.message.contract = acl;
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedContract, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+
+        const tamperedVerifyingContract = structuredClone(typedData);
+        tamperedVerifyingContract.domain.verifyingContract = token;
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedVerifyingContract, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+
+        const tamperedChainId = structuredClone(typedData);
+        tamperedChainId.domain.chainId += 1;
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedChainId, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+
+        assert.throws(() => buildTransientInsertPermissionTypedData(-1, wallet.address, token, 421614, acl));
+        // A number above MAX_SAFE_INTEGER is rounded before BigInt sees it; the same value is fine as a bigint or string.
+        assert.throws(() => buildTransientInsertPermissionTypedData(2 ** 53 + 1, wallet.address, token, 421614, acl));
+        assert.strictEqual(
+            buildTransientInsertPermissionTypedData(2n ** 53n + 1n, wallet.address, token, 421614, acl).message.nonce,
+            '9007199254740993',
+        );
+        assert.strictEqual(
+            buildTransientInsertPermissionTypedData('9007199254740993', wallet.address, token, 421614, acl).message.nonce,
+            '9007199254740993',
+        );
+        // BigInt('') and BigInt(' ') are 0n; a missing nonce must not become a grant for nonce zero.
+        assert.throws(() => buildTransientInsertPermissionTypedData('', wallet.address, token, 421614, acl));
+        assert.throws(() => buildTransientInsertPermissionTypedData(' ', wallet.address, token, 421614, acl));
+    });
+
+    it('should agree with the shared transient insert grant vector', () => {
+        // Pins the digest GCACL hashes on-chain; the Python suite reads the same file, so a field-order or
+        // domain-type slip in one language fails here instead of only on-chain.
+        const v = JSON.parse(fs.readFileSync(GRANT_VECTOR_PATH, 'utf8'));
+        const key = Buffer.alloc(KEY_SIZE, v.signerKeyByte);
+        const wallet = new ethers.Wallet(ethers.hexlify(key));
+        assert.strictEqual(wallet.address, v.user);
+
+        const typedData = buildTransientInsertPermissionTypedData(v.nonce, v.user, v.contract, v.chainId, v.verifyingContract);
+        const messageTypes = { [typedData.primaryType]: typedData.types[typedData.primaryType] };
+        const encoder = ethers.TypedDataEncoder.from(messageTypes);
+        assert.strictEqual(encoder.encodeType(typedData.primaryType), v.typeString);
+        assert.strictEqual(ethers.TypedDataEncoder.hashDomain(typedData.domain), v.domainSeparator);
+        assert.strictEqual(encoder.hash(typedData.message), v.structHash);
+        assert.strictEqual(ethers.TypedDataEncoder.hash(typedData.domain, messageTypes, typedData.message), v.digest);
     });
 
     // Test case for verify signature

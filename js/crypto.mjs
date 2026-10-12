@@ -286,6 +286,69 @@ export function buildEncryptToUserTypedData(handles, owner, chainId) {
     };
 }
 
+function buildTransientInsertEIP712DomainTypes() {
+    // Same name and version as buildEIP712Domain, but the grant is verified on-chain by GCACL,
+    // so the domain also binds the verifying contract.
+    return {
+        EIP712Domain: [
+            { name: "name", type: "string" },
+            { name: "version", type: "string" },
+            { name: "chainId", type: "uint256" },
+            { name: "verifyingContract", type: "address" },
+        ],
+    };
+}
+
+/**
+ * Builds EIP-712 typed data for a transient insert grant (eth_signTypedData_v4 format).
+ * The grant lets `contractAddress` call validateCiphertext on behalf of `user` for one transaction only.
+ * It is consumed by GCACL.transientInsertPermission, so `verifyingContract` must be the GCACL proxy on
+ * `chainId`, and `nonce` must be GCACL.transientInsertNonce(user).
+ * The type string must match GCACL byte for byte:
+ * TransientInsertPermission(uint256 nonce,address user,address contract)
+ * @param {bigint|number|string} nonce
+ * @param {Buffer|string} user - The user whose ciphertexts may be inserted.
+ * @param {Buffer|string} contractAddress - The app contract that will consume the grant.
+ * @param {number} chainId
+ * @param {Buffer|string} verifyingContract - The GCACL proxy address.
+ */
+export function buildTransientInsertPermissionTypedData(nonce, user, contractAddress, chainId, verifyingContract) {
+    // A number above MAX_SAFE_INTEGER is already rounded before BigInt sees it and would sign the wrong nonce.
+    if (typeof nonce === "number" && !Number.isSafeInteger(nonce)) {
+        throw new Error("nonce must be a safe integer; pass a bigint or string for larger values");
+    }
+    // BigInt("") and BigInt("  ") are 0n; a missing nonce must not sign a grant for nonce zero.
+    if (typeof nonce === "string" && nonce.trim() === "") {
+        throw new Error("nonce must not be blank");
+    }
+    const nonceValue = BigInt(nonce);
+    if (nonceValue < 0n || nonceValue >= (1n << 256n)) {
+        throw new Error("nonce must fit in uint256");
+    }
+    return {
+        types: {
+            ...buildTransientInsertEIP712DomainTypes(),
+            TransientInsertPermission: [
+                { name: "nonce", type: "uint256" },
+                { name: "user", type: "address" },
+                { name: "contract", type: "address" },
+            ],
+        },
+        primaryType: "TransientInsertPermission",
+        domain: {
+            name: EIP712_DOMAIN_NAME,
+            version: EIP712_DOMAIN_VERSION,
+            chainId,
+            verifyingContract: ethers.getAddress(ethers.hexlify(verifyingContract)),
+        },
+        message: {
+            nonce: nonceValue.toString(),
+            user: ethers.getAddress(ethers.hexlify(user)),
+            contract: ethers.getAddress(ethers.hexlify(contractAddress)),
+        },
+    };
+}
+
 export async function signEIP712(typedData, key) {
     const wallet = new ethers.Wallet(ethers.hexlify(key));
     const messageTypes = { [typedData.primaryType]: typedData.types[typedData.primaryType] };

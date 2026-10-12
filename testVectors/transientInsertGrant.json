@@ -1,0 +1,25 @@
+{
+  "_comment": [
+    "Shared vector for the transient insert grant EIP-712 digest, read by all three suites: js/test.mjs,",
+    "ts/crypto.test.ts and python/soda_python_sdk/test.py.",
+    "",
+    "The builder exists three times, in three languages. Each suite's sign/recover test only proves that a",
+    "language agrees with itself; a reordered field or a different domain type in one builder would pass there",
+    "and fail only on-chain, where GCACL hashes exactly 'typeString' under the domain below. This fixture pins",
+    "the digest every builder must reach, and the two intermediate hashes say which half diverged.",
+    "",
+    "No secret is stored: the signer's private key is the byte 'signerKeyByte' repeated 32 times, and 'user' is",
+    "the address that key derives to. 'contract' and 'verifyingContract' are placeholders; the on-chain",
+    "verifyingContract is the GCACL proxy. Hashes were produced with eth_account and are confirmed by ethers."
+  ],
+  "signerKeyByte": 1,
+  "user": "0x1a642f0E3c3aF545E7AcBD38b07251B3990914F1",
+  "nonce": "7",
+  "contract": "0x1111111111111111111111111111111111111111",
+  "chainId": 421614,
+  "verifyingContract": "0x2222222222222222222222222222222222222222",
+  "typeString": "TransientInsertPermission(uint256 nonce,address user,address contract)",
+  "domainSeparator": "0x9b135810e91eb7909a164d54569cd7dbf4ce33dc7708098a2e09c7196824b3fa",
+  "structHash": "0xd6ad74755c898b741e7fe95c7ee41f01fbefb4f3e4358800b2ea61f0b6fb2b9e",
+  "digest": "0x2ad1ec1c8f88906507c4313bbe3e2ff2fb724c06361679fb4556b406005f9fa9"
+}

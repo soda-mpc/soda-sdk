@@ -70,6 +70,15 @@ The SDK support provide the following functionalities:
 
         This function get the function signature as a string and returned the keccak-256 value on the signature
 
+* EIP-712 typed data (`sign_eip712` / `recover_address_from_eip712_signature` with a builder):
+    * Onboard user and encrypt-to-user requests, verified off-chain by bubble
+    * Transient insert grant (`build_transient_insert_permission_typed_data(nonce, user, contract_address, chain_id, verifying_contract)`)
+
+        A user signs this once so that `contract_address` (for example a token) may call `validateCiphertext` on the
+        user's ciphertexts for one transaction, typically a relayed call paid by a facilitator. The contract consumes it
+        with `GCACL.transientInsertPermission(user, nonce, signature)`. `nonce` is `GCACL.transientInsertNonce(user)` (checked
+        against storage on-chain, so a signature is valid once) and `verifying_contract` is the GCACL proxy address on `chain_id`.
+
 
 ### Prerequisites
 
