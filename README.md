@@ -89,8 +89,8 @@ The SDK support provide the following functionalities:
 
         A user signs this once so that `contract` (for example a token) may call `validateCiphertext` on the user's
         ciphertexts for one transaction, typically a relayed call paid by a facilitator. The contract consumes it with
-        `GCACL.transientInsertPermission(user, signature)`. `nonce` is `GCACL.transientInsertNonce(user)` (read from
-        storage on-chain, so a signature is valid once) and `verifyingContract` is the GCACL proxy address on `chainId`.
+        `GCACL.transientInsertPermission(user, nonce, signature)`. `nonce` is `GCACL.transientInsertNonce(user)` (checked
+        against storage on-chain, so a signature is valid once) and `verifyingContract` is the GCACL proxy address on `chainId`.
 
 ## Installation
 
