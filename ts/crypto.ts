@@ -549,7 +549,7 @@ export function prepareIT256(plaintext:bigint, userAesKey:Buffer, userAddress:Bu
  * evaluators' operators plus one Soda signature is six valid signatures and not one evaluator that attested
  * the result in full, so a signature count would accept a result no evaluator stands behind.
  *
- * It mirrors `_verifySignaturesDigest` in GCDecryptionVerifier.sol, with one deliberate difference: the
+ * It mirrors `_verifySignaturesDigest` in GCVerifier.sol, with one deliberate difference: the
  * contract reverts on a signature from an unregistered key, while this skips it. The contract sees exactly
  * the calldata a relayer posts, whereas a client is handed whatever the response carried, and an
  * unregistered signature contributes to no count either way.
