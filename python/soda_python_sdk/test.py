@@ -4,8 +4,8 @@ import tempfile
 import os
 import copy
 from Crypto.Random import get_random_bytes
-from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key, prepare_IT_256, verify_signatures, sign_eip712, build_onboard_user_typed_data, build_encrypt_to_user_typed_data, build_transient_insert_permission_typed_data, recover_address_from_eip712_signature
-from crypto import BLOCK_SIZE, ADDRESS_SIZE, BYTES32_SIZE, KEY_SIZE, SIGNATURE_SIZE
+from crypto import encrypt, decrypt, load_aes_key, write_aes_key, generate_aes_key, signIT, generate_rsa_keypair, encrypt_rsa, decrypt_rsa, get_func_sig, prepare_IT, generate_ECDSA_private_key, prepare_IT_256, verify_signatures, sign_eip712, build_onboard_user_typed_data, build_encrypt_to_user_typed_data, build_transient_insert_permission_typed_data, build_burn_note_typed_data, recover_address_from_eip712_signature
+from crypto import BLOCK_SIZE, ADDRESS_SIZE, BYTES32_SIZE, KEY_SIZE, SIGNATURE_SIZE, keccak256
 from eth_keys import keys
 from eth_utils import keccak
 from web3 import Account
@@ -309,6 +309,41 @@ class TestMpcHelper(unittest.TestCase):
 
         signature = sign_eip712(typed_data, key)
         self.assertEqual(recover_address_from_eip712_signature(typed_data, signature), v["user"])
+
+    def test_recover_address_from_eip712_signature_burn_note(self):
+        key = generate_ECDSA_private_key()
+        account = Account.from_key(key)
+        x_ciphertext = bytes([0x11]) * BYTES32_SIZE
+        q_ciphertext = bytes([0x12]) * (2 * BYTES32_SIZE)
+        y = 0x44444444444444444444444444444444
+        key_handle = bytes([0x33]) * BYTES32_SIZE
+        token = "0x" + "22" * ADDRESS_SIZE
+
+        typed_data = build_burn_note_typed_data(x_ciphertext, q_ciphertext, y, key_handle, token, account.address, 421614)
+        signature = sign_eip712(typed_data, key)
+        self.assertEqual(recover_address_from_eip712_signature(typed_data, signature), account.address)
+
+        # Tampering the user or the note must change the recovered address.
+        tampered_user = copy.deepcopy(typed_data)
+        tampered_user["message"]["user"] = token
+        self.assertNotEqual(recover_address_from_eip712_signature(tampered_user, signature), account.address)
+
+        tampered_y = copy.deepcopy(typed_data)
+        tampered_y["message"]["y"] = y + 1
+        self.assertNotEqual(recover_address_from_eip712_signature(tampered_y, signature), account.address)
+
+        # The same inputs hash the same in every SDK and in bubble: this digest is pinned in the JS and TS
+        # tests and in bubble's Go tests.
+        signable = encode_typed_data(full_message=build_burn_note_typed_data(
+            x_ciphertext, q_ciphertext, y, key_handle, token, "0x" + "66" * ADDRESS_SIZE, 421614))
+        digest = keccak256(b"\x19" + signable.version + signable.header + signable.body)
+        self.assertEqual(digest.hex(), "3e775a95f7d5a4b9de9234f2b728ba2b1b1c78f373862c54fc55d37595fcd589")
+
+        # Sizes are checked
+        with self.assertRaises(ValueError):
+            build_burn_note_typed_data(x_ciphertext[:-1], q_ciphertext, y, key_handle, token, account.address, 421614)
+        with self.assertRaises(ValueError):
+            build_burn_note_typed_data(x_ciphertext, q_ciphertext, 2 ** 128, key_handle, token, account.address, 421614)
 
     def test_fixedMSG_Signature(self):
         # Arrange

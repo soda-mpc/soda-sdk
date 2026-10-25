@@ -7,7 +7,7 @@ import {
     generateECDSAPrivateKey, generateRSAKeyPair, getFuncSig, HEX_BASE, prepareIT, prepareMessage, signIT, prepareIT256, writeBigUInt256BE, CT_SIZE,
     verifySignatures, extractSignatureComponents, KEY_SIZE, SIGNATURE_SIZE,
     loadAesKey, writeAesKey, signEIP712, buildOnboardUserTypedData, buildEncryptToUserTypedData,
-    buildTransientInsertPermissionTypedData, recoverAddressFromEIP712Signature
+    buildTransientInsertPermissionTypedData, buildBurnNoteTypedData, recoverAddressFromEIP712Signature
 } from "./crypto"
 import fs from 'fs';
 import crypto from 'crypto';
@@ -343,6 +343,45 @@ describe('Crypto Tests', () => {
         assert.strictEqual(ethers.TypedDataEncoder.hashDomain(typedData.domain), v.domainSeparator);
         assert.strictEqual(encoder.hash(typedData.message), v.structHash);
         assert.strictEqual(ethers.TypedDataEncoder.hash(typedData.domain, messageTypes, typedData.message), v.digest);
+    });
+
+    it('should sign and recover the EIP712 burn-note signature', async () => {
+        const key = generateECDSAPrivateKey();
+        const wallet = new ethers.Wallet(ethers.hexlify(key));
+        const user = Buffer.from(wallet.address.slice(2), 'hex');
+        const xCiphertext = Buffer.alloc(32, 0x11);
+        const qCiphertext = Buffer.alloc(64, 0x12);
+        const y = 0x44444444444444444444444444444444n;
+        const keyHandle = Buffer.alloc(32, 0x33);
+        const token = Buffer.alloc(20, 0x22);
+
+        const typedData = buildBurnNoteTypedData(xCiphertext, qCiphertext, y, keyHandle, token, user, 421614);
+        const signature = await signEIP712(typedData, key);
+        assert.strictEqual(recoverAddressFromEIP712Signature(typedData, signature).toLowerCase(), wallet.address.toLowerCase());
+
+        // Tampering the user or the note must change the recovered address.
+        const tamperedUser = structuredClone(typedData);
+        tamperedUser.message.user = ethers.getAddress(ethers.hexlify(token));
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedUser, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+        const tamperedY = structuredClone(typedData);
+        tamperedY.message.y = y + 1n;
+        assert.notStrictEqual(
+            recoverAddressFromEIP712Signature(tamperedY, signature).toLowerCase(),
+            wallet.address.toLowerCase(),
+        );
+
+        // The same inputs hash the same in every SDK and in bubble: this digest is pinned in the Python and
+        // JS tests and in bubble's Go tests.
+        const fixed = buildBurnNoteTypedData(xCiphertext, qCiphertext, y, keyHandle, token, Buffer.alloc(20, 0x66), 421614);
+        const digest = ethers.TypedDataEncoder.hash(fixed.domain, { BurnNote: fixed.types.BurnNote }, fixed.message);
+        assert.strictEqual(digest, '0x3e775a95f7d5a4b9de9234f2b728ba2b1b1c78f373862c54fc55d37595fcd589');
+
+        // Sizes are checked
+        assert.throws(() => buildBurnNoteTypedData(xCiphertext.subarray(1), qCiphertext, y, keyHandle, token, user, 421614));
+        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext, 1n << 128n, keyHandle, token, user, 421614));
     });
 
     // Test case for verify signature
