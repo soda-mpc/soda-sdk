@@ -370,9 +370,21 @@ describe('Crypto Tests', () => {
         const digest = ethers.TypedDataEncoder.hash(fixed.domain, { BurnNote: fixed.types.BurnNote }, fixed.message);
         assert.strictEqual(digest, '0x3e775a95f7d5a4b9de9234f2b728ba2b1b1c78f373862c54fc55d37595fcd589');
 
-        // Sizes are checked
+        // Sizes and types are checked
+        // x is not 32 bytes
         assert.throws(() => buildBurnNoteTypedData(xCiphertext.subarray(1), qCiphertext, y, keyHandle, token, user, 421614));
+        // q is not 64 bytes
+        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext.subarray(1), y, keyHandle, token, user, 421614));
+        // y is above the uint128 range
         assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext, 1n << 128n, keyHandle, token, user, 421614));
+        // y is negative
+        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext, -1n, keyHandle, token, user, 421614));
+        // y is a number, which would have been rounded above 2^53 before the call
+        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext, 1, keyHandle, token, user, 421614));
+        // the key handle is not 32 bytes
+        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext, y, keyHandle.subarray(1), token, user, 421614));
+        // the token is not 20 bytes
+        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext, y, keyHandle, token.subarray(1), user, 421614));
     });
 
     // Test case for verify signature

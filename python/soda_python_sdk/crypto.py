@@ -331,9 +331,11 @@ def build_burn_note_typed_data(x_ciphertext, q_ciphertext, y, key_handle, token,
         raise ValueError(f"x_ciphertext must be exactly {BYTES32_SIZE} bytes, got {len(x_ciphertext)}")
     if len(q_ciphertext) != 2 * BYTES32_SIZE:
         raise ValueError(f"q_ciphertext must be exactly {2 * BYTES32_SIZE} bytes, got {len(q_ciphertext)}")
-    if not 0 <= y < 2 ** 128:
-        raise ValueError("y must be a uint128")
+    if not isinstance(y, int) or isinstance(y, bool) or not 0 <= y < 2 ** 128:
+        raise ValueError("y must be an int in the uint128 range")
     if isinstance(key_handle, int):
+        if not 0 <= key_handle < 2 ** (BYTES32_SIZE * 8):
+            raise ValueError(f"key_handle does not fit in bytes32 (must be 0 <= x < 2**{BYTES32_SIZE * 8})")
         key_handle = key_handle.to_bytes(BYTES32_SIZE, byteorder="big")
     if len(key_handle) != BYTES32_SIZE:
         raise ValueError(f"key_handle must be exactly {BYTES32_SIZE} bytes, got {len(key_handle)}")

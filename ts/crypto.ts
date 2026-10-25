@@ -392,6 +392,15 @@ export function buildTransientInsertPermissionTypedData(
     };
 }
 
+/** Returns `value` as hex, or throws when it is not exactly `size` bytes; `name` names it in the error. */
+function hexOfSize(value: Buffer, size: number, name: string): string {
+    const hex = ethers.hexlify(value);
+    if (ethers.dataLength(hex) !== size) {
+        throw new Error(`${name} must be exactly ${size} bytes, got ${ethers.dataLength(hex)}`);
+    }
+    return hex;
+}
+
 /**
  * Builds EIP-712 typed data for a burn-note request: a user asking bubble to burn a note off-chain.
  *
@@ -404,23 +413,14 @@ export function buildTransientInsertPermissionTypedData(
  * user (64 bytes), y the note's y (a uint128), keyHandle the token's OPRF key handle (32 bytes), token and
  * user addresses (20 bytes each).
  */
-export function buildBurnNoteTypedData(xCiphertext: Buffer, qCiphertext: Buffer, y: bigint | number, keyHandle: Buffer, token: Buffer, user: Buffer, chainId: number) {
-    const xHex = ethers.hexlify(xCiphertext);
-    if (ethers.dataLength(xHex) !== BYTES32_SIZE) {
-        throw new Error(`xCiphertext must be exactly ${BYTES32_SIZE} bytes, got ${ethers.dataLength(xHex)}`);
+export function buildBurnNoteTypedData(xCiphertext: Buffer, qCiphertext: Buffer, y: bigint, keyHandle: Buffer, token: Buffer, user: Buffer, chainId: number) {
+    const xHex = hexOfSize(xCiphertext, BYTES32_SIZE, "xCiphertext");
+    const qHex = hexOfSize(qCiphertext, 2 * BYTES32_SIZE, "qCiphertext");
+    // A number would round y above 2^53 before any check could see it, so only a bigint is accepted.
+    if (typeof y !== "bigint" || y < 0n || y >= (1n << 128n)) {
+        throw new Error("y must be a bigint in the uint128 range");
     }
-    const qHex = ethers.hexlify(qCiphertext);
-    if (ethers.dataLength(qHex) !== 2 * BYTES32_SIZE) {
-        throw new Error(`qCiphertext must be exactly ${2 * BYTES32_SIZE} bytes, got ${ethers.dataLength(qHex)}`);
-    }
-    const yValue = BigInt(y);
-    if (yValue < 0n || yValue >= (1n << 128n)) {
-        throw new Error("y must be a uint128");
-    }
-    const keyHex = ethers.hexlify(keyHandle);
-    if (ethers.dataLength(keyHex) !== BYTES32_SIZE) {
-        throw new Error(`keyHandle must be exactly ${BYTES32_SIZE} bytes, got ${ethers.dataLength(keyHex)}`);
-    }
+    const keyHex = hexOfSize(keyHandle, BYTES32_SIZE, "keyHandle");
 
     return {
         types: {
@@ -439,7 +439,7 @@ export function buildBurnNoteTypedData(xCiphertext: Buffer, qCiphertext: Buffer,
         message: {
             xCiphertext: xHex,
             qCiphertext: qHex,
-            y: yValue,
+            y,
             keyHandle: keyHex,
             token: ethers.getAddress(ethers.hexlify(token)),
             user: ethers.getAddress(ethers.hexlify(user)),
