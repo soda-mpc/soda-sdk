@@ -399,7 +399,7 @@ def verify_signatures(message, signatures, signers, N=1, T=1):
     different evaluators' operators plus one Soda signature is six valid signatures and not one evaluator
     that attested the result in full, so a signature count would accept a result no evaluator stands behind.
 
-    It mirrors _verifySignaturesDigest in GCDecryptionVerifier.sol, the normative statement of the rule.
+    It mirrors _verifySignaturesDigest in GCVerifier.sol, the normative statement of the rule.
     Where the two differ the contract is right: a result the chain accepts and this rejects, or the reverse,
     is a bug here.
 
