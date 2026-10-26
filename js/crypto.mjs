@@ -349,6 +349,59 @@ export function buildTransientInsertPermissionTypedData(nonce, user, contractAdd
     };
 }
 
+// Returns `value` as hex, or throws when it is not exactly `size` bytes; `name` names it in the error.
+function hexOfSize(value, size, name) {
+    const hex = ethers.hexlify(value);
+    if (ethers.dataLength(hex) !== size) {
+        throw new Error(`${name} must be exactly ${size} bytes, got ${ethers.dataLength(hex)}`);
+    }
+    return hex;
+}
+
+// Builds EIP-712 typed data for a burn-note request: a user asking bubble to burn a note off-chain.
+//
+// It is bubble's own request domain, like the two builders above, not the verifier's: the signature
+// authorizes bubble to run the burn for `user`, and it is what binds `user` to the request. The evaluators'
+// NoteBurn signature, under the verifier's domain, is what the chain checks afterwards. Must match
+// BuildBurnNoteTypedData in bubble's core/services/internals/eip712.go.
+//
+// xCiphertext is the note's x encrypted to the user (32 bytes), qCiphertext its quantity encrypted to the
+// user (64 bytes), y the note's y (a uint128, as a bigint), keyHandle the token's OPRF key handle
+// (32 bytes), token and user addresses (20 bytes each).
+export function buildBurnNoteTypedData(xCiphertext, qCiphertext, y, keyHandle, token, user, chainId) {
+    const xHex = hexOfSize(xCiphertext, BYTES32_SIZE, "xCiphertext");
+    const qHex = hexOfSize(qCiphertext, 2 * BYTES32_SIZE, "qCiphertext");
+    // A number would round y above 2^53 before any check could see it, so only a bigint is accepted.
+    if (typeof y !== "bigint" || y < 0n || y >= (1n << 128n)) {
+        throw new Error("y must be a bigint in the uint128 range");
+    }
+    const keyHex = hexOfSize(keyHandle, BYTES32_SIZE, "keyHandle");
+
+    return {
+        types: {
+            ...buildEIP712DomainTypes(),
+            BurnNote: [
+                { name: "xCiphertext", type: "bytes32" },
+                { name: "qCiphertext", type: "bytes" },
+                { name: "y", type: "uint128" },
+                { name: "keyHandle", type: "bytes32" },
+                { name: "token", type: "address" },
+                { name: "user", type: "address" },
+            ],
+        },
+        primaryType: "BurnNote",
+        domain: buildEIP712Domain(chainId),
+        message: {
+            xCiphertext: xHex,
+            qCiphertext: qHex,
+            y,
+            keyHandle: keyHex,
+            token: ethers.getAddress(ethers.hexlify(token)),
+            user: ethers.getAddress(ethers.hexlify(user)),
+        },
+    };
+}
+
 export async function signEIP712(typedData, key) {
     const wallet = new ethers.Wallet(ethers.hexlify(key));
     const messageTypes = { [typedData.primaryType]: typedData.types[typedData.primaryType] };

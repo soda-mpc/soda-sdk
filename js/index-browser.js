@@ -10,6 +10,7 @@ export {
     buildOnboardUserTypedData,
     buildEncryptToUserTypedData,
     buildTransientInsertPermissionTypedData,
+    buildBurnNoteTypedData,
     recoverAddressFromEIP712Signature,
     prepareMessage,
     prepareIT,
