@@ -352,10 +352,9 @@ describe('Crypto Tests', () => {
         const xCiphertext = Buffer.alloc(32, 0x11);
         const qCiphertext = Buffer.alloc(64, 0x12);
         const y = 0x44444444444444444444444444444444n;
-        const keyHandle = Buffer.alloc(32, 0x33);
         const token = Buffer.alloc(20, 0x22);
 
-        const typedData = buildBurnNoteTypedData(xCiphertext, qCiphertext, y, keyHandle, token, user, 421614);
+        const typedData = buildBurnNoteTypedData(xCiphertext, qCiphertext, y, token, user, 421614);
         const signature = await signEIP712(typedData, key);
         assert.strictEqual(recoverAddressFromEIP712Signature(typedData, signature).toLowerCase(), wallet.address.toLowerCase());
 
@@ -375,25 +374,23 @@ describe('Crypto Tests', () => {
 
         // The same inputs hash the same in every SDK and in bubble: this digest is pinned in the Python and
         // JS tests and in bubble's Go tests.
-        const fixed = buildBurnNoteTypedData(xCiphertext, qCiphertext, y, keyHandle, token, Buffer.alloc(20, 0x66), 421614);
+        const fixed = buildBurnNoteTypedData(xCiphertext, qCiphertext, y, token, Buffer.alloc(20, 0x66), 421614);
         const digest = ethers.TypedDataEncoder.hash(fixed.domain, { BurnNote: fixed.types.BurnNote }, fixed.message);
-        assert.strictEqual(digest, '0x3e775a95f7d5a4b9de9234f2b728ba2b1b1c78f373862c54fc55d37595fcd589');
+        assert.strictEqual(digest, '0x3c77efbef2bf64c81279588f141b16f76e6bb2bf3814617b80231d6edcde9f29');
 
         // Sizes and types are checked
         // x is not 32 bytes
-        assert.throws(() => buildBurnNoteTypedData(xCiphertext.subarray(1), qCiphertext, y, keyHandle, token, user, 421614));
+        assert.throws(() => buildBurnNoteTypedData(xCiphertext.subarray(1), qCiphertext, y, token, user, 421614));
         // q is not 64 bytes
-        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext.subarray(1), y, keyHandle, token, user, 421614));
+        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext.subarray(1), y, token, user, 421614));
         // y is above the uint128 range
-        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext, 1n << 128n, keyHandle, token, user, 421614));
+        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext, 1n << 128n, token, user, 421614));
         // y is negative
-        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext, -1n, keyHandle, token, user, 421614));
+        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext, -1n, token, user, 421614));
         // y is a number, which would have been rounded above 2^53 before the call
-        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext, 1 as unknown as bigint, keyHandle, token, user, 421614));
-        // the key handle is not 32 bytes
-        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext, y, keyHandle.subarray(1), token, user, 421614));
+        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext, 1 as unknown as bigint, token, user, 421614));
         // the token is not 20 bytes
-        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext, y, keyHandle, token.subarray(1), user, 421614));
+        assert.throws(() => buildBurnNoteTypedData(xCiphertext, qCiphertext, y, token.subarray(1), user, 421614));
     });
 
     // Test case for verify signature
