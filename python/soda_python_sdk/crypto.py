@@ -315,7 +315,7 @@ def build_transient_insert_permission_typed_data(nonce, user, contract_address, 
     }
 
 
-def build_burn_note_typed_data(x_ciphertext, q_ciphertext, y, key_handle, token, user, chain_id):
+def build_burn_note_typed_data(x_ciphertext, q_ciphertext, y, token, user, chain_id):
     """Build EIP-712 typed data for a burn-note request: a user asking bubble to burn a note off-chain.
 
     It is bubble's own request domain, like the two builders above, not the verifier's: the signature
@@ -324,8 +324,8 @@ def build_burn_note_typed_data(x_ciphertext, q_ciphertext, y, key_handle, token,
     BuildBurnNoteTypedData in bubble's core/services/internals/eip712.go.
 
     x_ciphertext is the note's x encrypted to the user (32 bytes), q_ciphertext its quantity encrypted to the
-    user (64 bytes), y the note's y as an int (a uint128), key_handle the token's OPRF key handle as an int or
-    32 bytes, token and user addresses.
+    user (64 bytes), y the note's y as an int (a uint128), token and user addresses. The key is not part of
+    the request: bubble reads it from the token.
     """
     if len(x_ciphertext) != BYTES32_SIZE:
         raise ValueError(f"x_ciphertext must be exactly {BYTES32_SIZE} bytes, got {len(x_ciphertext)}")
@@ -333,12 +333,6 @@ def build_burn_note_typed_data(x_ciphertext, q_ciphertext, y, key_handle, token,
         raise ValueError(f"q_ciphertext must be exactly {2 * BYTES32_SIZE} bytes, got {len(q_ciphertext)}")
     if not isinstance(y, int) or isinstance(y, bool) or not 0 <= y < 2 ** 128:
         raise ValueError("y must be an int in the uint128 range")
-    if isinstance(key_handle, int):
-        if not 0 <= key_handle < 2 ** (BYTES32_SIZE * 8):
-            raise ValueError(f"key_handle does not fit in bytes32 (must be 0 <= x < 2**{BYTES32_SIZE * 8})")
-        key_handle = key_handle.to_bytes(BYTES32_SIZE, byteorder="big")
-    if len(key_handle) != BYTES32_SIZE:
-        raise ValueError(f"key_handle must be exactly {BYTES32_SIZE} bytes, got {len(key_handle)}")
 
     return {
         "types": {
@@ -347,7 +341,6 @@ def build_burn_note_typed_data(x_ciphertext, q_ciphertext, y, key_handle, token,
                 {"name": "xCiphertext", "type": "bytes32"},
                 {"name": "qCiphertext", "type": "bytes"},
                 {"name": "y", "type": "uint128"},
-                {"name": "keyHandle", "type": "bytes32"},
                 {"name": "token", "type": "address"},
                 {"name": "user", "type": "address"},
             ],
@@ -358,7 +351,6 @@ def build_burn_note_typed_data(x_ciphertext, q_ciphertext, y, key_handle, token,
             "xCiphertext": "0x" + bytes(x_ciphertext).hex(),
             "qCiphertext": "0x" + bytes(q_ciphertext).hex(),
             "y": y,
-            "keyHandle": "0x" + bytes(key_handle).hex(),
             "token": Web3.to_checksum_address(token),
             "user": Web3.to_checksum_address(user),
         },

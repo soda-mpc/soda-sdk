@@ -316,10 +316,9 @@ class TestMpcHelper(unittest.TestCase):
         x_ciphertext = bytes([0x11]) * BYTES32_SIZE
         q_ciphertext = bytes([0x12]) * (2 * BYTES32_SIZE)
         y = 0x44444444444444444444444444444444
-        key_handle = bytes([0x33]) * BYTES32_SIZE
         token = "0x" + "22" * ADDRESS_SIZE
 
-        typed_data = build_burn_note_typed_data(x_ciphertext, q_ciphertext, y, key_handle, token, account.address, 421614)
+        typed_data = build_burn_note_typed_data(x_ciphertext, q_ciphertext, y, token, account.address, 421614)
         signature = sign_eip712(typed_data, key)
         self.assertEqual(recover_address_from_eip712_signature(typed_data, signature), account.address)
 
@@ -335,33 +334,23 @@ class TestMpcHelper(unittest.TestCase):
         # The same inputs hash the same in every SDK and in bubble: this digest is pinned in the JS and TS
         # tests and in bubble's Go tests.
         signable = encode_typed_data(full_message=build_burn_note_typed_data(
-            x_ciphertext, q_ciphertext, y, key_handle, token, "0x" + "66" * ADDRESS_SIZE, 421614))
+            x_ciphertext, q_ciphertext, y, token, "0x" + "66" * ADDRESS_SIZE, 421614))
         digest = keccak256(b"\x19" + signable.version + signable.header + signable.body)
-        self.assertEqual(digest.hex(), "3e775a95f7d5a4b9de9234f2b728ba2b1b1c78f373862c54fc55d37595fcd589")
-
-        # The key handle may be given as an int; it builds the same typed data as the bytes form.
-        self.assertEqual(
-            build_burn_note_typed_data(x_ciphertext, q_ciphertext, y, int.from_bytes(key_handle, "big"), token,
-                                       account.address, 421614),
-            typed_data)
+        self.assertEqual(digest.hex(), "3c77efbef2bf64c81279588f141b16f76e6bb2bf3814617b80231d6edcde9f29")
 
         # Sizes and types are checked
         with self.assertRaises(ValueError):  # x is not 32 bytes
-            build_burn_note_typed_data(x_ciphertext[:-1], q_ciphertext, y, key_handle, token, account.address, 421614)
+            build_burn_note_typed_data(x_ciphertext[:-1], q_ciphertext, y, token, account.address, 421614)
         with self.assertRaises(ValueError):  # q is not 64 bytes
-            build_burn_note_typed_data(x_ciphertext, q_ciphertext[:-1], y, key_handle, token, account.address, 421614)
+            build_burn_note_typed_data(x_ciphertext, q_ciphertext[:-1], y, token, account.address, 421614)
         with self.assertRaises(ValueError):  # y is above the uint128 range
-            build_burn_note_typed_data(x_ciphertext, q_ciphertext, 2 ** 128, key_handle, token, account.address, 421614)
+            build_burn_note_typed_data(x_ciphertext, q_ciphertext, 2 ** 128, token, account.address, 421614)
         with self.assertRaises(ValueError):  # y is negative
-            build_burn_note_typed_data(x_ciphertext, q_ciphertext, -1, key_handle, token, account.address, 421614)
+            build_burn_note_typed_data(x_ciphertext, q_ciphertext, -1, token, account.address, 421614)
         with self.assertRaises(ValueError):  # y is a float, which the uint128 encoder would reject later
-            build_burn_note_typed_data(x_ciphertext, q_ciphertext, 1.0, key_handle, token, account.address, 421614)
-        with self.assertRaises(ValueError):  # the key handle is not 32 bytes
-            build_burn_note_typed_data(x_ciphertext, q_ciphertext, y, key_handle[:-1], token, account.address, 421614)
-        with self.assertRaises(ValueError):  # the key handle as an int does not fit in bytes32
-            build_burn_note_typed_data(x_ciphertext, q_ciphertext, y, 2 ** 256, token, account.address, 421614)
+            build_burn_note_typed_data(x_ciphertext, q_ciphertext, 1.0, token, account.address, 421614)
         with self.assertRaises(ValueError):  # the token is not an address
-            build_burn_note_typed_data(x_ciphertext, q_ciphertext, y, key_handle, token[:-1], account.address, 421614)
+            build_burn_note_typed_data(x_ciphertext, q_ciphertext, y, token[:-1], account.address, 421614)
 
     def test_fixedMSG_Signature(self):
         # Arrange

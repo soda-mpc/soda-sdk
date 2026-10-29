@@ -366,16 +366,15 @@ function hexOfSize(value, size, name) {
 // BuildBurnNoteTypedData in bubble's core/services/internals/eip712.go.
 //
 // xCiphertext is the note's x encrypted to the user (32 bytes), qCiphertext its quantity encrypted to the
-// user (64 bytes), y the note's y (a uint128, as a bigint), keyHandle the token's OPRF key handle
-// (32 bytes), token and user addresses (20 bytes each).
-export function buildBurnNoteTypedData(xCiphertext, qCiphertext, y, keyHandle, token, user, chainId) {
+// user (64 bytes), y the note's y (a uint128, as a bigint), token and user addresses (20 bytes each). The
+// key is not part of the request: bubble reads it from the token.
+export function buildBurnNoteTypedData(xCiphertext, qCiphertext, y, token, user, chainId) {
     const xHex = hexOfSize(xCiphertext, BYTES32_SIZE, "xCiphertext");
     const qHex = hexOfSize(qCiphertext, 2 * BYTES32_SIZE, "qCiphertext");
     // A number would round y above 2^53 before any check could see it, so only a bigint is accepted.
     if (typeof y !== "bigint" || y < 0n || y >= (1n << 128n)) {
         throw new Error("y must be a bigint in the uint128 range");
     }
-    const keyHex = hexOfSize(keyHandle, BYTES32_SIZE, "keyHandle");
 
     return {
         types: {
@@ -384,7 +383,6 @@ export function buildBurnNoteTypedData(xCiphertext, qCiphertext, y, keyHandle, t
                 { name: "xCiphertext", type: "bytes32" },
                 { name: "qCiphertext", type: "bytes" },
                 { name: "y", type: "uint128" },
-                { name: "keyHandle", type: "bytes32" },
                 { name: "token", type: "address" },
                 { name: "user", type: "address" },
             ],
@@ -395,7 +393,6 @@ export function buildBurnNoteTypedData(xCiphertext, qCiphertext, y, keyHandle, t
             xCiphertext: xHex,
             qCiphertext: qHex,
             y,
-            keyHandle: keyHex,
             token: ethers.getAddress(ethers.hexlify(token)),
             user: ethers.getAddress(ethers.hexlify(user)),
         },
